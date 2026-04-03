@@ -1,4 +1,7 @@
+import asyncio
+
 from telegram import ReplyKeyboardMarkup, KeyboardButton, Update
+from telegram.constants import ChatAction
 from telegram.ext import (
     ContextTypes,
     ConversationHandler,
@@ -7,6 +10,7 @@ from telegram.ext import (
 )
 
 from database import ensure_user, get_user, get_user_references, get_reference
+from utils import type_message
 
 # ---------------------------------------------------------------------------
 # Кнопки меню
@@ -41,8 +45,9 @@ def main_menu() -> ReplyKeyboardMarkup:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await ensure_user(user.id, user.username)
-    await update.message.reply_text(
+    await type_message(
         f"Привет, {user.first_name}!\n\nВыбери действие в меню ниже.",
+        reply_to=update.message,
         reply_markup=main_menu(),
     )
 
@@ -68,6 +73,8 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Эталонов для видео: <b>{video_count}</b>\n"
         f"Баланс: <b>{balance}</b> руб."
     )
+    await context.bot.send_chat_action(update.effective_chat.id, ChatAction.TYPING)
+    await asyncio.sleep(0.8)
     await update.message.reply_text(text, parse_mode="HTML")
 
 
@@ -76,8 +83,9 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 async def photo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Введите артикул товара Wildberries для создания фото:"
+    await type_message(
+        "Введите артикул товара Wildberries для создания фото:",
+        reply_to=update.message,
     )
     return WAITING_ARTICUL_PHOTO
 
@@ -87,8 +95,9 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
     user_id = update.effective_user.id
 
     if not articul.isdigit():
-        await update.message.reply_text(
-            "Артикул должен состоять только из цифр. Попробуйте ещё раз:"
+        await type_message(
+            "Артикул должен состоять только из цифр. Попробуйте ещё раз:",
+            reply_to=update.message,
         )
         return WAITING_ARTICUL_PHOTO
 
@@ -100,11 +109,11 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
             caption=f"Эталон для артикула {articul}",
         )
     else:
-        await update.message.reply_text(
-            f"Эталон для артикула {articul} не найден.\n"
-            "Начинаем создание эталона..."
-            # TODO: запустить workflow создания эталона
+        await type_message(
+            f"Эталон для артикула {articul} не найден.\nНачинаем создание эталона...",
+            reply_to=update.message,
         )
+        # TODO: запустить workflow создания эталона
 
     return ConversationHandler.END
 
@@ -114,8 +123,9 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
 # ---------------------------------------------------------------------------
 
 async def video_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Введите артикул товара Wildberries для получения видео-эталона:"
+    await type_message(
+        "Введите артикул товара Wildberries для получения видео-эталона:",
+        reply_to=update.message,
     )
     return WAITING_ARTICUL_VIDEO
 
@@ -125,8 +135,9 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
     user_id = update.effective_user.id
 
     if not articul.isdigit():
-        await update.message.reply_text(
-            "Артикул должен состоять только из цифр. Попробуйте ещё раз:"
+        await type_message(
+            "Артикул должен состоять только из цифр. Попробуйте ещё раз:",
+            reply_to=update.message,
         )
         return WAITING_ARTICUL_VIDEO
 
@@ -138,11 +149,11 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
             caption=f"Видео-эталон для артикула {articul}",
         )
     else:
-        await update.message.reply_text(
-            f"Видео-эталон для артикула {articul} не найден.\n"
-            "Начинаем создание эталона..."
-            # TODO: запустить workflow создания эталона
+        await type_message(
+            f"Видео-эталон для артикула {articul} не найден.\nНачинаем создание эталона...",
+            reply_to=update.message,
         )
+        # TODO: запустить workflow создания эталона
 
     return ConversationHandler.END
 
@@ -152,8 +163,9 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
 # ---------------------------------------------------------------------------
 
 async def idea(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Напишите вашу идею напрямую: @work_wb01\n\nМы рассмотрим каждое предложение!"
+    await type_message(
+        "Напишите вашу идею напрямую: @work_wb01\n\nМы рассмотрим каждое предложение!",
+        reply_to=update.message,
     )
 
 
@@ -168,6 +180,8 @@ async def pricing(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🎬 Создание видео-эталона — <b>XX руб.</b>\n\n"
         "По вопросам тарифов: @work_wb01"
     )
+    await context.bot.send_chat_action(update.effective_chat.id, ChatAction.TYPING)
+    await asyncio.sleep(0.8)
     await update.message.reply_text(text, parse_mode="HTML")
 
 
@@ -176,8 +190,9 @@ async def pricing(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Если у вас возникли вопросы или нужна помощь — напишите нам: @work_wb01"
+    await type_message(
+        "Если у вас возникли вопросы или нужна помощь — напишите нам: @work_wb01",
+        reply_to=update.message,
     )
 
 
