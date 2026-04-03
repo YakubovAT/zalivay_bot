@@ -10,7 +10,6 @@ from telegram.ext import (
 
 from database import ensure_user, is_registered, save_registration, reset_registration
 from handlers.menu import main_menu, BTN_RESTART
-from utils import type_message, type_send
 
 # ---------------------------------------------------------------------------
 # Состояния
@@ -33,9 +32,8 @@ async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
     )
-    await type_message(
+    await update.message.reply_text(
         "Снижаем затраты на рекламу\nчерез AI-контент 🚀",
-        reply_to=update.message,
         reply_markup=keyboard,
     )
     return ONBOARD_STEP1
@@ -50,9 +48,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await ensure_user(user.id, user.username)
 
     if await is_registered(user.id):
-        await type_message(
+        await update.message.reply_text(
             f"С возвращением, {user.first_name}! Выберите действие:",
-            reply_to=update.message,
             reply_markup=main_menu(),
         )
         return ConversationHandler.END
@@ -60,9 +57,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
     )
-    await type_message(
+    await update.message.reply_text(
         "Снижаем затраты на рекламу\nчерез AI-контент 🚀",
-        reply_to=update.message,
         reply_markup=keyboard,
     )
     return ONBOARD_STEP1
@@ -165,8 +161,7 @@ async def step4_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await save_registration(user_id, ad_budget, articles_count)
 
     await query.edit_message_text("Отлично! Добро пожаловать 🎉")
-    await type_send(
-        context,
+    await context.bot.send_message(
         chat_id=user_id,
         text="Выберите действие в меню ниже:",
         reply_markup=main_menu(),
