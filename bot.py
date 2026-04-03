@@ -12,7 +12,7 @@ from handlers import (
     pricing,
     help_cmd,
 )
-from handlers.menu import BTN_PROFILE, BTN_IDEA, BTN_PRICING, BTN_HELP
+from handlers.menu import BTN_PROFILE, BTN_IDEA, BTN_PRICING, BTN_HELP, BTN_RESTART
 from handlers.action_logger import log_message, log_callback
 
 logging.basicConfig(

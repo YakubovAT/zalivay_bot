@@ -4,10 +4,12 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
     ConversationHandler,
+    MessageHandler,
+    filters,
 )
 
-from database import ensure_user, is_registered, save_registration
-from handlers.menu import main_menu
+from database import ensure_user, is_registered, save_registration, reset_registration
+from handlers.menu import main_menu, BTN_RESTART
 
 # ---------------------------------------------------------------------------
 # Состояния
@@ -17,6 +19,25 @@ ONBOARD_STEP1 = 10
 ONBOARD_STEP2 = 11
 ONBOARD_STEP3 = 12
 ONBOARD_STEP4 = 13
+
+# ---------------------------------------------------------------------------
+# Перезапуск онбординга
+# ---------------------------------------------------------------------------
+
+async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    await reset_registration(user.id)
+    context.user_data.clear()
+
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
+    )
+    await update.message.reply_text(
+        "Снижаем затраты на рекламу\nчерез AI-контент 🚀",
+        reply_markup=keyboard,
+    )
+    return ONBOARD_STEP1
+
 
 # ---------------------------------------------------------------------------
 # Шаг 0 — /start
@@ -154,7 +175,10 @@ async def step4_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def build_registration_handler() -> ConversationHandler:
     return ConversationHandler(
-        entry_points=[CommandHandler("start", cmd_start)],
+        entry_points=[
+            CommandHandler("start", cmd_start),
+            MessageHandler(filters.Regex(f"^{BTN_RESTART}$"), restart),
+        ],
         states={
             ONBOARD_STEP1: [CallbackQueryHandler(step1_next,     pattern="^onboard_step1$")],
             ONBOARD_STEP2: [CallbackQueryHandler(step2_budget,   pattern="^budget_[abcd]$")],

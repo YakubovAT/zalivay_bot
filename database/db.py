@@ -83,6 +83,19 @@ async def log_user_action(user_id: int, username: str | None, action_type: str, 
     )
 
 
+async def reset_registration(user_id: int):
+    """Сбрасывает регистрацию пользователя для повторного прохождения онбординга."""
+    pool = await get_pool()
+    await pool.execute(
+        """
+        UPDATE users
+        SET ad_budget = NULL, articles_count = NULL, is_registered = FALSE
+        WHERE user_id = $1
+        """,
+        user_id,
+    )
+
+
 async def get_reference(user_id: int, articul: str, ref_type: str) -> asyncpg.Record | None:
     pool = await get_pool()
     return await pool.fetchrow(

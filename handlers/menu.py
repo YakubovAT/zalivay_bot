@@ -18,6 +18,7 @@ BTN_VIDEO   = "Видео"
 BTN_IDEA    = "Есть идея"
 BTN_PRICING = "Прайс"
 BTN_HELP    = "Помощь"
+BTN_RESTART    = "Перезапуск"
 
 # Состояния ConversationHandler
 WAITING_ARTICUL_PHOTO = 1
@@ -26,8 +27,9 @@ WAITING_ARTICUL_VIDEO = 2
 
 def main_menu() -> ReplyKeyboardMarkup:
     keyboard = [
-        [KeyboardButton(BTN_PROFILE), KeyboardButton(BTN_PHOTO),   KeyboardButton(BTN_VIDEO)],
-        [KeyboardButton(BTN_IDEA),    KeyboardButton(BTN_PRICING),  KeyboardButton(BTN_HELP)],
+        [KeyboardButton(BTN_PROFILE), KeyboardButton(BTN_PHOTO),    KeyboardButton(BTN_VIDEO)],
+        [KeyboardButton(BTN_IDEA),    KeyboardButton(BTN_PRICING),   KeyboardButton(BTN_HELP)],
+        [KeyboardButton(BTN_RESTART)],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
