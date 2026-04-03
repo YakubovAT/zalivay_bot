@@ -102,7 +102,7 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
     else:
         await update.message.reply_text(
             f"Эталон для артикула {articul} не найден.\n"
-            "Начинаем создание эталона..."
+            "Начинаем создание эталона?"
             # TODO: запустить workflow создания эталона
         )
 
@@ -140,7 +140,7 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
     else:
         await update.message.reply_text(
             f"Видео-эталон для артикула {articul} не найден.\n"
-            "Начинаем создание эталона..."
+            "Начинаем создание эталона?"
             # TODO: запустить workflow создания эталона
         )
 
