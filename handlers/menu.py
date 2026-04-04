@@ -19,6 +19,7 @@ BTN_VIDEO   = "Видео"
 BTN_IDEA    = "Есть идея"
 BTN_PRICING = "Прайс"
 BTN_HELP    = "Помощь"
+BTN_RESTART    = "Перезапуск"
 
 # Состояния ConversationHandler
 WAITING_ARTICUL_PHOTO = 1
@@ -27,8 +28,9 @@ WAITING_ARTICUL_VIDEO = 2
 
 def main_menu() -> ReplyKeyboardMarkup:
     keyboard = [
-        [KeyboardButton(BTN_PROFILE), KeyboardButton(BTN_PHOTO),   KeyboardButton(BTN_VIDEO)],
-        [KeyboardButton(BTN_IDEA),    KeyboardButton(BTN_PRICING),  KeyboardButton(BTN_HELP)],
+        [KeyboardButton(BTN_PROFILE), KeyboardButton(BTN_PHOTO),    KeyboardButton(BTN_VIDEO)],
+        [KeyboardButton(BTN_IDEA),    KeyboardButton(BTN_PRICING),   KeyboardButton(BTN_HELP)],
+        [KeyboardButton(BTN_RESTART)],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -158,8 +160,14 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         )
     else:
         await update.message.reply_text(
+<<<<<<< HEAD
             "📋 Эталон ещё не создан. Запускаем генерацию...\n"
             "# TODO: запустить workflow создания эталона"
+=======
+            f"Эталон для артикула {articul} не найден.\n"
+            "Начинаем создание эталона?"
+            # TODO: запустить workflow создания эталона
+>>>>>>> a13a4c9d1e26dc3f926d1b9b4eba8f4b7836b8e6
         )
 
     return ConversationHandler.END
@@ -246,8 +254,14 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         )
     else:
         await update.message.reply_text(
+<<<<<<< HEAD
             "📋 Видео-эталон ещё не создан. Запускаем генерацию...\n"
             "# TODO: запустить workflow создания видео-эталона"
+=======
+            f"Видео-эталон для артикула {articul} не найден.\n"
+            "Начинаем создание эталона?"
+            # TODO: запустить workflow создания эталона
+>>>>>>> a13a4c9d1e26dc3f926d1b9b4eba8f4b7836b8e6
         )
 
     return ConversationHandler.END
