@@ -8,6 +8,8 @@ from .db import (
     log_user_action,
     get_user_references,
     get_reference,
+    get_marketplace_cache,
+    save_marketplace_cache,
 )
 
 __all__ = [
@@ -20,4 +22,6 @@ __all__ = [
     "log_user_action",
     "get_user_references",
     "get_reference",
+    "get_marketplace_cache",
+    "save_marketplace_cache",
 ]

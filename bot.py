@@ -1,5 +1,7 @@
 import logging
+import sys
 
+import aiohttp
 from telegram.ext import Application, CallbackQueryHandler, MessageHandler, filters
 
 from config import BOT_TOKEN
@@ -22,16 +24,40 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def on_startup(application: Application):
+async def on_startup(application: Application) -> None:
+    # Валидация обязательных переменных окружения при старте
+    if not BOT_TOKEN:
+        logger.critical("BOT_TOKEN не задан. Установите переменную окружения BOT_TOKEN.")
+        sys.exit(1)
+
+    # Глобальный HTTP-клиент — один на весь lifecycle бота.
+    # Передаётся в handlers через context.bot_data["http_session"].
+    # Переиспользует TCP-соединения, не создаёт новый Session на каждый запрос.
+    connector = aiohttp.TCPConnector(limit=20, ttl_dns_cache=300)
+    application.bot_data["http_session"] = aiohttp.ClientSession(
+        connector=connector,
+        timeout=aiohttp.ClientTimeout(connect=2, total=4),
+    )
+    logger.info("HTTP-сессия создана")
+
     await init_db()
     logger.info("БД инициализирована")
 
 
-def main():
+async def on_shutdown(application: Application) -> None:
+    # Корректное закрытие HTTP-сессии при остановке бота
+    session: aiohttp.ClientSession | None = application.bot_data.get("http_session")
+    if session and not session.closed:
+        await session.close()
+        logger.info("HTTP-сессия закрыта")
+
+
+def main() -> None:
     application = (
         Application.builder()
         .token(BOT_TOKEN)
         .post_init(on_startup)
+        .post_shutdown(on_shutdown)
         .build()
     )
 

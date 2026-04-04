@@ -96,3 +96,34 @@ async def get_reference(user_id: int, articul: str, ref_type: str) -> asyncpg.Re
         articul,
         ref_type,
     )
+
+
+# ---------------------------------------------------------------------------
+# Кэш маркетплейса
+# ---------------------------------------------------------------------------
+
+async def get_marketplace_cache(user_id: int, article: str) -> str | None:
+    """Возвращает закэшированный маркетплейс ('WB' | 'OZON') или None."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT marketplace FROM marketplace_cache WHERE user_id = $1 AND article = $2",
+        user_id,
+        article,
+    )
+    return row["marketplace"] if row else None
+
+
+async def save_marketplace_cache(user_id: int, article: str, marketplace: str) -> None:
+    """Сохраняет результат валидации. Вызывается ТОЛЬКО при confidence=1.0."""
+    pool = await get_pool()
+    await pool.execute(
+        """
+        INSERT INTO marketplace_cache (user_id, article, marketplace)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id, article)
+        DO UPDATE SET marketplace = EXCLUDED.marketplace, cached_at = NOW()
+        """,
+        user_id,
+        article,
+        marketplace,
+    )

@@ -7,6 +7,7 @@ from telegram.ext import (
 )
 
 from database import ensure_user, get_user, get_user_references, get_reference
+from services.marketplace import resolve_marketplace
 
 # ---------------------------------------------------------------------------
 # Кнопки меню
@@ -81,27 +82,84 @@ async def photo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    articul = update.message.text.strip()
     user_id = update.effective_user.id
+    raw = update.message.text
 
-    if not articul.isdigit():
+    # Прогресс — показываем пока идёт запрос к WB API
+    status_msg = await update.message.reply_text("🔍 Определяю маркетплейс...")
+
+    session = context.bot_data.get("http_session")
+    result = await resolve_marketplace(raw, user_id, session)
+
+    await status_msg.delete()
+
+    # --- Ошибки ---
+    if "error" in result:
+        err = result["error"]
+        if err == "invalid_format":
+            await update.message.reply_text(
+                f"❌ {result['message']}\n\nВведите артикул ещё раз:"
+            )
+            return WAITING_ARTICUL_PHOTO
+        if err == "api_unavailable":
+            await update.message.reply_text(
+                f"⏳ {result['message']}\n\nПопробуйте через несколько секунд:"
+            )
+            return WAITING_ARTICUL_PHOTO
+        # not_found или неизвестная ошибка
         await update.message.reply_text(
-            "Артикул должен состоять только из цифр. Попробуйте ещё раз:"
+            "❌ Товар не найден ни на WB, ни на OZON.\n"
+            "Проверьте артикул и попробуйте ещё раз:"
         )
         return WAITING_ARTICUL_PHOTO
 
-    ref = await get_reference(user_id, articul, "photo")
+    # --- Маркетплейс определён ---
+    marketplace = result["marketplace"]
+    meta        = result.get("meta", {})
+    method      = result.get("method", "")
+    articul     = raw.strip()
 
+    mp_label = "Wildberries 🟣" if marketplace == "WB" else "OZON 🔵"
+    confidence_note = (
+        "\n\n⚠️ <i>Товар не найден на WB — предполагаем OZON. "
+        "Если это неверно, проверьте артикул.</i>"
+        if result.get("confidence", 1.0) < 1.0 else ""
+    )
+
+    # Собираем строку мета-данных если WB вернул их
+    meta_lines = []
+    if meta.get("name"):
+        meta_lines.append(f"📦 <b>{meta['name']}</b>")
+    if meta.get("brand"):
+        meta_lines.append(f"🏷 {meta['brand']}")
+    if meta.get("color"):
+        meta_lines.append(f"🎨 {meta['color']}")
+    meta_block = "\n".join(meta_lines)
+    if meta_block:
+        meta_block = f"\n\n{meta_block}"
+
+    await update.message.reply_text(
+        f"✅ Артикул <code>{articul}</code> найден на {mp_label}"
+        f"{meta_block}"
+        f"{confidence_note}\n\n"
+        f"⏳ Начинается сбор информации о товаре...",
+        parse_mode="HTML",
+    )
+
+    # Сохраняем артикул и МП в user_data для следующих шагов
+    context.user_data["current_article"]     = articul
+    context.user_data["current_marketplace"] = marketplace
+
+    ref = await get_reference(user_id, articul, "photo")
     if ref:
         await update.message.reply_photo(
             photo=ref["file_id"],
-            caption=f"Эталон для артикула {articul}",
+            caption=f"Готовый эталон для артикула {articul}",
         )
     else:
         await update.message.reply_text(
-            f"Эталон для артикула {articul} не найден.\n"
-            "Начинаем создание эталона..."
-            # TODO: запустить workflow создания эталона
+            "📋 Эталон ещё не создан. Запускаем генерацию...\n"
+            "# TODO: запустить workflow создания эталона"
         )
 
     return ConversationHandler.END
@@ -119,27 +177,77 @@ async def video_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    articul = update.message.text.strip()
     user_id = update.effective_user.id
+    raw = update.message.text
 
-    if not articul.isdigit():
+    status_msg = await update.message.reply_text("🔍 Определяю маркетплейс...")
+
+    session = context.bot_data.get("http_session")
+    result = await resolve_marketplace(raw, user_id, session)
+
+    await status_msg.delete()
+
+    if "error" in result:
+        err = result["error"]
+        if err == "invalid_format":
+            await update.message.reply_text(
+                f"❌ {result['message']}\n\nВведите артикул ещё раз:"
+            )
+            return WAITING_ARTICUL_VIDEO
+        if err == "api_unavailable":
+            await update.message.reply_text(
+                f"⏳ {result['message']}\n\nПопробуйте через несколько секунд:"
+            )
+            return WAITING_ARTICUL_VIDEO
         await update.message.reply_text(
-            "Артикул должен состоять только из цифр. Попробуйте ещё раз:"
+            "❌ Товар не найден ни на WB, ни на OZON.\n"
+            "Проверьте артикул и попробуйте ещё раз:"
         )
         return WAITING_ARTICUL_VIDEO
 
-    ref = await get_reference(user_id, articul, "video")
+    marketplace = result["marketplace"]
+    meta        = result.get("meta", {})
+    articul     = raw.strip()
 
+    mp_label = "Wildberries 🟣" if marketplace == "WB" else "OZON 🔵"
+    confidence_note = (
+        "\n\n⚠️ <i>Товар не найден на WB — предполагаем OZON. "
+        "Если это неверно, проверьте артикул.</i>"
+        if result.get("confidence", 1.0) < 1.0 else ""
+    )
+
+    meta_lines = []
+    if meta.get("name"):
+        meta_lines.append(f"📦 <b>{meta['name']}</b>")
+    if meta.get("brand"):
+        meta_lines.append(f"🏷 {meta['brand']}")
+    if meta.get("color"):
+        meta_lines.append(f"🎨 {meta['color']}")
+    meta_block = "\n".join(meta_lines)
+    if meta_block:
+        meta_block = f"\n\n{meta_block}"
+
+    await update.message.reply_text(
+        f"✅ Артикул <code>{articul}</code> найден на {mp_label}"
+        f"{meta_block}"
+        f"{confidence_note}\n\n"
+        f"⏳ Начинается сбор информации о товаре...",
+        parse_mode="HTML",
+    )
+
+    context.user_data["current_article"]     = articul
+    context.user_data["current_marketplace"] = marketplace
+
+    ref = await get_reference(user_id, articul, "video")
     if ref:
         await update.message.reply_video(
             video=ref["file_id"],
-            caption=f"Видео-эталон для артикула {articul}",
+            caption=f"Готовый видео-эталон для артикула {articul}",
         )
     else:
         await update.message.reply_text(
-            f"Видео-эталон для артикула {articul} не найден.\n"
-            "Начинаем создание эталона..."
-            # TODO: запустить workflow создания эталона
+            "📋 Видео-эталон ещё не создан. Запускаем генерацию...\n"
+            "# TODO: запустить workflow создания видео-эталона"
         )
 
     return ConversationHandler.END
