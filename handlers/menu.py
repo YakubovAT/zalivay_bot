@@ -160,14 +160,8 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         )
     else:
         await update.message.reply_text(
-<<<<<<< HEAD
             "📋 Эталон ещё не создан. Запускаем генерацию...\n"
             "# TODO: запустить workflow создания эталона"
-=======
-            f"Эталон для артикула {articul} не найден.\n"
-            "Начинаем создание эталона?"
-            # TODO: запустить workflow создания эталона
->>>>>>> a13a4c9d1e26dc3f926d1b9b4eba8f4b7836b8e6
         )
 
     return ConversationHandler.END
@@ -254,14 +248,8 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         )
     else:
         await update.message.reply_text(
-<<<<<<< HEAD
             "📋 Видео-эталон ещё не создан. Запускаем генерацию...\n"
             "# TODO: запустить workflow создания видео-эталона"
-=======
-            f"Видео-эталон для артикула {articul} не найден.\n"
-            "Начинаем создание эталона?"
-            # TODO: запустить workflow создания эталона
->>>>>>> a13a4c9d1e26dc3f926d1b9b4eba8f4b7836b8e6
         )
 
     return ConversationHandler.END
