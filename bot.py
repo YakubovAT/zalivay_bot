@@ -21,6 +21,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
 )
+logging.getLogger("wb_parser").setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
