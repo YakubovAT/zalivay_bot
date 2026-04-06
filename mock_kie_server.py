@@ -13,9 +13,11 @@ Mock Kie.ai сервер — полная эмуляция реального AP
 """
 
 import logging
+import os
 import time
 import uuid
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 
@@ -26,6 +28,11 @@ logging.basicConfig(
 logger = logging.getLogger("mock_kie")
 
 app = FastAPI(title="Mock Kie.ai Server", version="2.0.0")
+
+# Путь к файлу-заглушке
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MOCK_IMAGE_PATH = os.path.join(_BASE_DIR, "эталон225616209.png")
+MOCK_IMAGE_URL = "http://localhost:8080/static/reference.png"
 
 # ---------------------------------------------------------------------------
 # Заготовленные ответы
@@ -226,6 +233,18 @@ async def task_detail(taskId: str, authorization: Optional[str] = Header(None)):
             "credits_used": task["credits_used"],
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Static file serving
+# ---------------------------------------------------------------------------
+
+@app.get("/static/reference.png")
+async def serve_reference_image():
+    """Раздаёт файл-заглушку эталона."""
+    if os.path.exists(MOCK_IMAGE_PATH):
+        return FileResponse(MOCK_IMAGE_PATH, media_type="image/png")
+    raise HTTPException(status_code=404, detail="Image not found")
 
 
 # ---------------------------------------------------------------------------
