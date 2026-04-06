@@ -16,7 +16,7 @@ from telegram.ext import (
 import asyncio
 import subprocess
 
-from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article, save_reference, get_user, get_reference
+from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article, save_reference, get_user, get_reference, deduct_balance
 from handlers.menu import main_menu, BTN_RESTART
 from config import REFERENCE_COST
 from wb_parser import get_product_info
@@ -480,10 +480,15 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
             file_path=file_path,
         )
 
+        # Списываем баланс
+        new_balance = await deduct_balance(user_id, REFERENCE_COST)
+
         await context.bot.send_message(
             chat_id=user_id,
-            text="Теперь вы можете создавать фото и видео через меню.",
+            text=f"Списано <b>{REFERENCE_COST} руб.</b> Баланс: <b>{new_balance} руб.</b>\n\n"
+                 f"Теперь вы можете создавать фото и видео через меню.",
             reply_markup=main_menu(),
+            parse_mode="HTML",
         )
         return ConversationHandler.END
 

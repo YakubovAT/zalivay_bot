@@ -157,6 +157,20 @@ async def get_reference(user_id: int, articul: str) -> asyncpg.Record | None:
     )
 
 
+async def deduct_balance(user_id: int, amount: int) -> int:
+    """Списывает средства с баланса. Возвращает новый баланс."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        UPDATE users SET balance = balance - $2
+        WHERE user_id = $1
+        RETURNING balance
+        """,
+        user_id, amount,
+    )
+    return row["balance"] if row else -1
+
+
 # ---------------------------------------------------------------------------
 # Кэш маркетплейса
 # ---------------------------------------------------------------------------

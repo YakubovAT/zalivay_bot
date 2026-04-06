@@ -14,6 +14,7 @@ from .db import (
     save_marketplace_cache,
     save_article,
     save_reference,
+    deduct_balance,
 )
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     "save_marketplace_cache",
     "save_article",
     "save_reference",
+    "deduct_balance",
 ]
