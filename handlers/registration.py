@@ -167,10 +167,13 @@ async def step4_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await save_registration(user_id, ad_budget, articles_count)
 
     await query.edit_message_text(
-        "🎨 <b>Как это работает?</b>\n\n"
+        "✅ Отлично! Теперь давайте начнём создавать контент.\n\n"
         "Для создания фото и видеоконтента и продвижения "
         "в социальных сетях, нам необходимо для каждого артикула "
         "создать <b>эталон</b>.\n\n"
+        "Эталон — это чистое фото товара без фона. "
+        "Создаётся один раз для каждого артикула и "
+        "используется для всех будущих фото и видео.\n\n"
         "Выберите маркетплейс и введите артикул:",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup([[
