@@ -483,13 +483,16 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
             file_path=file_path,
         )
 
-        # Списываем баланс
-        new_balance = await deduct_balance(user_id, REFERENCE_COST)
+        # Списываем баланс (только если ещё не списали при переделке)
+        if not context.user_data.pop("redo_charged", False):
+            new_balance = await deduct_balance(user_id, REFERENCE_COST)
+            balance_msg = f"Списано <b>{REFERENCE_COST} руб.</b> Баланс: <b>{new_balance} руб.</b>\n\n"
+        else:
+            balance_msg = ""
 
         await context.bot.send_message(
             chat_id=user_id,
-            text=f"Списано <b>{REFERENCE_COST} руб.</b> Баланс: <b>{new_balance} руб.</b>\n\n"
-                 f"Выберите действие в меню:",
+            text=f"{balance_msg}Выберите действие в меню:",
             reply_markup=main_menu(),
             parse_mode="HTML",
         )
@@ -571,13 +574,21 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
 
     context.user_data["reference_image_data"] = image_data
 
+    # Списываем за переделку
+    new_balance = await deduct_balance(update.effective_user.id, REFERENCE_COST)
+    context.user_data["redo_charged"] = True
+
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
         [InlineKeyboardButton("🔄 Ещё раз", callback_data="ref_redo")],
     ])
     await update.message.reply_photo(
         photo=BytesIO(image_data),
-        caption="🎨 Вот новый вариант!\n\nОн должен быть <i>похож</i>, а не 100% копией.",
+        caption=(
+            f"🎨 Вот новый вариант!\n\n"
+            f"Он должен быть <i>похож</i>, а не 100% копией.\n\n"
+            f"Списано <b>{REFERENCE_COST} руб.</b> Баланс: <b>{new_balance} руб.</b>"
+        ),
         reply_markup=keyboard,
         parse_mode="HTML",
     )
