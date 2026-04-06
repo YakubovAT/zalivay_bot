@@ -1,3 +1,7 @@
+import logging
+from io import BytesIO
+
+import aiohttp
 from telegram import ReplyKeyboardMarkup, KeyboardButton, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
@@ -11,6 +15,9 @@ from database import ensure_user, get_user, get_user_references, get_reference, 
 from wb_parser import get_product_info
 from config import REFERENCE_COST, AI_API_KEY, AI_API_BASE, AI_MODEL
 from services.reference_generator import generate_reference_prompt
+from services.i2i_generator import generate_reference_image
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Кнопки меню
@@ -179,6 +186,7 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         "color": color,
         "material": material,
     }
+    context.user_data["wb_images"] = info.get("images", [])[:5]  # Берём первые 5 фото
 
     # Показываем кнопки выбора
     keyboard = InlineKeyboardMarkup([
@@ -251,22 +259,45 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         context.user_data["reference_prompt"] = prompt
 
-        # TODO: I2I AI — пока заглушка, отправляем placeholder
-        import os
-        photo_path = os.path.join(os.path.dirname(__file__), "..", "эталон225616209.png")
-        if os.path.exists(photo_path):
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
-                [InlineKeyboardButton("🔄 Переделать", callback_data="ref_redo")],
-            ])
-            await query.message.reply_photo(
-                photo=open(photo_path, "rb"),
-                caption="🎨 Эталон готов!\n\nЭталон должен быть <i>похож</i>, а не 100% копией. Небольшие расхождения допустимы.",
-                reply_markup=keyboard,
-                parse_mode="HTML",
-            )
-        else:
-            await query.message.reply_text("⚠️ Файл эталона не найден.")
+        # I2I AI — генерируем эталон
+        wb_images = context.user_data.get("wb_images", [])
+        if not wb_images:
+            await query.message.reply_text("❌ Не удалось найти фото товара.")
+            return ConversationHandler.END
+
+        await query.message.reply_text("📥 Отправляю фото в I2I AI...")
+
+        image_url = await generate_reference_image(
+            session=session,
+            api_base=AI_API_BASE,
+            api_key=AI_API_KEY,
+            image_urls=wb_images[:3],  # Берём первые 3 фото
+            prompt=prompt,
+        )
+
+        if not image_url:
+            await query.message.reply_text("❌ Ошибка генерации изображения. Попробуйте снова.")
+            return ConversationHandler.END
+
+        # Скачиваем и отправляем фото
+        try:
+            async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=15)) as img_resp:
+                image_data = await img_resp.read()
+        except Exception as e:
+            logger.error("Failed to download image: %s", e)
+            await query.message.reply_text("❌ Ошибка загрузки изображения.")
+            return ConversationHandler.END
+
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
+            [InlineKeyboardButton("🔄 Переделать", callback_data="ref_redo")],
+        ])
+        await query.message.reply_photo(
+            photo=BytesIO(image_data),
+            caption="🎨 Эталон готов!\n\nЭталон должен быть <i>похож</i>, а не 100% копией. Небольшие расхождения допустимы.",
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
 
         # TODO: списать баланс
         return WAITING_REF_FEEDBACK
@@ -399,6 +430,7 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         "color": color,
         "material": material,
     }
+    context.user_data["wb_images"] = info.get("images", [])[:5]  # Берём первые 5 фото
 
     # Показываем кнопки выбора
     keyboard = InlineKeyboardMarkup([
