@@ -1,4 +1,8 @@
+import logging
+
 import aiohttp
+
+logger = logging.getLogger(__name__)
 
 MAX_BASKET = 50
 MAX_IMAGES = 30
@@ -35,15 +39,19 @@ async def get_product_info(articul: str) -> dict:
     """
     nmid = int(articul)
     vol, part = _vol_part(nmid)
+    logger.info("WB parser: артикул=%s vol=%s part=%s", articul, vol, part)
 
     connector = aiohttp.TCPConnector(ssl=False)
     async with aiohttp.ClientSession(connector=connector) as session:
         basket = await _find_basket(session, nmid, vol, part)
         if basket is None:
+            logger.warning("WB parser: корзина не найдена для артикула %s", articul)
             return {}
 
+        logger.info("WB parser: артикул=%s найден в корзине %02d", articul, basket)
         card = await _fetch_card(session, basket, vol, part, nmid)
         images = await _collect_images(session, nmid, vol, part, basket)
+        logger.info("WB parser: артикул=%s карточка=%s фото=%d", articul, bool(card), len(images))
 
     options = card.get("options", [])
 
@@ -74,9 +82,11 @@ async def _find_basket(
         url = _img_url(basket, vol, part, nmid, 1)
         try:
             async with session.head(url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+                logger.debug("WB basket-%02d: status=%s url=%s", basket, r.status, url)
                 if r.status == 200:
                     return basket
-        except Exception:
+        except Exception as e:
+            logger.debug("WB basket-%02d: ошибка %s", basket, e)
             continue
     return None
 
@@ -88,10 +98,12 @@ async def _fetch_card(
     url = _card_url(basket, vol, part, nmid)
     try:
         async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as r:
+            logger.debug("WB card.json: status=%s url=%s", r.status, url)
             if r.status == 200:
                 return await r.json(content_type=None)
-    except Exception:
-        pass
+            logger.warning("WB card.json: неожиданный статус %s для %s", r.status, nmid)
+    except Exception as e:
+        logger.warning("WB card.json: ошибка для %s: %s", nmid, e)
     return {}
 
 

@@ -8,6 +8,9 @@ from telegram.ext import (
     filters,
 )
 
+import asyncio
+import subprocess
+
 from database import ensure_user, is_registered, save_registration, reset_registration, save_article
 from handlers.menu import main_menu, BTN_RESTART
 from wb_parser import get_product_info
@@ -28,18 +31,10 @@ ONBOARD_ARTICLE    = 15
 # ---------------------------------------------------------------------------
 
 async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    await reset_registration(user.id)
-    context.user_data.clear()
-
-    keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
-    )
-    await update.message.reply_text(
-        "Снижаем затраты на рекламу\nчерез AI-контент 🚀",
-        reply_markup=keyboard,
-    )
-    return ONBOARD_STEP1
+    await update.message.reply_text("🔄 Перезапуск бота...")
+    await asyncio.sleep(1)
+    subprocess.Popen(["systemctl", "restart", "zalivai-bot"])
+    return ConversationHandler.END
 
 
 # ---------------------------------------------------------------------------
