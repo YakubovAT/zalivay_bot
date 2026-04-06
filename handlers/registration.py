@@ -167,12 +167,11 @@ async def step4_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await save_registration(user_id, ad_budget, articles_count)
 
     await query.edit_message_text(
-        "🎨 <b>Что такое эталон?</b>\n\n"
-        "Это базовое фото вашего товара с прозрачным фоном. "
-        "На его основе AI создаёт все фото и видео для маркетплейсов.\n\n"
-        "Эталон создаётся <b>один раз</b> для каждого артикула и "
-        "используется для генерации контента.\n\n"
-        "Выберите маркетплейс вашего товара:",
+        "🎨 <b>Как это работает?</b>\n\n"
+        "Для создания фото и видеоконтента и продвижения "
+        "в социальных сетях, нам необходимо для каждого артикула "
+        "создать <b>эталон</b>.\n\n"
+        "Выберите маркетплейс и введите артикул:",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton("🟣 Wildberries", callback_data="onboard_mp_wb"),
