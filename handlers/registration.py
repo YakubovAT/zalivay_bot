@@ -232,6 +232,12 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
     raw = update.message.text.strip()
     marketplace = context.user_data.get("onboard_marketplace", "WB")
 
+    # Удаляем сообщение пользователя с артикулом
+    try:
+        await update.message.delete()
+    except Exception:
+        pass
+
     status_msg = await update.message.reply_text("🔍 Загружаю информацию о товаре...")
 
     name = color = material = ""
@@ -265,15 +271,28 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
             meta_lines.append(f"🧵 {material}")
 
         await status_msg.delete()
-        await update.message.reply_text(
+
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Создать эталон — 100 руб.", callback_data="create_ref")],
+            [InlineKeyboardButton("🔄 Ввести другой артикул", callback_data="new_article")],
+        ])
+
+        # Редактируем "загружаю" → карточка + кнопки
+        await status_msg.edit_text(
             f"✅ Артикул <code>{raw}</code> найден на Wildberries 🟣\n\n"
             + "\n".join(meta_lines),
+            reply_markup=keyboard,
             parse_mode="HTML",
         )
     else:
         await status_msg.delete()
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Создать эталон — 100 руб.", callback_data="create_ref")],
+            [InlineKeyboardButton("🔄 Ввести другой артикул", callback_data="new_article")],
+        ])
         await update.message.reply_text(
             f"✅ Артикул <code>{raw}</code> сохранён для OZON 🔵",
+            reply_markup=keyboard,
             parse_mode="HTML",
         )
 
@@ -309,16 +328,6 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ONBOARD_REF_CHOICE
 
-    # Кнопки: создать эталон или другой артикул
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Создать эталон — 100 руб.", callback_data="create_ref")],
-        [InlineKeyboardButton("🔄 Ввести другой артикул", callback_data="new_article")],
-    ])
-    await update.message.reply_text(
-        "Что делаем дальше?",
-        reply_markup=keyboard,
-    )
-
     return ONBOARD_REF_CHOICE
 
 
@@ -334,15 +343,11 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     product = context.user_data.get("product_info", {})
 
     if query.data == "new_article":
-        # Возвращаемся к выбору МП
-        await query.edit_message_text(
-            "Выберите маркетплейс и введите артикул:",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🟣 Wildberries", callback_data="onboard_mp_wb"),
-                InlineKeyboardButton("🔵 OZON",        callback_data="onboard_mp_ozon"),
-            ]]),
-        )
-        return ONBOARD_SELECT_MP
+        # Возвращаемся к вводу артикула (МП запоминаем)
+        mp = context.user_data.get("onboard_marketplace", "WB")
+        label = "Wildberries" if mp == "WB" else "OZON"
+        await query.edit_message_text(f"Введите артикул товара {label}:")
+        return ONBOARD_ARTICLE
 
     if query.data == "go_menu":
         await query.edit_message_text("Отлично! Переходим в главное меню.")
