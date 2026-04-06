@@ -15,7 +15,7 @@ from telegram.ext import (
 import asyncio
 import subprocess
 
-from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article, save_reference, get_user
+from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article, save_reference, get_user, get_reference
 from handlers.menu import main_menu, BTN_RESTART
 from config import REFERENCE_COST
 from wb_parser import get_product_info
