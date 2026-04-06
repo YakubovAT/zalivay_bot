@@ -7,3 +7,8 @@ logs/
 media/
 .restart_state.json
 правила подключения к серверу.md
+.claude/settings.json
+.qwen/settings.json
+.claude/settings.json
+.qwen/settings.json.orig
+.claude/settings.json
