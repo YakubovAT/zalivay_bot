@@ -1,4 +1,4 @@
-{
+, а ищ {
   "openapi": "3.0.0",
   "info": {
     "title": "Kie.ai Mock",
