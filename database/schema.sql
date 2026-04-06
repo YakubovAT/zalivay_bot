@@ -12,12 +12,11 @@ CREATE TABLE IF NOT EXISTS article_references (
     id          SERIAL PRIMARY KEY,
     user_id     BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     articul     TEXT NOT NULL,
-    ref_type    TEXT NOT NULL CHECK (ref_type IN ('photo', 'video')),
     file_id     TEXT NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_article_references_user_articul
+CREATE UNIQUE INDEX IF NOT EXISTS idx_article_references_unique
     ON article_references (user_id, articul);
 
 CREATE TABLE IF NOT EXISTS user_actions (

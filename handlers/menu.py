@@ -1,13 +1,16 @@
-from telegram import ReplyKeyboardMarkup, KeyboardButton, Update
+from telegram import ReplyKeyboardMarkup, KeyboardButton, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
     ConversationHandler,
     MessageHandler,
+    CallbackQueryHandler,
     filters,
 )
 
 from database import ensure_user, get_user, get_user_references, get_reference, save_article
-from services.marketplace import resolve_marketplace
+from wb_parser import get_product_info
+from config import REFERENCE_COST, AI_API_KEY, AI_API_BASE, AI_MODEL
+from services.reference_generator import generate_reference_prompt
 
 # ---------------------------------------------------------------------------
 # Кнопки меню
@@ -22,8 +25,12 @@ BTN_HELP    = "Помощь"
 BTN_RESTART    = "Перезапуск"
 
 # Состояния ConversationHandler
-WAITING_ARTICUL_PHOTO = 1
-WAITING_ARTICUL_VIDEO = 2
+WAITING_MP_PHOTO         = 1
+WAITING_ARTICUL_PHOTO    = 2
+WAITING_REF_CHOICE_PHOTO = 3
+WAITING_MP_VIDEO         = 4
+WAITING_ARTICUL_VIDEO    = 5
+WAITING_REF_CHOICE_VIDEO = 6
 
 
 def main_menu() -> ReplyKeyboardMarkup:
@@ -59,221 +66,363 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_user = await get_user(user.id)
     refs = await get_user_references(user.id)
 
-    photo_count = sum(1 for r in refs if r["ref_type"] == "photo")
-    video_count = sum(1 for r in refs if r["ref_type"] == "video")
+    ref_count = len(refs)
     balance = db_user["balance"] if db_user else 0
 
     text = (
         f"👤 <b>Профиль</b>\n\n"
-        f"У Вас <b>{photo_count}</b> эталон(ов)\n"
+        f"У Вас <b>{ref_count}</b> эталон(ов)\n"
         f"Баланс: <b>{balance}</b> руб."
     )
     await update.message.reply_text(text, parse_mode="HTML")
 
 
 # ---------------------------------------------------------------------------
-# Фото — запрос артикула
+# Фото — выбор маркетплейса
 # ---------------------------------------------------------------------------
 
 async def photo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🟣 Wildberries", callback_data="photo_mp_wb"),
+            InlineKeyboardButton("🔵 OZON",        callback_data="photo_mp_ozon"),
+        ]
+    ])
     await update.message.reply_text(
-        "Введите артикул товара Wildberries для создания фото:"
+        "Выберите маркетплейс:",
+        reply_markup=keyboard,
+    )
+    return WAITING_MP_PHOTO
+
+
+async def photo_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    mp = "WB" if query.data == "photo_mp_wb" else "OZON"
+    context.user_data["photo_marketplace"] = mp
+
+    label = "Wildberries" if mp == "WB" else "OZON"
+    await query.edit_message_text(
+        f"Введите артикул товара {label} для создания фото:"
     )
     return WAITING_ARTICUL_PHOTO
 
 
 async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    raw = update.message.text
+    raw = update.message.text.strip()
+    marketplace = context.user_data.get("photo_marketplace", "WB")
 
-    # Прогресс — показываем пока идёт запрос к WB API
-    status_msg = await update.message.reply_text("🔍 Определяю маркетплейс...")
+    # --- OZON: заглушка ---
+    if marketplace == "OZON":
+        await update.message.reply_text(
+            f"✅ Артикул <code>{raw}</code> сохранён для OZON 🔵\n\n"
+            "⚠️ Генерация фото для OZON пока в разработке. "
+            "Скоро эта функция станет доступна!",
+            parse_mode="HTML",
+        )
+        return ConversationHandler.END
 
-    session = context.bot_data.get("http_session")
-    result = await resolve_marketplace(raw, user_id, session)
+    # --- WB: парсер ---
+    status_msg = await update.message.reply_text("🔍 Загружаю информацию о товаре...")
+
+    try:
+        info = await get_product_info(raw)
+    except Exception:
+        info = {}
 
     await status_msg.delete()
 
-    # --- Ошибки ---
-    if "error" in result:
-        err = result["error"]
-        if err == "invalid_format":
-            await update.message.reply_text(
-                f"❌ {result['message']}\n\nВведите артикул ещё раз:"
-            )
-            return WAITING_ARTICUL_PHOTO
-        if err == "api_unavailable":
-            await update.message.reply_text(
-                f"⏳ {result['message']}\n\nПопробуйте через несколько секунд:"
-            )
-            return WAITING_ARTICUL_PHOTO
-        # not_found или неизвестная ошибка
+    if not info:
         await update.message.reply_text(
-            "❌ Товар не найден ни на WB, ни на OZON.\n"
-            "Проверьте артикул и попробуйте ещё раз:"
+            f"❌ Товар не найден на Wildberries. Проверьте артикул и введите ещё раз:"
         )
         return WAITING_ARTICUL_PHOTO
 
-    # --- Маркетплейс определён ---
-    marketplace = result["marketplace"]
-    meta        = result.get("meta", {})
-    articul     = raw.strip()
-
-    mp_label = "Wildberries 🟣" if marketplace == "WB" else "OZON 🔵"
-    confidence_note = (
-        "\n\n⚠️ <i>Товар не найден на WB — предполагаем OZON. "
-        "Если это неверно, проверьте артикул.</i>"
-        if result.get("confidence", 1.0) < 1.0 else ""
-    )
+    name     = info.get("name", "")
+    color    = info["colors"][0] if info.get("colors") else ""
+    material = info.get("material", "")
 
     meta_lines = []
-    if meta.get("name"):
-        meta_lines.append(f"📦 <b>{meta['name']}</b>")
-    if meta.get("brand"):
-        meta_lines.append(f"🏷 {meta['brand']}")
-    if meta.get("color"):
-        meta_lines.append(f"🎨 {meta['color']}")
-    if meta.get("material"):
-        meta_lines.append(f"🧵 {meta['material']}")
-    meta_block = "\n".join(meta_lines)
-    if meta_block:
-        meta_block = f"\n\n{meta_block}"
+    if name:
+        meta_lines.append(f"📦 <b>{name}</b>")
+    if info.get("brand"):
+        meta_lines.append(f"🏷 {info['brand']}")
+    if color:
+        meta_lines.append(f"🎨 {color}")
+    if material:
+        meta_lines.append(f"🧵 {material}")
 
     await update.message.reply_text(
-        f"✅ Артикул <code>{articul}</code> найден на {mp_label}"
-        f"{meta_block}"
-        f"{confidence_note}\n\n"
-        f"⏳ Начинается сбор информации о товаре...",
+        f"✅ Артикул <code>{raw}</code> найден на Wildberries 🟣\n\n"
+        + "\n".join(meta_lines),
         parse_mode="HTML",
     )
 
-    # Сохраняем артикул в БД
     await save_article(
         user_id=user_id,
-        article_code=articul,
+        article_code=raw,
         marketplace=marketplace,
-        name=meta.get("name", ""),
-        color=meta.get("color", ""),
-        material=meta.get("material", ""),
+        name=name,
+        color=color,
+        material=material,
     )
 
-    # Сохраняем в user_data для следующих шагов
-    context.user_data["current_article"]     = articul
-    context.user_data["current_marketplace"] = marketplace
+    context.user_data["current_article"] = raw
+    context.user_data["product_info"] = {
+        "name": name,
+        "color": color,
+        "material": material,
+    }
 
-    ref = await get_reference(user_id, articul, "photo")
-    if ref:
-        await update.message.reply_photo(
-            photo=ref["file_id"],
-            caption=f"Готовый эталон для артикула {articul}",
+    # Показываем кнопки выбора
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Создать эталон", callback_data="create_ref")],
+        [InlineKeyboardButton("🔄 Ввести артикул", callback_data="new_article")],
+    ])
+    await update.message.reply_text(
+        "Выберите действие:",
+        reply_markup=keyboard,
+    )
+
+    return WAITING_REF_CHOICE_PHOTO
+
+
+async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "new_article":
+        await query.edit_message_text("Выберите маркетплейс:")
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("🟣 Wildberries", callback_data="photo_mp_wb"),
+                InlineKeyboardButton("🔵 OZON",        callback_data="photo_mp_ozon"),
+            ]
+        ])
+        await query.message.reply_text(
+            "Выберите маркетплейс:",
+            reply_markup=keyboard,
         )
-    else:
-        await update.message.reply_text(
-            "📋 Эталон ещё не создан. Запускаем генерацию...\n"
-            "# TODO: запустить workflow создания эталона"
+        return WAITING_MP_PHOTO
+
+    if query.data == "create_ref":
+        articul = context.user_data.get("current_article", "")
+        product = context.user_data.get("product_info", {})
+        db_user = await get_user(update.effective_user.id)
+        balance = db_user["balance"] if db_user else 0
+
+        if balance < REFERENCE_COST:
+            await query.edit_message_text(
+                f"❌ Недостаточно средств.\n\n"
+                f"Стоимость создания эталона: <b>{REFERENCE_COST} руб.</b>\n"
+                f"Ваш баланс: <b>{balance} руб.</b>\n\n"
+                f"Пополните баланс и попробуйте снова.",
+                parse_mode="HTML",
+            )
+            return ConversationHandler.END
+
+        # Step 1: Send to Text AI to generate prompt
+        session = context.bot_data.get("http_session")
+        if not session:
+            await query.edit_message_text("⚠️ Техническая ошибка. Попробуйте позже.")
+            return ConversationHandler.END
+
+        prompt = await generate_reference_prompt(
+            session=session,
+            name=product.get("name", ""),
+            color=product.get("color", ""),
+            material=product.get("material", ""),
+            api_key=AI_API_KEY,
+            api_base_url=AI_API_BASE,
+            model=AI_MODEL,
         )
 
-    return ConversationHandler.END
+        if not prompt:
+            await query.edit_message_text("❌ Ошибка. Попробуйте снова.")
+            return ConversationHandler.END
+
+        context.user_data["reference_prompt"] = prompt
+
+        # TODO: I2I AI — создать PNG с прозрачным фоном
+        await query.edit_message_text("⚙️ Обработка...")
+        # TODO: списать баланс
+        return ConversationHandler.END
 
 
 # ---------------------------------------------------------------------------
-# Видео — запрос артикула
+# Видео — выбор маркетплейса
 # ---------------------------------------------------------------------------
 
 async def video_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🟣 Wildberries", callback_data="video_mp_wb"),
+            InlineKeyboardButton("🔵 OZON",        callback_data="video_mp_ozon"),
+        ]
+    ])
     await update.message.reply_text(
-        "Введите артикул товара Wildberries для получения видео-эталона:"
+        "Выберите маркетплейс:",
+        reply_markup=keyboard,
+    )
+    return WAITING_MP_VIDEO
+
+
+async def video_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    mp = "WB" if query.data == "video_mp_wb" else "OZON"
+    context.user_data["video_marketplace"] = mp
+
+    label = "Wildberries" if mp == "WB" else "OZON"
+    await query.edit_message_text(
+        f"Введите артикул товара {label} для получения видео-эталона:"
     )
     return WAITING_ARTICUL_VIDEO
 
 
 async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    raw = update.message.text
+    raw = update.message.text.strip()
+    marketplace = context.user_data.get("video_marketplace", "WB")
 
-    status_msg = await update.message.reply_text("🔍 Определяю маркетплейс...")
+    # --- OZON: заглушка ---
+    if marketplace == "OZON":
+        await update.message.reply_text(
+            f"✅ Артикул <code>{raw}</code> сохранён для OZON 🔵\n\n"
+            "⚠️ Генерация видео для OZON пока в разработке. "
+            "Скоро эта функция станет доступна!",
+            parse_mode="HTML",
+        )
+        return ConversationHandler.END
 
-    session = context.bot_data.get("http_session")
-    result = await resolve_marketplace(raw, user_id, session)
+    # --- WB: парсер ---
+    status_msg = await update.message.reply_text("🔍 Загружаю информацию о товаре...")
+
+    try:
+        info = await get_product_info(raw)
+    except Exception:
+        info = {}
 
     await status_msg.delete()
 
-    if "error" in result:
-        err = result["error"]
-        if err == "invalid_format":
-            await update.message.reply_text(
-                f"❌ {result['message']}\n\nВведите артикул ещё раз:"
-            )
-            return WAITING_ARTICUL_VIDEO
-        if err == "api_unavailable":
-            await update.message.reply_text(
-                f"⏳ {result['message']}\n\nПопробуйте через несколько секунд:"
-            )
-            return WAITING_ARTICUL_VIDEO
+    if not info:
         await update.message.reply_text(
-            "❌ Товар не найден ни на WB, ни на OZON.\n"
-            "Проверьте артикул и попробуйте ещё раз:"
+            f"❌ Товар не найден на Wildberries. Проверьте артикул и введите ещё раз:"
         )
         return WAITING_ARTICUL_VIDEO
 
-    marketplace = result["marketplace"]
-    meta        = result.get("meta", {})
-    articul     = raw.strip()
-
-    mp_label = "Wildberries 🟣" if marketplace == "WB" else "OZON 🔵"
-    confidence_note = (
-        "\n\n⚠️ <i>Товар не найден на WB — предполагаем OZON. "
-        "Если это неверно, проверьте артикул.</i>"
-        if result.get("confidence", 1.0) < 1.0 else ""
-    )
+    name     = info.get("name", "")
+    color    = info["colors"][0] if info.get("colors") else ""
+    material = info.get("material", "")
 
     meta_lines = []
-    if meta.get("name"):
-        meta_lines.append(f"📦 <b>{meta['name']}</b>")
-    if meta.get("brand"):
-        meta_lines.append(f"🏷 {meta['brand']}")
-    if meta.get("color"):
-        meta_lines.append(f"🎨 {meta['color']}")
-    if meta.get("material"):
-        meta_lines.append(f"🧵 {meta['material']}")
-    meta_block = "\n".join(meta_lines)
-    if meta_block:
-        meta_block = f"\n\n{meta_block}"
+    if name:
+        meta_lines.append(f"📦 <b>{name}</b>")
+    if info.get("brand"):
+        meta_lines.append(f"🏷 {info['brand']}")
+    if color:
+        meta_lines.append(f"🎨 {color}")
+    if material:
+        meta_lines.append(f"🧵 {material}")
 
     await update.message.reply_text(
-        f"✅ Артикул <code>{articul}</code> найден на {mp_label}"
-        f"{meta_block}"
-        f"{confidence_note}\n\n"
-        f"⏳ Начинается сбор информации о товаре...",
+        f"✅ Артикул <code>{raw}</code> найден на Wildberries 🟣\n\n"
+        + "\n".join(meta_lines),
         parse_mode="HTML",
     )
 
-    # Сохраняем артикул в БД
     await save_article(
         user_id=user_id,
-        article_code=articul,
+        article_code=raw,
         marketplace=marketplace,
-        name=meta.get("name", ""),
-        color=meta.get("color", ""),
-        material=meta.get("material", ""),
+        name=name,
+        color=color,
+        material=material,
     )
 
-    context.user_data["current_article"]     = articul
-    context.user_data["current_marketplace"] = marketplace
+    context.user_data["current_article"] = raw
+    context.user_data["product_info"] = {
+        "name": name,
+        "color": color,
+        "material": material,
+    }
 
-    ref = await get_reference(user_id, articul, "video")
-    if ref:
-        await update.message.reply_video(
-            video=ref["file_id"],
-            caption=f"Готовый видео-эталон для артикула {articul}",
+    # Показываем кнопки выбора
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Создать эталон", callback_data="create_ref")],
+        [InlineKeyboardButton("🔄 Ввести артикул", callback_data="new_article")],
+    ])
+    await update.message.reply_text(
+        "Выберите действие:",
+        reply_markup=keyboard,
+    )
+
+    return WAITING_REF_CHOICE_VIDEO
+
+
+async def video_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "new_article":
+        await query.edit_message_text("Выберите маркетплейс:")
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("🟣 Wildberries", callback_data="video_mp_wb"),
+                InlineKeyboardButton("🔵 OZON",        callback_data="video_mp_ozon"),
+            ]
+        ])
+        await query.message.reply_text(
+            "Выберите маркетплейс:",
+            reply_markup=keyboard,
         )
-    else:
-        await update.message.reply_text(
-            "📋 Видео-эталон ещё не создан. Запускаем генерацию...\n"
-            "# TODO: запустить workflow создания видео-эталона"
+        return WAITING_MP_VIDEO
+
+    if query.data == "create_ref":
+        articul = context.user_data.get("current_article", "")
+        product = context.user_data.get("product_info", {})
+        db_user = await get_user(update.effective_user.id)
+        balance = db_user["balance"] if db_user else 0
+
+        if balance < REFERENCE_COST:
+            await query.edit_message_text(
+                f"❌ Недостаточно средств.\n\n"
+                f"Стоимость создания эталона: <b>{REFERENCE_COST} руб.</b>\n"
+                f"Ваш баланс: <b>{balance} руб.</b>\n\n"
+                f"Пополните баланс и попробуйте снова.",
+                parse_mode="HTML",
+            )
+            return ConversationHandler.END
+
+        # Step 1: Send to Text AI to generate prompt
+        session = context.bot_data.get("http_session")
+        if not session:
+            await query.edit_message_text("⚠️ Техническая ошибка. Попробуйте позже.")
+            return ConversationHandler.END
+
+        prompt = await generate_reference_prompt(
+            session=session,
+            name=product.get("name", ""),
+            color=product.get("color", ""),
+            material=product.get("material", ""),
+            api_key=AI_API_KEY,
+            api_base_url=AI_API_BASE,
+            model=AI_MODEL,
         )
 
-    return ConversationHandler.END
+        if not prompt:
+            await query.edit_message_text("❌ Ошибка. Попробуйте снова.")
+            return ConversationHandler.END
+
+        context.user_data["reference_prompt"] = prompt
+
+        # TODO: I2I AI — создать PNG с прозрачным фоном
+        await query.edit_message_text("⚙️ Обработка...")
+        # TODO: списать баланс
+        return ConversationHandler.END
 
 
 # ---------------------------------------------------------------------------
@@ -329,11 +478,23 @@ def build_conversation_handler() -> ConversationHandler:
             MessageHandler(filters.Regex(f"^{BTN_VIDEO}$"), video_start),
         ],
         states={
+            WAITING_MP_PHOTO: [
+                CallbackQueryHandler(photo_select_mp, pattern="^photo_mp_(wb|ozon)$")
+            ],
             WAITING_ARTICUL_PHOTO: [
                 MessageHandler(filters.TEXT & ~any_menu_button, photo_articul_received)
             ],
+            WAITING_REF_CHOICE_PHOTO: [
+                CallbackQueryHandler(photo_ref_choice, pattern="^(create_ref|new_article)$")
+            ],
+            WAITING_MP_VIDEO: [
+                CallbackQueryHandler(video_select_mp, pattern="^video_mp_(wb|ozon)$")
+            ],
             WAITING_ARTICUL_VIDEO: [
                 MessageHandler(filters.TEXT & ~any_menu_button, video_articul_received)
+            ],
+            WAITING_REF_CHOICE_VIDEO: [
+                CallbackQueryHandler(video_ref_choice, pattern="^(create_ref|new_article)$")
             ],
         },
         fallbacks=[

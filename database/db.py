@@ -126,33 +126,34 @@ async def save_article(
     return row["id"] if row else -1
 
 
-async def save_reference(user_id: int, articul: str, ref_type: str, file_id: str) -> int:
-    """Сохраняет эталон (ссылку на изображение) в БД, возвращает id записи."""
+async def save_reference(user_id: int, articul: str, file_id: str) -> int:
+    """Сохраняет эталон (ссылку на изображение) в БД. Один эталон на артикул."""
     pool = await get_pool()
     row = await pool.fetchrow(
         """
-        INSERT INTO article_references (user_id, articul, ref_type, file_id)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT DO NOTHING
+        INSERT INTO article_references (user_id, articul, file_id)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id, articul)
+        DO UPDATE SET file_id = EXCLUDED.file_id, created_at = NOW()
         RETURNING id
         """,
-        user_id, articul, ref_type, file_id,
+        user_id, articul, file_id,
     )
     return row["id"] if row else -1
 
 
-async def get_reference(user_id: int, articul: str, ref_type: str) -> asyncpg.Record | None:
+async def get_reference(user_id: int, articul: str) -> asyncpg.Record | None:
+    """Возвращает эталон для артикула. Один эталон — общий для фото и видео."""
     pool = await get_pool()
     return await pool.fetchrow(
         """
         SELECT * FROM article_references
-        WHERE user_id = $1 AND articul = $2 AND ref_type = $3
+        WHERE user_id = $1 AND articul = $2
         ORDER BY created_at DESC
         LIMIT 1
         """,
         user_id,
         articul,
-        ref_type,
     )
 
 
