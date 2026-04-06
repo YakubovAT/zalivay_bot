@@ -31,9 +31,12 @@ ONBOARD_ARTICLE    = 15
 # ---------------------------------------------------------------------------
 
 async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔄 Перезапуск бота...")
+    await update.message.reply_text("🔄 Обновление и перезапуск бота...")
     await asyncio.sleep(1)
-    subprocess.Popen(["systemctl", "restart", "zalivai-bot"])
+    subprocess.Popen(
+        "cd /var/www/bots/Zalivai_bot && git pull && systemctl restart zalivai-bot",
+        shell=True,
+    )
     return ConversationHandler.END
 
 
