@@ -126,18 +126,18 @@ async def save_article(
     return row["id"] if row else -1
 
 
-async def save_reference(user_id: int, articul: str, file_id: str) -> int:
+async def save_reference(user_id: int, articul: str, file_id: str, file_path: str = "") -> int:
     """Сохраняет эталон (ссылку на изображение) в БД. Один эталон на артикул."""
     pool = await get_pool()
     row = await pool.fetchrow(
         """
-        INSERT INTO article_references (user_id, articul, file_id)
-        VALUES ($1, $2, $3)
+        INSERT INTO article_references (user_id, articul, file_id, file_path)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (user_id, articul)
-        DO UPDATE SET file_id = EXCLUDED.file_id, created_at = NOW()
+        DO UPDATE SET file_id = EXCLUDED.file_id, file_path = EXCLUDED.file_path, created_at = NOW()
         RETURNING id
         """,
-        user_id, articul, file_id,
+        user_id, articul, file_id, file_path,
     )
     return row["id"] if row else -1
 

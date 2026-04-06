@@ -19,7 +19,7 @@ from database import ensure_user, is_registered, save_registration, reset_regist
 from handlers.menu import main_menu, BTN_RESTART
 from config import REFERENCE_COST
 from wb_parser import get_product_info
-from services.media_storage import ensure_user_media_dirs
+from services.media_storage import ensure_user_media_dirs, MEDIA_ROOT
 
 logger = logging.getLogger(__name__)
 
@@ -387,7 +387,10 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.message.reply_text("❌ Ошибка загрузки изображения.")
             return ConversationHandler.END
 
-        from io import BytesIO
+        # Сохраняем в context для следующего шага
+        context.user_data["reference_image_data"] = image_data
+
+        # Показываем фото с кнопками
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
             [InlineKeyboardButton("🔄 Переделать", callback_data="ref_redo")],
@@ -411,21 +414,39 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
 
     articul = context.user_data.get("onboard_article", "")
+    image_data = context.user_data.get("reference_image_data")
 
     if query.data == "ref_ok":
-        await save_reference(
-            user_id=update.effective_user.id,
-            articul=articul,
-            file_id=f"ref_{articul}",
-        )
-        await query.edit_message_text(
-            f"✅ Эталон для артикула <code>{articul}</code> сохранён!\n\n"
-            f"Теперь вы можете создавать фото и видео.",
+        user_id = update.effective_user.id
+
+        # Сохраняем файл на сервер
+        user_ref_dir = os.path.join(MEDIA_ROOT, str(user_id), "references")
+        os.makedirs(user_ref_dir, exist_ok=True)
+        file_path = os.path.join(user_ref_dir, f"{articul}.png")
+
+        with open(file_path, "wb") as f:
+            f.write(image_data)
+
+        # Отправляем в Telegram чтобы получить file_id
+        sent = await context.bot.send_photo(
+            chat_id=user_id,
+            photo=BytesIO(image_data),
+            caption=f"✅ Эталон для <code>{articul}</code> сохранён!",
             parse_mode="HTML",
         )
+        file_id = sent.photo[-1].file_id
+
+        # Сохраняем в БД
+        await save_reference(
+            user_id=user_id,
+            articul=articul,
+            file_id=file_id,
+            file_path=file_path,
+        )
+
         await context.bot.send_message(
-            chat_id=update.effective_user.id,
-            text="Выберите действие:",
+            chat_id=user_id,
+            text="Теперь вы можете создавать фото и видео через меню.",
             reply_markup=main_menu(),
         )
         return ConversationHandler.END
