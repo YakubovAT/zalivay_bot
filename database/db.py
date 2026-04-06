@@ -83,6 +83,12 @@ async def log_user_action(user_id: int, username: str | None, action_type: str, 
     )
 
 
+async def delete_user(user_id: int):
+    """Полностью удаляет пользователя и все его данные из БД (CASCADE)."""
+    pool = await get_pool()
+    await pool.execute("DELETE FROM users WHERE user_id = $1", user_id)
+
+
 async def reset_registration(user_id: int):
     """Сбрасывает регистрацию пользователя для повторного прохождения онбординга."""
     pool = await get_pool()

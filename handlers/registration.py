@@ -11,7 +11,7 @@ from telegram.ext import (
 import asyncio
 import subprocess
 
-from database import ensure_user, is_registered, save_registration, reset_registration, save_article
+from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article
 from handlers.menu import main_menu, BTN_RESTART
 from wb_parser import get_product_info
 
@@ -31,6 +31,8 @@ ONBOARD_ARTICLE    = 15
 # ---------------------------------------------------------------------------
 
 async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await delete_user(update.effective_user.id)
+    context.user_data.clear()
     await update.message.reply_text("🔄 Обновление и перезапуск бота...")
     await asyncio.sleep(1)
     subprocess.Popen(
