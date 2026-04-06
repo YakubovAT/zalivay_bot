@@ -1,3 +1,7 @@
+import logging
+from io import BytesIO
+
+import aiohttp
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     CallbackQueryHandler,
@@ -11,10 +15,13 @@ from telegram.ext import (
 import asyncio
 import subprocess
 
-from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article
+from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article, save_reference, get_user
 from handlers.menu import main_menu, BTN_RESTART
+from config import REFERENCE_COST
 from wb_parser import get_product_info
 from services.media_storage import ensure_user_media_dirs
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Состояния
@@ -26,6 +33,8 @@ ONBOARD_STEP3      = 12  # Количество артикулов
 ONBOARD_STEP4      = 13  # Переход к вводу артикула
 ONBOARD_SELECT_MP  = 14  # Выбор МП
 ONBOARD_ARTICLE    = 15  # Ввод артикула
+ONBOARD_REF_CHOICE = 16  # Выбор: создать эталон / другой артикул
+ONBOARD_REF_FEEDBACK = 17 # ✅ Подходит / 🔄 Переделать
 
 # ---------------------------------------------------------------------------
 # Перезапуск онбординга
@@ -203,7 +212,7 @@ async def onboard_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ---------------------------------------------------------------------------
-# Ввод артикула → сохранение + главное меню
+# Ввод артикула → карточка товара → выбор: создать эталон / другой артикул
 # ---------------------------------------------------------------------------
 
 async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -214,6 +223,7 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status_msg = await update.message.reply_text("🔍 Загружаю информацию о товаре...")
 
     name = color = material = ""
+    info = {}
 
     if marketplace == "WB":
         try:
@@ -264,12 +274,167 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
         material=material,
     )
 
+    context.user_data["onboard_article"] = raw
+    context.user_data["product_info"] = {
+        "name": name,
+        "color": color,
+        "material": material,
+    }
+    context.user_data["wb_images"] = info.get("images", [])[:5]
+
+    # Кнопки: создать эталон или другой артикул
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Создать эталон — 100 руб.", callback_data="create_ref")],
+        [InlineKeyboardButton("🔄 Ввести другой артикул", callback_data="new_article")],
+    ])
     await update.message.reply_text(
-        "Артикул сохранён! 🎉\n\n"
-        "Теперь выберите действие в меню:",
-        reply_markup=main_menu(),
+        "Что делаем дальше?",
+        reply_markup=keyboard,
     )
-    return ConversationHandler.END
+
+    return ONBOARD_REF_CHOICE
+
+
+# ---------------------------------------------------------------------------
+# Онбординг: выбор — создать эталон или другой артикул
+# ---------------------------------------------------------------------------
+
+async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "new_article":
+        # Возвращаемся к выбору МП
+        await query.edit_message_text(
+            "Выберите маркетплейс и введите артикул:",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🟣 Wildberries", callback_data="onboard_mp_wb"),
+                InlineKeyboardButton("🔵 OZON",        callback_data="onboard_mp_ozon"),
+            ]]),
+        )
+        return ONBOARD_SELECT_MP
+
+    if query.data == "create_ref":
+        articul = context.user_data.get("onboard_article", "")
+        product = context.user_data.get("product_info", {})
+        db_user = await get_user(update.effective_user.id)
+        balance = db_user["balance"] if db_user else 0
+
+        if balance < REFERENCE_COST:
+            await query.edit_message_text(
+                f"❌ Недостаточно средств.\n\n"
+                f"Стоимость: <b>{REFERENCE_COST} руб.</b>\n"
+                f"Баланс: <b>{balance} руб.</b>\n\n"
+                f"Пополните баланс и попробуйте снова.",
+                parse_mode="HTML",
+            )
+            return ConversationHandler.END
+
+        # T2T AI → генерация промпта
+        await query.edit_message_text("⚙️ Генерирую промпт...")
+
+        session = context.bot_data.get("http_session")
+        if not session:
+            await query.message.reply_text("⚠️ Техническая ошибка.")
+            return ConversationHandler.END
+
+        from config import AI_API_KEY, AI_API_BASE, AI_MODEL
+        from services.reference_generator import generate_reference_prompt
+        from services.i2i_generator import generate_reference_image
+
+        prompt = await generate_reference_prompt(
+            session=session,
+            name=product.get("name", ""),
+            color=product.get("color", ""),
+            material=product.get("material", ""),
+            api_key=AI_API_KEY,
+            api_base_url=AI_API_BASE,
+            model=AI_MODEL,
+        )
+
+        if not prompt:
+            await query.message.reply_text("❌ Ошибка генерации промпта.")
+            return ConversationHandler.END
+
+        context.user_data["reference_prompt"] = prompt
+
+        # I2I AI → генерация изображения
+        wb_images = context.user_data.get("wb_images", [])
+        if not wb_images:
+            await query.message.reply_text("❌ Не удалось найти фото товара.")
+            return ConversationHandler.END
+
+        await query.message.reply_text("📥 Отправляю фото в I2I AI...")
+
+        image_url = await generate_reference_image(
+            session=session,
+            api_base=AI_API_BASE,
+            api_key=AI_API_KEY,
+            image_urls=wb_images[:3],
+            prompt=prompt,
+        )
+
+        if not image_url:
+            await query.message.reply_text("❌ Ошибка генерации изображения.")
+            return ConversationHandler.END
+
+        # Скачиваем и отправляем фото с кнопками
+        try:
+            async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=15)) as img_resp:
+                image_data = await img_resp.read()
+        except Exception as e:
+            logger.error("Failed to download image: %s", e)
+            await query.message.reply_text("❌ Ошибка загрузки изображения.")
+            return ConversationHandler.END
+
+        from io import BytesIO
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
+            [InlineKeyboardButton("🔄 Переделать", callback_data="ref_redo")],
+        ])
+        await query.message.reply_photo(
+            photo=BytesIO(image_data),
+            caption="🎨 Эталон готов!\n\nОн должен быть <i>похож</i>, а не 100% копией.",
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+
+        return ONBOARD_REF_FEEDBACK
+
+
+# ---------------------------------------------------------------------------
+# Онбординг: обратная связь — ✅ Подходит / 🔄 Переделать
+# ---------------------------------------------------------------------------
+
+async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    articul = context.user_data.get("onboard_article", "")
+
+    if query.data == "ref_ok":
+        await save_reference(
+            user_id=update.effective_user.id,
+            articul=articul,
+            file_id=f"ref_{articul}",
+        )
+        await query.edit_message_text(
+            f"✅ Эталон для артикула <code>{articul}</code> сохранён!\n\n"
+            f"Теперь вы можете создавать фото и видео.",
+            parse_mode="HTML",
+        )
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text="Выберите действие:",
+            reply_markup=main_menu(),
+        )
+        return ConversationHandler.END
+
+    if query.data == "ref_redo":
+        await query.edit_message_text(
+            "✍️ Напишите что нужно изменить в эталоне:"
+        )
+        return ConversationHandler.END
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +454,8 @@ def build_registration_handler() -> ConversationHandler:
             ONBOARD_STEP4:     [CallbackQueryHandler(step4_finish,     pattern="^onboard_finish$")],
             ONBOARD_SELECT_MP: [CallbackQueryHandler(onboard_select_mp, pattern="^onboard_mp_(wb|ozon)$")],
             ONBOARD_ARTICLE:   [MessageHandler(filters.TEXT & ~filters.COMMAND, onboard_article)],
+            ONBOARD_REF_CHOICE: [CallbackQueryHandler(onboard_ref_choice, pattern="^(create_ref|new_article)$")],
+            ONBOARD_REF_FEEDBACK: [CallbackQueryHandler(onboard_ref_feedback, pattern="^(ref_ok|ref_redo)$")],
         },
         fallbacks=[CommandHandler("start", cmd_start)],
         per_message=False,
