@@ -14,6 +14,7 @@ import subprocess
 from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article
 from handlers.menu import main_menu, BTN_RESTART
 from wb_parser import get_product_info
+from services.media_storage import ensure_user_media_dirs
 
 # ---------------------------------------------------------------------------
 # Состояния
@@ -50,6 +51,7 @@ async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await ensure_user(user.id, user.username)
+    ensure_user_media_dirs(user.id)  # Создаём папку пользователя
 
     if await is_registered(user.id):
         await update.message.reply_text(
