@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Mock Kie.ai сервер для локальной разработки и тестирования.
+Mock Kie.ai сервер — полная эмуляция реального API.
 
-Эмулирует API Kie.ai:
+Документация: https://docs.kie.ai/
+Эндпоинты:
   - T2T: POST /gpt-5-2/v1/chat/completions
-  - I2I: POST /api/v1/jobs/createTask (model: gpt-image-1.5, seedream, flux...)
-  - I2V: POST /api/v1/jobs/createTask (model: sora-2-image-to-video...)
-  - Статус: GET /api/v1/jobs/taskDetail/{task_id}
+  - I2I/I2V: POST /api/v1/jobs/createTask
+  - Статус: GET /api/v1/jobs/taskDetail/{taskId}
 
 Запуск:
   uvicorn mock_kie_server:app --host 0.0.0.0 --port 8080 --reload
@@ -25,7 +25,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mock_kie")
 
-app = FastAPI(title="Mock Kie.ai Server", version="1.0.0")
+app = FastAPI(title="Mock Kie.ai Server", version="2.0.0")
 
 # ---------------------------------------------------------------------------
 # Заготовленные ответы
@@ -44,12 +44,10 @@ MOCK_PROMPT = (
     "Do not add, invent, or modify any details, colors, or patterns of the garment."
 )
 
-# Виртуальное изображение-заглушка для I2I/I2V результатов
 MOCK_IMAGE_URL = "https://via.placeholder.com/1024x1024/ffffff/cccccc?text=Mock+Reference+Image"
 
-# Хранилище задач (in-memory, только для dev)
+# In-memory task storage
 _tasks: dict = {}
-
 
 # ---------------------------------------------------------------------------
 # Auth helper
@@ -59,31 +57,41 @@ def _check_auth(authorization: Optional[str]) -> None:
     """Проверяет Bearer токен. В mock — всегда пропускает если есть заголовок."""
     if not authorization or not authorization.startswith("Bearer "):
         logger.warning("AUTH FAILED — 401 Unauthorized")
-        raise HTTPException(status_code=401, detail={"code": 401, "msg": "You do not have access permissions"})
-
+        raise HTTPException(
+            status_code=401,
+            detail={"code": 401, "msg": "You do not have access permissions"},
+        )
 
 # ---------------------------------------------------------------------------
 # T2T: Chat Completions
 # ---------------------------------------------------------------------------
 
+class ChatContentItem(BaseModel):
+    type: str
+    text: Optional[str] = None
+    image_url: Optional[dict] = None
+
+
 class ChatMessage(BaseModel):
     role: str
-    content: str
+    content: str | list[ChatContentItem]
 
 
 class ChatRequest(BaseModel):
     model: str
     messages: list[ChatMessage]
+    tools: Optional[list[dict]] = None
+    reasoning_effort: Optional[str] = None
 
 
 @app.post("/gpt-5-2/v1/chat/completions")
 async def chat_completions(req: ChatRequest, authorization: Optional[str] = Header(None)):
-    """T2T — генерация промпта для эталона (OpenAI-совместимый формат)."""
+    """T2T — генерация промпта (OpenAI-совместимый формат)."""
     _check_auth(authorization)
 
-    # Извлекаем системный и пользовательский промпты
-    system_msg = next((m.content for m in req.messages if m.role == "system"), "")
-    user_msg = next((m.content for m in req.messages if m.role == "user"), "")
+    # Логируем запрос
+    system_msg = next((str(m.content) for m in req.messages if m.role == "system"), "")
+    user_msg = next((str(m.content) for m in req.messages if m.role == "user"), "")
 
     logger.info(
         "T2T REQUEST | model=%s | system_len=%d | user_len=%d",
@@ -105,7 +113,10 @@ async def chat_completions(req: ChatRequest, authorization: Optional[str] = Head
                 "message": {
                     "role": "assistant",
                     "content": MOCK_PROMPT,
+                    "refusal": None,
+                    "annotations": [],
                 },
+                "logprobs": None,
                 "finish_reason": "stop",
             }
         ],
@@ -121,53 +132,61 @@ async def chat_completions(req: ChatRequest, authorization: Optional[str] = Head
 # I2I / I2V: Create Task
 # ---------------------------------------------------------------------------
 
-class TaskInput(BaseModel):
+class I2IInput(BaseModel):
+    input_urls: Optional[list[str]] = []
     prompt: str
-    image_urls: Optional[list[str]] = []
     aspect_ratio: Optional[str] = None
+    quality: Optional[str] = None
+    # I2V поля (опциональны для валидации)
+    image_urls: Optional[list[str]] = []
     n_frames: Optional[str] = None
     remove_watermark: Optional[bool] = None
     upload_method: Optional[str] = None
+    character_id_list: Optional[list[str]] = None
 
 
 class CreateTaskRequest(BaseModel):
     model: str
     callBackUrl: Optional[str] = None
-    input: TaskInput
+    progressCallBackUrl: Optional[str] = None
+    input: I2IInput
 
 
 @app.post("/api/v1/jobs/createTask")
 async def create_task(req: CreateTaskRequest, authorization: Optional[str] = Header(None)):
-    """I2I или I2V — создание задачи. Возвращает task_id."""
+    """I2I или I2V — создание задачи."""
     _check_auth(authorization)
 
-    task_id = f"task_{uuid.uuid4().hex[:16]}"
+    task_id = f"task_{req.model.replace('/', '-').replace('.', '_')}_{int(time.time() * 1000)}"
+
+    # Определяем URLs для результата
+    urls = req.input.input_urls if req.input.input_urls else req.input.image_urls or []
 
     logger.info(
-        "CREATE TASK | task_id=%s | model=%s | prompt_len=%d | images=%d",
-        task_id, req.model, len(req.input.prompt), len(req.input.image_urls or []),
+        "CREATE TASK | taskId=%s | model=%s | prompt_len=%d | images=%d | urls=%s",
+        task_id, req.model, len(req.input.prompt), len(urls), urls,
     )
-    logger.debug("TASK INPUT: %s", req.input.model_dump()[:500])
 
     _tasks[task_id] = {
-        "task_id": task_id,
+        "taskId": task_id,
         "model": req.model,
-        "status": "completed",  # Mock: сразу completed
+        "status": "completed",
         "progress": 100,
         "input": req.input.model_dump(),
         "result": {
-            "image_url": MOCK_IMAGE_URL,
+            "imageUrl": MOCK_IMAGE_URL,
         },
         "created_at": int(time.time()),
         "credits_used": 1,
     }
 
-    logger.info("CREATE TASK RESPONSE | task_id=%s | status=completed", task_id)
+    logger.info("CREATE TASK RESPONSE | taskId=%s | status=completed", task_id)
 
     return {
         "code": 200,
+        "msg": "success",
         "data": {
-            "task_id": task_id,
+            "taskId": task_id,
         },
     }
 
@@ -176,29 +195,33 @@ async def create_task(req: CreateTaskRequest, authorization: Optional[str] = Hea
 # Task Detail (polling)
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/jobs/taskDetail/{task_id}")
-async def task_detail(task_id: str, authorization: Optional[str] = Header(None)):
-    """Статус задачи."""
+@app.get("/api/v1/jobs/recordInfo")
+async def task_detail(taskId: str, authorization: Optional[str] = Header(None)):
+    """Статус задачи. Реальный путь: GET /api/v1/jobs/recordInfo?taskId=..."""
     _check_auth(authorization)
 
-    task = _tasks.get(task_id)
+    task = _tasks.get(taskId)
     if not task:
-        logger.warning("TASK NOT FOUND | task_id=%s", task_id)
-        raise HTTPException(status_code=404, detail={"code": 404, "msg": "Task not found"})
+        logger.warning("TASK NOT FOUND | taskId=%s", taskId)
+        raise HTTPException(
+            status_code=404,
+            detail={"code": 404, "msg": "Task not found"},
+        )
 
     logger.info(
-        "TASK DETAIL | task_id=%s | model=%s | status=%s | result=%s",
-        task_id, task["model"], task["status"], task["result"],
+        "TASK DETAIL | taskId=%s | model=%s | status=%s | result=%s",
+        taskId, task["model"], task["status"], task.get("result"),
     )
 
     return {
         "code": 200,
+        "msg": "success",
         "data": {
-            "task_id": task["task_id"],
+            "taskId": task["taskId"],
             "model": task["model"],
             "status": task["status"],
             "progress": task["progress"],
-            "result": task["result"],
+            "result": task.get("result", {}),
             "created_at": task["created_at"],
             "credits_used": task["credits_used"],
         },
@@ -211,5 +234,5 @@ async def task_detail(task_id: str, authorization: Optional[str] = Header(None))
 
 @app.get("/health")
 async def health():
-    logger.info("HEALTH CHECK | tasks=%d | task_ids=%s", len(_tasks), list(_tasks.keys()))
+    logger.info("HEALTH CHECK | tasks=%d | taskIds=%s", len(_tasks), list(_tasks.keys()))
     return {"status": "ok", "tasks": len(_tasks)}

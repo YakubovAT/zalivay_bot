@@ -96,9 +96,17 @@
         }
       }
     },
-    "/api/v1/jobs/taskDetail/task_gpt-image_1765968156336": {
+    "/api/v1/jobs/recordInfo": {
       "get": {
         "summary": "task status",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "taskId",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
         "responses": {
           "200": {
             "description": "200 completed"
@@ -117,16 +125,7 @@
           {
             "BearerAuth": []
           }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        }
+        ]
       }
     },
     "/gpt-5-2/v1/chat/completions": {
