@@ -467,7 +467,10 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
         sent = await context.bot.send_photo(
             chat_id=user_id,
             photo=BytesIO(image_data),
-            caption=f"✅ Эталон для <code>{articul}</code> сохранён!",
+            caption=f"✅ Эталон для <code>{articul}</code> сохранён в базу!\n\n"
+                    f"Теперь для создания фото и видео мы будем использовать этот эталон. "
+                    f"Вы всегда можете переделать его, если что-то не понравится "
+                    f"при создании фото или видеоконтента.",
             parse_mode="HTML",
         )
         file_id = sent.photo[-1].file_id
@@ -486,7 +489,7 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
         await context.bot.send_message(
             chat_id=user_id,
             text=f"Списано <b>{REFERENCE_COST} руб.</b> Баланс: <b>{new_balance} руб.</b>\n\n"
-                 f"Теперь вы можете создавать фото и видео через меню.",
+                 f"Выберите действие в меню:",
             reply_markup=main_menu(),
             parse_mode="HTML",
         )
