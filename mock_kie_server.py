@@ -51,8 +51,6 @@ MOCK_PROMPT = (
     "Do not add, invent, or modify any details, colors, or patterns of the garment."
 )
 
-MOCK_IMAGE_URL = "https://via.placeholder.com/1024x1024/ffffff/cccccc?text=Mock+Reference+Image"
-
 # In-memory task storage
 _tasks: dict = {}
 
