@@ -35,6 +35,7 @@ ONBOARD_SELECT_MP  = 14  # Выбор МП
 ONBOARD_ARTICLE    = 15  # Ввод артикула
 ONBOARD_REF_CHOICE = 16  # Выбор: создать эталон / другой артикул
 ONBOARD_REF_FEEDBACK = 17 # ✅ Подходит / 🔄 Переделать
+ONBOARD_REDO_FEEDBACK = 18 # Ввод текста для переделки
 
 # ---------------------------------------------------------------------------
 # Перезапуск онбординга
@@ -282,6 +283,21 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     context.user_data["wb_images"] = info.get("images", [])[:5]
 
+    # Проверяем, есть ли уже эталон
+    existing_ref = await get_reference(user_id, raw)
+
+    if existing_ref:
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔄 Переделать эталон — 100 руб.", callback_data="redo_ref")],
+            [InlineKeyboardButton("✅ Готово, перейти в меню", callback_data="go_menu")],
+        ])
+        await update.message.reply_text(
+            "Эталон для этого артикула уже создан.\n"
+            "Хотите переделать?",
+            reply_markup=keyboard,
+        )
+        return ONBOARD_REF_CHOICE
+
     # Кнопки: создать эталон или другой артикул
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Создать эталон — 100 руб.", callback_data="create_ref")],
@@ -303,6 +319,9 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     query = update.callback_query
     await query.answer()
 
+    articul = context.user_data.get("onboard_article", "")
+    product = context.user_data.get("product_info", {})
+
     if query.data == "new_article":
         # Возвращаемся к выбору МП
         await query.edit_message_text(
@@ -314,9 +333,17 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return ONBOARD_SELECT_MP
 
-    if query.data == "create_ref":
-        articul = context.user_data.get("onboard_article", "")
-        product = context.user_data.get("product_info", {})
+    if query.data == "go_menu":
+        await query.edit_message_text("Отлично! Переходим в главное меню.")
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text="Выберите действие:",
+            reply_markup=main_menu(),
+        )
+        return ConversationHandler.END
+
+    if query.data in ("create_ref", "redo_ref"):
+        # Проверка баланса
         db_user = await get_user(update.effective_user.id)
         balance = db_user["balance"] if db_user else 0
 
@@ -453,9 +480,75 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if query.data == "ref_redo":
         await query.edit_message_text(
-            "✍️ Напишите что нужно изменить в эталоне:"
+            "✍️ Напишите что нужно изменить в эталоне.\n"
+            "Например: «убрать фон» или «изменить цвет»"
         )
+        return ONBOARD_REDO_FEEDBACK
+
+
+# ---------------------------------------------------------------------------
+# Онбординг: ввод фидбека для переделки
+# ---------------------------------------------------------------------------
+
+async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    feedback = update.message.text.strip()
+    articul = context.user_data.get("onboard_article", "")
+    original_prompt = context.user_data.get("reference_prompt", "")
+    product = context.user_data.get("product_info", {})
+
+    # Добавляем фидбек к промпту
+    new_prompt = original_prompt + f"\n\nОбрати особое внимание: {feedback}"
+    context.user_data["reference_prompt"] = new_prompt
+
+    await update.message.reply_text("🔄 Перегенерирую эталон с учётом ваших пожеланий...")
+
+    session = context.bot_data.get("http_session")
+    if not session:
+        await update.message.reply_text("⚠️ Техническая ошибка.")
         return ConversationHandler.END
+
+    from config import AI_API_KEY, AI_API_BASE, AI_MODEL
+    from services.i2i_generator import generate_reference_image
+
+    wb_images = context.user_data.get("wb_images", [])
+    if not wb_images:
+        await update.message.reply_text("❌ Не удалось найти фото товара.")
+        return ConversationHandler.END
+
+    image_url = await generate_reference_image(
+        session=session,
+        api_base=AI_API_BASE,
+        api_key=AI_API_KEY,
+        image_urls=wb_images[:3],
+        prompt=new_prompt,
+    )
+
+    if not image_url:
+        await update.message.reply_text("❌ Ошибка генерации изображения.")
+        return ConversationHandler.END
+
+    try:
+        async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=15)) as img_resp:
+            image_data = await img_resp.read()
+    except Exception as e:
+        logger.error("Failed to download image: %s", e)
+        await update.message.reply_text("❌ Ошибка загрузки изображения.")
+        return ConversationHandler.END
+
+    context.user_data["reference_image_data"] = image_data
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
+        [InlineKeyboardButton("🔄 Ещё раз", callback_data="ref_redo")],
+    ])
+    await update.message.reply_photo(
+        photo=BytesIO(image_data),
+        caption="🎨 Вот новый вариант!\n\nОн должен быть <i>похож</i>, а не 100% копией.",
+        reply_markup=keyboard,
+        parse_mode="HTML",
+    )
+
+    return ONBOARD_REF_FEEDBACK
 
 
 # ---------------------------------------------------------------------------
@@ -475,8 +568,9 @@ def build_registration_handler() -> ConversationHandler:
             ONBOARD_STEP4:     [CallbackQueryHandler(step4_finish,     pattern="^onboard_finish$")],
             ONBOARD_SELECT_MP: [CallbackQueryHandler(onboard_select_mp, pattern="^onboard_mp_(wb|ozon)$")],
             ONBOARD_ARTICLE:   [MessageHandler(filters.TEXT & ~filters.COMMAND, onboard_article)],
-            ONBOARD_REF_CHOICE: [CallbackQueryHandler(onboard_ref_choice, pattern="^(create_ref|new_article)$")],
+            ONBOARD_REF_CHOICE: [CallbackQueryHandler(onboard_ref_choice, pattern="^(create_ref|redo_ref|new_article|go_menu)$")],
             ONBOARD_REF_FEEDBACK: [CallbackQueryHandler(onboard_ref_feedback, pattern="^(ref_ok|ref_redo)$")],
+            ONBOARD_REDO_FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, onboard_redo_feedback)],
         },
         fallbacks=[CommandHandler("start", cmd_start)],
         per_message=False,
