@@ -110,7 +110,9 @@ async def photo_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
+    user = update.effective_user
+    await ensure_user(user.id, user.username)
+
     raw = update.message.text.strip()
     marketplace = context.user_data.get("photo_marketplace", "WB")
 
@@ -161,7 +163,7 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
     )
 
     await save_article(
-        user_id=user_id,
+        user_id=user.id,
         article_code=raw,
         marketplace=marketplace,
         name=name,
@@ -284,7 +286,9 @@ async def video_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
+    user = update.effective_user
+    await ensure_user(user.id, user.username)
+
     raw = update.message.text.strip()
     marketplace = context.user_data.get("video_marketplace", "WB")
 
@@ -335,7 +339,7 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
     )
 
     await save_article(
-        user_id=user_id,
+        user_id=user.id,
         article_code=raw,
         marketplace=marketplace,
         name=name,
