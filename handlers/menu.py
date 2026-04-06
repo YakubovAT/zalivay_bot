@@ -7,7 +7,7 @@ from telegram.ext import (
     filters,
 )
 
-from database import ensure_user, get_user, get_user_references, get_reference, save_article
+from database import ensure_user, get_user, get_user_references, get_reference, save_article, save_reference
 from wb_parser import get_product_info
 from config import REFERENCE_COST, AI_API_KEY, AI_API_BASE, AI_MODEL
 from services.reference_generator import generate_reference_prompt
@@ -28,9 +28,11 @@ BTN_RESTART    = "Перезапуск"
 WAITING_MP_PHOTO         = 1
 WAITING_ARTICUL_PHOTO    = 2
 WAITING_REF_CHOICE_PHOTO = 3
-WAITING_MP_VIDEO         = 4
-WAITING_ARTICUL_VIDEO    = 5
-WAITING_REF_CHOICE_VIDEO = 6
+WAITING_REF_FEEDBACK     = 4
+WAITING_MP_VIDEO         = 5
+WAITING_ARTICUL_VIDEO    = 6
+WAITING_REF_CHOICE_VIDEO = 7
+WAITING_REF_FEEDBACK_V   = 8
 
 
 def main_menu() -> ReplyKeyboardMarkup:
@@ -249,15 +251,52 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         context.user_data["reference_prompt"] = prompt
 
-        # Новое сообщение — не edit
-        await query.message.reply_text(
-            "✅ Промпт сгенерирован!\n\n"
-            "📥 Скачиваю фото товара с WB...\n\n"
-            "# TODO: I2I AI — создать PNG с прозрачным фоном"
-        )
+        # TODO: I2I AI — пока заглушка, отправляем placeholder
+        import os
+        photo_path = os.path.join(os.path.dirname(__file__), "..", "эталон225616209.png")
+        if os.path.exists(photo_path):
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
+                [InlineKeyboardButton("🔄 Переделать", callback_data="ref_redo")],
+            ])
+            await query.message.reply_photo(
+                photo=open(photo_path, "rb"),
+                caption="🎨 Эталон готов!\n\nЭталон должен быть <i>похож</i>, а не 100% копией. Небольшие расхождения допустимы.",
+                reply_markup=keyboard,
+                parse_mode="HTML",
+            )
+        else:
+            await query.message.reply_text("⚠️ Файл эталона не найден.")
+
         # TODO: списать баланс
-        # TODO: I2I AI
+        return WAITING_REF_FEEDBACK
+
+
+async def ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    articul = context.user_data.get("current_article", "")
+
+    if query.data == "ref_ok":
+        # Сохраняем эталон в БД (пока placeholder file_id)
+        await save_reference(
+            user_id=update.effective_user.id,
+            articul=articul,
+            file_id="placeholder_ref_225616209",
+        )
+        await query.edit_message_text(
+            f"✅ Эталон для артикула <code>{articul}</code> сохранён!\n\n"
+            f"Теперь вы можете создавать фото и видео через меню.",
+            parse_mode="HTML",
+        )
         return ConversationHandler.END
+
+    if query.data == "ref_redo":
+        await query.edit_message_text(
+            "✍️ Напишите что нужно изменить в эталоне:"
+        )
+        return ConversationHandler.END  # TODO: добавить state для фидбека
 
 
 # ---------------------------------------------------------------------------
@@ -505,6 +544,9 @@ def build_conversation_handler() -> ConversationHandler:
             WAITING_REF_CHOICE_PHOTO: [
                 CallbackQueryHandler(photo_ref_choice, pattern="^(create_ref|new_article)$")
             ],
+            WAITING_REF_FEEDBACK: [
+                CallbackQueryHandler(ref_feedback, pattern="^(ref_ok|ref_redo)$")
+            ],
             WAITING_MP_VIDEO: [
                 CallbackQueryHandler(video_select_mp, pattern="^video_mp_(wb|ozon)$")
             ],
@@ -513,6 +555,9 @@ def build_conversation_handler() -> ConversationHandler:
             ],
             WAITING_REF_CHOICE_VIDEO: [
                 CallbackQueryHandler(video_ref_choice, pattern="^(create_ref|new_article)$")
+            ],
+            WAITING_REF_FEEDBACK_V: [
+                CallbackQueryHandler(ref_feedback, pattern="^(ref_ok|ref_redo)$")
             ],
         },
         fallbacks=[
