@@ -126,6 +126,21 @@ async def save_article(
     return row["id"] if row else -1
 
 
+async def save_reference(user_id: int, articul: str, ref_type: str, file_id: str) -> int:
+    """Сохраняет эталон (ссылку на изображение) в БД, возвращает id записи."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        INSERT INTO article_references (user_id, articul, ref_type, file_id)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT DO NOTHING
+        RETURNING id
+        """,
+        user_id, articul, ref_type, file_id,
+    )
+    return row["id"] if row else -1
+
+
 async def get_reference(user_id: int, articul: str, ref_type: str) -> asyncpg.Record | None:
     pool = await get_pool()
     return await pool.fetchrow(

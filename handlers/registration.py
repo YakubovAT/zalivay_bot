@@ -11,7 +11,7 @@ from telegram.ext import (
 import asyncio
 import subprocess
 
-from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article
+from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article, save_reference
 from handlers.menu import main_menu, BTN_RESTART
 from wb_parser import get_product_info
 
@@ -36,8 +36,9 @@ async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🔄 Обновление и перезапуск бота...")
     await asyncio.sleep(1)
     subprocess.Popen(
-        "cd /var/www/bots/Zalivai_bot && git pull && systemctl restart zalivai-bot",
+        "sleep 2 && cd /var/www/bots/Zalivai_bot && git pull && systemctl restart zalivai-bot",
         shell=True,
+        start_new_session=True,
     )
     return ConversationHandler.END
 
@@ -262,6 +263,14 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
         color=color,
         material=material,
     )
+
+    if marketplace == "WB" and info.get("images"):
+        await save_reference(
+            user_id=user_id,
+            articul=raw,
+            ref_type="photo",
+            file_id=info["images"][0],
+        )
 
     await update.message.reply_text(
         "Отлично! Артикул сохранён.\n\n"
