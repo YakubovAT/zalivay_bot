@@ -60,6 +60,7 @@ REFERENCE_USER_TEMPLATE = (
     "— Сгенерировать и выдать финальное изображение\n\n"
     "Верни ТОЛЬКО готовый промпт на английском языке.\n"
     "Без пояснений, без комментариев, без markdown-разметки."
+    "{additional_requirements}"
 )
 
 
@@ -71,16 +72,26 @@ async def generate_reference_prompt(
     api_key: str,
     api_base_url: str = "https://kie.ai",
     model: str = "gpt-5-2",
+    additional_requirements: str = "",
 ) -> str | None:
     """
     Генерирует промпт для эталона через Text AI.
 
+    additional_requirements: строка с пожеланиями пользователя на русском.
+        Будет добавлена в конец промпта как «Additional requirements: ...»
+
     Returns: промпт на английском или None при ошибке.
     """
+    additional = (
+        f"\n\nДополнительные пожелания: {additional_requirements}"
+        if additional_requirements else ""
+    )
+
     user_prompt = REFERENCE_USER_TEMPLATE.format(
         name=name or "товар",
         color=color or "не указан",
         material=material or "не указан",
+        additional_requirements=additional,
     )
 
     payload = {

@@ -503,14 +503,11 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
 async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     feedback = update.message.text.strip()
     articul = context.user_data.get("onboard_article", "")
-    original_prompt = context.user_data.get("reference_prompt", "")
     product = context.user_data.get("product_info", {})
 
-    # Добавляем фидбек к промпту
-    new_prompt = original_prompt + f"\n\nОбрати особое внимание: {feedback}"
-    context.user_data["reference_prompt"] = new_prompt
-
-    await update.message.reply_text("🔄 Перегенерирую эталон с учётом ваших пожеланий...")
+    await update.message.reply_text(
+        "🔄 Перегенерирую промпт с учётом ваших пожеланий..."
+    )
 
     session = context.bot_data.get("http_session")
     if not session:
@@ -518,19 +515,41 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
         return ConversationHandler.END
 
     from config import AI_API_KEY, AI_API_BASE, AI_MODEL
+    from services.reference_generator import generate_reference_prompt
     from services.i2i_generator import generate_reference_image
 
+    # T2T AI — генерируем новый промпт с пожеланиями
+    prompt = await generate_reference_prompt(
+        session=session,
+        name=product.get("name", ""),
+        color=product.get("color", ""),
+        material=product.get("material", ""),
+        api_key=AI_API_KEY,
+        api_base_url=AI_API_BASE,
+        model=AI_MODEL,
+        additional_requirements=feedback,
+    )
+
+    if not prompt:
+        await update.message.reply_text("❌ Ошибка генерации промпта.")
+        return ConversationHandler.END
+
+    context.user_data["reference_prompt"] = prompt
+
+    # I2I AI — генерируем изображение с новым промптом
     wb_images = context.user_data.get("wb_images", [])
     if not wb_images:
         await update.message.reply_text("❌ Не удалось найти фото товара.")
         return ConversationHandler.END
+
+    await update.message.reply_text("📥 Отправляю фото в I2I AI...")
 
     image_url = await generate_reference_image(
         session=session,
         api_base=AI_API_BASE,
         api_key=AI_API_KEY,
         image_urls=wb_images[:3],
-        prompt=new_prompt,
+        prompt=prompt,
     )
 
     if not image_url:
