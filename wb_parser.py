@@ -6,22 +6,23 @@ logger = logging.getLogger(__name__)
 
 MAX_BASKET = 50
 MAX_IMAGES = 30
+WB_DOMAINS = ["wbcontent.net"]
 
 
 def _vol_part(nmid: int) -> tuple[int, int]:
     return nmid // 100000, nmid // 1000
 
 
-def _img_url(basket: int, vol: int, part: int, nmid: int, i: int) -> str:
+def _img_url(domain: str, basket: int, vol: int, part: int, nmid: int, i: int) -> str:
     return (
-        f"https://basket-{basket:02d}.wbbasket.ru"
+        f"https://basket-{basket:02d}.{domain}"
         f"/vol{vol}/part{part}/{nmid}/images/big/{i}.webp"
     )
 
 
-def _card_url(basket: int, vol: int, part: int, nmid: int) -> str:
+def _card_url(domain: str, basket: int, vol: int, part: int, nmid: int) -> str:
     return (
-        f"https://basket-{basket:02d}.wbbasket.ru"
+        f"https://basket-{basket:02d}.{domain}"
         f"/vol{vol}/part{part}/{nmid}/info/ru/card.json"
     )
 
@@ -43,14 +44,15 @@ async def get_product_info(articul: str) -> dict:
 
     connector = aiohttp.TCPConnector(ssl=False)
     async with aiohttp.ClientSession(connector=connector) as session:
-        basket = await _find_basket(session, nmid, vol, part)
-        if basket is None:
+        result = await _find_basket(session, nmid, vol, part)
+        if result is None:
             logger.warning("WB parser: корзина не найдена для артикула %s", articul)
             return {}
 
-        logger.info("WB parser: артикул=%s найден в корзине %02d", articul, basket)
-        card = await _fetch_card(session, basket, vol, part, nmid)
-        images = await _collect_images(session, nmid, vol, part, basket)
+        basket, domain = result
+        logger.info("WB parser: артикул=%s найден в корзине %02d domain=%s", articul, basket, domain)
+        card = await _fetch_card(session, domain, basket, vol, part, nmid)
+        images = await _collect_images(session, nmid, vol, part, basket, domain)
         logger.info("WB parser: артикул=%s карточка=%s фото=%d", articul, bool(card), len(images))
 
     options = card.get("options", [])
@@ -76,26 +78,27 @@ async def get_product_info(articul: str) -> dict:
 
 async def _find_basket(
     session: aiohttp.ClientSession, nmid: int, vol: int, part: int
-) -> int | None:
-    """Перебирает корзины по порядку, возвращает первую где есть 1.webp."""
+) -> tuple[int, str] | None:
+    """Перебирает корзины и домены, возвращает (basket, domain) где есть 1.webp."""
     for basket in range(1, MAX_BASKET + 1):
-        url = _img_url(basket, vol, part, nmid, 1)
-        try:
-            async with session.head(url, timeout=aiohttp.ClientTimeout(total=5)) as r:
-                logger.debug("WB basket-%02d: status=%s url=%s", basket, r.status, url)
-                if r.status == 200:
-                    return basket
-        except Exception as e:
-            logger.debug("WB basket-%02d: ошибка %s", basket, e)
-            continue
+        for domain in WB_DOMAINS:
+            url = _img_url(domain, basket, vol, part, nmid, 1)
+            try:
+                async with session.head(url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+                    logger.debug("WB basket-%02d %s: status=%s", basket, domain, r.status)
+                    if r.status == 200:
+                        return basket, domain
+            except Exception as e:
+                logger.debug("WB basket-%02d %s: ошибка %s", basket, domain, e)
+                continue
     return None
 
 
 async def _fetch_card(
-    session: aiohttp.ClientSession, basket: int, vol: int, part: int, nmid: int
+    session: aiohttp.ClientSession, domain: str, basket: int, vol: int, part: int, nmid: int
 ) -> dict:
     """Загружает info/ru/card.json из корзины."""
-    url = _card_url(basket, vol, part, nmid)
+    url = _card_url(domain, basket, vol, part, nmid)
     try:
         async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as r:
             logger.debug("WB card.json: status=%s url=%s", r.status, url)
@@ -108,12 +111,12 @@ async def _fetch_card(
 
 
 async def _collect_images(
-    session: aiohttp.ClientSession, nmid: int, vol: int, part: int, basket: int
+    session: aiohttp.ClientSession, nmid: int, vol: int, part: int, basket: int, domain: str
 ) -> list[str]:
     """Собирает URL всех фото из найденной корзины пока не 404."""
     urls = []
     for i in range(1, MAX_IMAGES + 1):
-        url = _img_url(basket, vol, part, nmid, i)
+        url = _img_url(domain, basket, vol, part, nmid, i)
         try:
             async with session.head(url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                 if r.status == 200:
