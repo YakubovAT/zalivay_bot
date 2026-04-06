@@ -163,7 +163,14 @@ async def step4_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("Отлично! Добро пожаловать 🎉")
     await context.bot.send_message(
         chat_id=user_id,
-        text="Выберите действие в меню ниже:",
+        text=(
+            "Чтобы начать создавать фото и видео контент, сначала нужно создать "
+            "<b>эталонное изображение</b> товара — это базовый снимок, на основе которого "
+            "AI будет генерировать все последующие материалы.\n\n"
+            "Выберите кнопку <b>📸 Фото</b> или <b>🎬 Видео</b> в меню ниже и введите "
+            "артикул товара с Wildberries или OZON — мы сами определим маркетплейс."
+        ),
+        parse_mode="HTML",
         reply_markup=main_menu(),
     )
     return ConversationHandler.END
