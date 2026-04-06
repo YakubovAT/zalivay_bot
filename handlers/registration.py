@@ -401,8 +401,6 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.message.reply_text("❌ Не удалось найти фото товара.")
             return ConversationHandler.END
 
-        await query.message.reply_text("📥 Отправляю фото в I2I AI...")
-
         image_url = await generate_reference_image(
             session=session,
             api_base=AI_API_BASE,
@@ -451,10 +449,10 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
 
     articul = context.user_data.get("onboard_article", "")
-    image_data = context.user_data.get("reference_image_data")
 
     if query.data == "ref_ok":
         user_id = update.effective_user.id
+        image_data = context.user_data.get("reference_image_data")
 
         # Сохраняем файл на сервер
         user_ref_dir = os.path.join(MEDIA_ROOT, str(user_id), "references")
@@ -489,7 +487,7 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
         return ConversationHandler.END
 
     if query.data == "ref_redo":
-        await query.edit_message_text(
+        await query.message.reply_text(
             "✍️ Напишите что нужно изменить в эталоне.\n"
             "Например: «убрать фон» или «изменить цвет»"
         )
@@ -541,8 +539,6 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
     if not wb_images:
         await update.message.reply_text("❌ Не удалось найти фото товара.")
         return ConversationHandler.END
-
-    await update.message.reply_text("📥 Отправляю фото в I2I AI...")
 
     image_url = await generate_reference_image(
         session=session,
