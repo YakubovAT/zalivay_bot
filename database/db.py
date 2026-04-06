@@ -96,6 +96,30 @@ async def reset_registration(user_id: int):
     )
 
 
+async def save_article(
+    user_id: int,
+    article_code: str,
+    marketplace: str,
+    name: str,
+    color: str,
+    material: str,
+) -> int:
+    """Сохраняет артикул в БД, возвращает id записи."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        INSERT INTO articles (user_id, article_code, marketplace, name, color, material)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (user_id, article_code, marketplace)
+        DO UPDATE SET name = EXCLUDED.name, color = EXCLUDED.color,
+                      material = EXCLUDED.material, parsed_at = NOW()
+        RETURNING id
+        """,
+        user_id, article_code, marketplace, name, color, material,
+    )
+    return row["id"] if row else -1
+
+
 async def get_reference(user_id: int, articul: str, ref_type: str) -> asyncpg.Record | None:
     pool = await get_pool()
     return await pool.fetchrow(

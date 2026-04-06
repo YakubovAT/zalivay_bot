@@ -11,6 +11,7 @@ from .db import (
     get_reference,
     get_marketplace_cache,
     save_marketplace_cache,
+    save_article,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "get_reference",
     "get_marketplace_cache",
     "save_marketplace_cache",
+    "save_article",
 ]

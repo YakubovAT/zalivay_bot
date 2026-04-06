@@ -32,6 +32,20 @@ CREATE TABLE IF NOT EXISTS user_actions (
 CREATE INDEX IF NOT EXISTS idx_user_actions_user_id ON user_actions (user_id);
 CREATE INDEX IF NOT EXISTS idx_user_actions_created_at ON user_actions (created_at DESC);
 
+CREATE TABLE IF NOT EXISTS articles (
+    id           SERIAL PRIMARY KEY,
+    user_id      BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    article_code TEXT NOT NULL,
+    marketplace  TEXT NOT NULL CHECK (marketplace IN ('WB', 'OZON')),
+    name         TEXT,
+    color        TEXT,
+    material     TEXT,
+    parsed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_user_article
+    ON articles (user_id, article_code, marketplace);
+
 -- Кэш маркетплейса: хранит подтверждённый результат валидации артикула.
 -- Сохраняется ТОЛЬКО при confidence=1.0 (WB public API подтвердил).
 -- Fallback-результаты (OZON с confidence=0.7) не кэшируются.

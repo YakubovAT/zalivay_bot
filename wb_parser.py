@@ -45,14 +45,22 @@ async def get_product_info(articul: str) -> dict:
         card = await _fetch_card(session, basket, vol, part, nmid)
         images = await _collect_images(session, nmid, vol, part, basket)
 
-    colors = [v for opt in card.get("options", [])
+    options = card.get("options", [])
+
+    colors = [v for opt in options
               if opt.get("name") == "Цвет"
               for v in opt.get("variable_values", [])]
+
+    material_values = [v for opt in options
+                       if opt.get("name") in ("Состав", "Материал")
+                       for v in opt.get("variable_values", [])]
+    material = ", ".join(material_values) if material_values else ""
 
     return {
         "name":        card.get("imt_name"),
         "brand":       card.get("selling", {}).get("brand_name"),
         "colors":      colors or card.get("nm_colors_names", "").split(", "),
+        "material":    material,
         "description": card.get("description"),
         "images":      images,
     }

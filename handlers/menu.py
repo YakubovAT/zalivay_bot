@@ -6,7 +6,7 @@ from telegram.ext import (
     filters,
 )
 
-from database import ensure_user, get_user, get_user_references, get_reference
+from database import ensure_user, get_user, get_user_references, get_reference, save_article
 from services.marketplace import resolve_marketplace
 
 # ---------------------------------------------------------------------------
@@ -118,7 +118,6 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
     # --- Маркетплейс определён ---
     marketplace = result["marketplace"]
     meta        = result.get("meta", {})
-    method      = result.get("method", "")
     articul     = raw.strip()
 
     mp_label = "Wildberries 🟣" if marketplace == "WB" else "OZON 🔵"
@@ -128,7 +127,6 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         if result.get("confidence", 1.0) < 1.0 else ""
     )
 
-    # Собираем строку мета-данных если WB вернул их
     meta_lines = []
     if meta.get("name"):
         meta_lines.append(f"📦 <b>{meta['name']}</b>")
@@ -136,6 +134,8 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         meta_lines.append(f"🏷 {meta['brand']}")
     if meta.get("color"):
         meta_lines.append(f"🎨 {meta['color']}")
+    if meta.get("material"):
+        meta_lines.append(f"🧵 {meta['material']}")
     meta_block = "\n".join(meta_lines)
     if meta_block:
         meta_block = f"\n\n{meta_block}"
@@ -148,7 +148,17 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         parse_mode="HTML",
     )
 
-    # Сохраняем артикул и МП в user_data для следующих шагов
+    # Сохраняем артикул в БД
+    await save_article(
+        user_id=user_id,
+        article_code=articul,
+        marketplace=marketplace,
+        name=meta.get("name", ""),
+        color=meta.get("color", ""),
+        material=meta.get("material", ""),
+    )
+
+    # Сохраняем в user_data для следующих шагов
     context.user_data["current_article"]     = articul
     context.user_data["current_marketplace"] = marketplace
 
@@ -225,6 +235,8 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         meta_lines.append(f"🏷 {meta['brand']}")
     if meta.get("color"):
         meta_lines.append(f"🎨 {meta['color']}")
+    if meta.get("material"):
+        meta_lines.append(f"🧵 {meta['material']}")
     meta_block = "\n".join(meta_lines)
     if meta_block:
         meta_block = f"\n\n{meta_block}"
@@ -235,6 +247,16 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         f"{confidence_note}\n\n"
         f"⏳ Начинается сбор информации о товаре...",
         parse_mode="HTML",
+    )
+
+    # Сохраняем артикул в БД
+    await save_article(
+        user_id=user_id,
+        article_code=articul,
+        marketplace=marketplace,
+        name=meta.get("name", ""),
+        color=meta.get("color", ""),
+        material=meta.get("material", ""),
     )
 
     context.user_data["current_article"]     = articul

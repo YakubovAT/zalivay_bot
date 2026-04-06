@@ -1,22 +1,14 @@
 """
 services/marketplace.py
 
-Определяет маркетплейс (WB / OZON) только по артикулу.
+Определяет маркетплейс (WB / OZON) по артикулу и возвращает мета-данные товара.
 
 Уровни:
-    1. Кэш БД       — мгновенно, 100%
-    2. Эвристика    — <1 мс, буквы/дефисы → однозначно OZON
-    3. WB public API — 200–500 мс, без токена
-    Fallback: если не найден на WB → считаем OZON (с низкой уверенностью)
-
-Исправленные баги:
-    - Невидимые символы и пробелы внутри артикула чистятся через re.sub
-    - 301/302 не считаются "найдено" — проверяем JSON-ответ
-    - brand — строка, не объект; color — из colors[0].name
-    - Различаем 429/5xx (API недоступен) от 404 (не найден)
-    - Неуверенные результаты (fallback OZON) НЕ кэшируются
-    - Один глобальный aiohttp.ClientSession передаётся снаружи
-    - Таймаут: connect=2s, total=4s — не блокируем бота
+    1. Кэш БД    — мгновенно, 100%
+    2. Эвристика — <1 мс, буквы/дефисы → однозначно OZON
+    3. wb_parser — прямой доступ к CDN корзины WB (basket-XX.wbbasket.ru),
+                   возвращает name, brand, colors, material, description, images
+    Fallback: числовой артикул не найден на WB → предполагаем OZON (confidence=0.7)
 """
 
 from __future__ import annotations
@@ -28,6 +20,7 @@ from typing import Any
 import aiohttp
 
 from database import get_marketplace_cache, save_marketplace_cache
+from wb_parser import get_product_info
 
 logger = logging.getLogger(__name__)
 
@@ -40,83 +33,6 @@ _WB_DIGITS = re.compile(r"^\d{6,14}$")
 # Однозначный OZON: содержит латинские буквы, дефис или подчёркивание
 _OZON_ALPHA = re.compile(r"[A-Za-z\-_]")
 
-# Публичный WB API карточек (без токена, используется фронтом wildberries.ru)
-_WB_CARD_API = "https://card.wb.ru/cards/v2/detail"
-
-_WB_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept": "application/json",
-    "Origin": "https://www.wildberries.ru",
-}
-
-# ---------------------------------------------------------------------------
-# Публичный API
-# ---------------------------------------------------------------------------
-
-async def _check_wb_card_api(
-    session: aiohttp.ClientSession,
-    article: str,
-) -> dict[str, Any]:
-    """
-    Проверяет существование товара через публичный API WB.
-
-    Returns:
-        {"found": True,  "meta": {"name": ..., "brand": ..., "color": ...}}
-        {"found": False, "meta": {}}
-        {"error": "rate_limited" | "unavailable"}   ← API недоступен, не "не найден"
-    """
-    timeout = aiohttp.ClientTimeout(connect=2, total=4)
-    try:
-        async with session.get(
-            _WB_CARD_API,
-            params={"appType": "1", "curr": "rub", "nm": article},
-            headers=_WB_HEADERS,
-            timeout=timeout,
-        ) as resp:
-            if resp.status == 429:
-                logger.warning("WB card API: rate limited (429) for article %s", article)
-                return {"error": "rate_limited"}
-            if resp.status >= 500:
-                logger.warning("WB card API: server error %s for article %s", resp.status, article)
-                return {"error": "unavailable"}
-            if resp.status != 200:
-                # 404 и прочее — товар не найден
-                return {"found": False, "meta": {}}
-
-            data = await resp.json(content_type=None)
-            products = data.get("data", {}).get("products", [])
-
-            if not products:
-                return {"found": False, "meta": {}}
-
-            p = products[0]
-
-            # brand — строка (не объект)
-            brand = p.get("brand") or ""
-            # color — список объектов [{name: ...}]
-            colors = p.get("colors") or []
-            color = colors[0].get("name", "") if colors else ""
-
-            return {
-                "found": True,
-                "meta": {
-                    "name":  p.get("name", ""),
-                    "brand": brand,
-                    "color": color,
-                },
-            }
-
-    except TimeoutError:
-        logger.warning("WB card API: timeout for article %s", article)
-        return {"error": "unavailable"}
-    except aiohttp.ClientError as e:
-        logger.warning("WB card API: network error for article %s: %s", article, e)
-        return {"error": "unavailable"}
-
 
 # ---------------------------------------------------------------------------
 # Главная функция
@@ -128,15 +44,16 @@ async def resolve_marketplace(
     session: aiohttp.ClientSession,
 ) -> dict[str, Any]:
     """
-    Определяет маркетплейс по артикулу.
+    Определяет маркетплейс по артикулу и возвращает мета-данные товара.
+
+    meta для WB содержит: name, brand, color, material, description, images
+    meta для OZON: {} (данные получаются на этапе генерации через OZON API)
 
     Returns одно из:
-        {"marketplace": "WB",   "confidence": 1.0, "method": "...", "meta": {...}}
-        {"marketplace": "OZON", "confidence": 1.0, "method": "heuristic"}
-        {"marketplace": "OZON", "confidence": 0.7, "method": "fallback", "warning": "..."}
+        {"marketplace": "WB",   "confidence": 1.0, "method": "wb_parser"|"cache", "meta": {...}}
+        {"marketplace": "OZON", "confidence": 1.0, "method": "heuristic", "meta": {}}
+        {"marketplace": "OZON", "confidence": 0.7, "method": "fallback",  "meta": {}, "warning": "..."}
         {"error": "invalid_format", "message": "..."}
-        {"error": "not_found",      "message": "..."}
-        {"error": "api_unavailable","message": "..."}
     """
 
     # --- Нормализация ---
@@ -178,28 +95,28 @@ async def resolve_marketplace(
             ),
         }
 
-    # --- Уровень 3: публичный WB API ---
-    # Чистые цифры попадают сюда ВСЕГДА — нет раннего return для WB
-    wb = await _check_wb_card_api(session, article)
+    # --- Уровень 3: wb_parser (CDN корзины WB) ---
+    try:
+        info = await get_product_info(article)
+    except Exception as e:
+        logger.warning("wb_parser error for article %s: %s", article, e)
+        info = {}
 
-    if "error" in wb:
-        if wb["error"] in ("rate_limited", "unavailable"):
-            return {
-                "error": "api_unavailable",
-                "message": (
-                    "Сервис WB временно недоступен. "
-                    "Попробуйте через несколько секунд."
-                ),
-            }
-
-    if wb.get("found"):
-        # Подтверждено → кэшируем
+    if info:
+        color = info["colors"][0] if info.get("colors") else ""
         await save_marketplace_cache(user_id, article, "WB")
         return {
             "marketplace": "WB",
             "confidence": 1.0,
-            "method": "wb_public_api",
-            "meta": wb["meta"],
+            "method": "wb_parser",
+            "meta": {
+                "name":        info.get("name", ""),
+                "brand":       info.get("brand", ""),
+                "color":       color,
+                "material":    info.get("material", ""),
+                "description": info.get("description", ""),
+                "images":      info.get("images", []),
+            },
         }
 
     # Fallback: числовой артикул не найден на WB → предполагаем OZON.
