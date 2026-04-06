@@ -65,8 +65,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = (
         f"👤 <b>Профиль</b>\n\n"
-        f"Эталонов для фото: <b>{photo_count}</b>\n"
-        f"Эталонов для видео: <b>{video_count}</b>\n"
+        f"У Вас <b>{photo_count}</b> эталон(ов)\n"
         f"Баланс: <b>{balance}</b> руб."
     )
     await update.message.reply_text(text, parse_mode="HTML")
