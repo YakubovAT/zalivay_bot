@@ -20,10 +20,12 @@ from services.media_storage import ensure_user_media_dirs
 # Состояния
 # ---------------------------------------------------------------------------
 
-ONBOARD_STEP1      = 10
-ONBOARD_STEP2      = 11
-ONBOARD_STEP3      = 12
-ONBOARD_STEP4      = 13
+ONBOARD_STEP1      = 10  # Что такое эталон
+ONBOARD_STEP2      = 11  # Бюджет
+ONBOARD_STEP3      = 12  # Количество артикулов
+ONBOARD_STEP4      = 13  # Переход к вводу артикула
+ONBOARD_SELECT_MP  = 14  # Выбор МП
+ONBOARD_ARTICLE    = 15  # Ввод артикула
 
 # ---------------------------------------------------------------------------
 # Перезапуск онбординга
@@ -165,14 +167,104 @@ async def step4_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await save_registration(user_id, ad_budget, articles_count)
 
     await query.edit_message_text(
-        "Добро пожаловать! 🎉\n\n"
-        "Теперь выберите <b>Фото</b> или <b>Видео</b> в меню, "
-        "укажите маркетплейс и артикул — создадим эталон!",
+        "🎨 <b>Что такое эталон?</b>\n\n"
+        "Это базовое фото вашего товара с прозрачным фоном. "
+        "На его основе AI создаёт все фото и видео для маркетплейсов.\n\n"
+        "Эталон создаётся <b>один раз</b> для каждого артикула и "
+        "используется для генерации контента.\n\n"
+        "Выберите маркетплейс вашего товара:",
         parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🟣 Wildberries", callback_data="onboard_mp_wb"),
+            InlineKeyboardButton("🔵 OZON",        callback_data="onboard_mp_ozon"),
+        ]]),
     )
-    await context.bot.send_message(
-        chat_id=user_id,
-        text="Выберите действие:",
+    return ONBOARD_SELECT_MP
+
+
+# ---------------------------------------------------------------------------
+# Выбор маркетплейса → запрос артикула
+# ---------------------------------------------------------------------------
+
+async def onboard_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    mp = "WB" if query.data == "onboard_mp_wb" else "OZON"
+    context.user_data["onboard_marketplace"] = mp
+
+    label = "Wildberries" if mp == "WB" else "OZON"
+    await query.edit_message_text(
+        f"Введите артикул товара {label}:",
+    )
+    return ONBOARD_ARTICLE
+
+
+# ---------------------------------------------------------------------------
+# Ввод артикула → сохранение + главное меню
+# ---------------------------------------------------------------------------
+
+async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    raw = update.message.text.strip()
+    marketplace = context.user_data.get("onboard_marketplace", "WB")
+
+    status_msg = await update.message.reply_text("🔍 Загружаю информацию о товаре...")
+
+    name = color = material = ""
+
+    if marketplace == "WB":
+        try:
+            info = await get_product_info(raw)
+        except Exception:
+            info = {}
+
+        if not info:
+            await status_msg.delete()
+            await update.message.reply_text(
+                "❌ Товар не найден на Wildberries. Проверьте артикул и введите ещё раз:"
+            )
+            return ONBOARD_ARTICLE
+
+        color    = info["colors"][0] if info.get("colors") else ""
+        name     = info.get("name", "")
+        material = info.get("material", "")
+
+        meta_lines = []
+        if name:
+            meta_lines.append(f"📦 <b>{name}</b>")
+        if info.get("brand"):
+            meta_lines.append(f"🏷 {info['brand']}")
+        if color:
+            meta_lines.append(f"🎨 {color}")
+        if material:
+            meta_lines.append(f"🧵 {material}")
+
+        await status_msg.delete()
+        await update.message.reply_text(
+            f"✅ Артикул <code>{raw}</code> найден на Wildberries 🟣\n\n"
+            + "\n".join(meta_lines),
+            parse_mode="HTML",
+        )
+    else:
+        await status_msg.delete()
+        await update.message.reply_text(
+            f"✅ Артикул <code>{raw}</code> сохранён для OZON 🔵",
+            parse_mode="HTML",
+        )
+
+    await save_article(
+        user_id=user_id,
+        article_code=raw,
+        marketplace=marketplace,
+        name=name,
+        color=color,
+        material=material,
+    )
+
+    await update.message.reply_text(
+        "Артикул сохранён! 🎉\n\n"
+        "Теперь выберите действие в меню:",
         reply_markup=main_menu(),
     )
     return ConversationHandler.END
@@ -193,6 +285,8 @@ def build_registration_handler() -> ConversationHandler:
             ONBOARD_STEP2:     [CallbackQueryHandler(step2_budget,     pattern="^budget_[abcd]$")],
             ONBOARD_STEP3:     [CallbackQueryHandler(step3_articles,   pattern="^articles_[abc]$")],
             ONBOARD_STEP4:     [CallbackQueryHandler(step4_finish,     pattern="^onboard_finish$")],
+            ONBOARD_SELECT_MP: [CallbackQueryHandler(onboard_select_mp, pattern="^onboard_mp_(wb|ozon)$")],
+            ONBOARD_ARTICLE:   [MessageHandler(filters.TEXT & ~filters.COMMAND, onboard_article)],
         },
         fallbacks=[CommandHandler("start", cmd_start)],
         per_message=False,
