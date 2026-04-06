@@ -45,9 +45,8 @@ CREATE TABLE IF NOT EXISTS articles (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_user_article
     ON articles (user_id, article_code, marketplace);
 
--- Кэш маркетплейса: хранит подтверждённый результат валидации артикула.
--- Сохраняется ТОЛЬКО при confidence=1.0 (WB public API подтвердил).
--- Fallback-результаты (OZON с confidence=0.7) не кэшируются.
+-- Кэш маркетплейса: хранит подтверждённый результат (WB/OZON)
+-- для ускорения повторного ввода того же артикула.
 CREATE TABLE IF NOT EXISTS marketplace_cache (
     user_id     BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     article     TEXT   NOT NULL,
