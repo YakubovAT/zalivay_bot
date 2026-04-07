@@ -73,7 +73,13 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Статистика пользователя
     stats = await get_user_stats(user.id)
 
-    # Приветствие + кнопка "Дальше →"
+    # Сначала — приветствие + нижнее меню
+    await update.message.reply_text(
+        f"Привет, {user.first_name}!",
+        reply_markup=main_menu(),
+    )
+
+    # Затем — описание + кнопка "Дальше →"
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
     )
