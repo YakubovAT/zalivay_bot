@@ -452,12 +452,14 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
             [InlineKeyboardButton("🔄 Переделать", callback_data="ref_redo")],
         ])
-        await query.message.reply_photo(
+        sent = await query.message.reply_photo(
             photo=BytesIO(image_data),
             caption="🎨 Эталон готов!\n\nОн должен быть <i>похож</i>, а не 100% копией.",
             reply_markup=keyboard,
             parse_mode="HTML",
         )
+        context.user_data["ref_photo_msg_id"] = sent.message_id
+        context.user_data["ref_file_id"] = sent.photo[-1].file_id
 
         return ONBOARD_REF_FEEDBACK
 
@@ -474,48 +476,48 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if query.data == "ref_ok":
         user_id = update.effective_user.id
-        image_data = context.user_data.get("reference_image_data")
-
-        # Сохраняем файл на сервер
-        user_ref_dir = os.path.join(MEDIA_ROOT, str(user_id), "references")
-        os.makedirs(user_ref_dir, exist_ok=True)
-        file_path = os.path.join(user_ref_dir, f"{articul}.png")
-
-        with open(file_path, "wb") as f:
-            f.write(image_data)
-
-        # Отправляем в Telegram чтобы получить file_id
-        sent = await context.bot.send_photo(
-            chat_id=user_id,
-            photo=BytesIO(image_data),
-            caption=f"✅ Эталон для <code>{articul}</code> сохранён в базу!\n\n"
-                    f"Теперь для создания фото и видео мы будем использовать этот эталон. "
-                    f"Вы всегда можете переделать его, если что-то не понравится "
-                    f"при создании фото или видеоконтента.",
-            parse_mode="HTML",
-        )
-        file_id = sent.photo[-1].file_id
+        file_id = context.user_data.get("ref_file_id", "")
 
         # Сохраняем в БД
-        await save_reference(
-            user_id=user_id,
-            articul=articul,
-            file_id=file_id,
-            file_path=file_path,
-        )
+        if file_id:
+            user_ref_dir = os.path.join(MEDIA_ROOT, str(user_id), "references")
+            os.makedirs(user_ref_dir, exist_ok=True)
+            file_path = os.path.join(user_ref_dir, f"{articul}.png")
+
+            await save_reference(
+                user_id=user_id,
+                articul=articul,
+                file_id=file_id,
+                file_path=file_path,
+            )
 
         # Списываем баланс (только если ещё не списали при переделке)
         if not context.user_data.pop("redo_charged", False):
             new_balance = await deduct_balance(user_id, REFERENCE_COST)
-            balance_msg = f"Списано <b>{REFERENCE_COST} руб.</b> Баланс: <b>{new_balance} руб.</b>\n\n"
+            balance_info = f"\n\nСписано <b>{REFERENCE_COST} руб.</b> Баланс: <b>{new_balance} руб.</b>"
         else:
-            balance_msg = ""
+            balance_info = ""
+
+        # Редактируем caption фото-сообщения
+        msg_id = context.user_data.get("ref_photo_msg_id")
+        if msg_id:
+            await context.bot.edit_message_caption(
+                chat_id=query.message.chat.id,
+                message_id=msg_id,
+                caption=(
+                    f"✅ Эталон для <code>{articul}</code> сохранён в базу!\n\n"
+                    f"Теперь для создания фото и видео мы будем использовать этот эталон. "
+                    f"Вы всегда можете переделать его, если что-то не понравится "
+                    f"при создании фото или видеоконтента.{balance_info}"
+                ),
+                reply_markup=None,
+                parse_mode="HTML",
+            )
 
         await context.bot.send_message(
             chat_id=user_id,
-            text=f"{balance_msg}Выберите действие в меню:",
+            text="Выберите действие в меню:",
             reply_markup=main_menu(),
-            parse_mode="HTML",
         )
         return ConversationHandler.END
 
