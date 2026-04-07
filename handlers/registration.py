@@ -270,15 +270,14 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if material:
             meta_lines.append(f"🧵 {material}")
 
-        await status_msg.delete()
-
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Создать эталон — 100 руб.", callback_data="create_ref")],
             [InlineKeyboardButton("🔄 Ввести другой артикул", callback_data="new_article")],
         ])
 
-        # Редактируем "загружаю" → карточка + кнопки
-        await status_msg.edit_text(
+        # Удаляем "загружаю" → отправляем карточку + кнопки
+        await status_msg.delete()
+        await update.message.reply_text(
             f"✅ Артикул <code>{raw}</code> найден на Wildberries 🟣\n\n"
             + "\n".join(meta_lines),
             reply_markup=keyboard,
