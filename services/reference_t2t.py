@@ -147,8 +147,13 @@ async def generate_reference_prompt(
     }
 
     try:
+        # Kie.ai T2T endpoint: {api_base_url}/{model}/v1/chat/completions
+        # Пример: https://kie.ai/gpt-5-2/v1/chat/completions
+        url = f"{api_base_url}/{model}/v1/chat/completions"
+        logger.info("T2T request | model=%s | url=%s", model, url)
+
         async with session.post(
-            f"{api_base_url}/{model}/v1/chat/completions",
+            url,
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",

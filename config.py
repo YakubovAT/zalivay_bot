@@ -15,6 +15,6 @@ PHOTO_COST     = int(os.getenv("PHOTO_COST", "50"))            # Одно фот
 VIDEO_COST     = int(os.getenv("VIDEO_COST", "200"))           # Одно видео
 
 # AI провайдер
-AI_API_KEY     = os.getenv("AI_API_KEY", "")
-AI_API_BASE    = os.getenv("AI_API_BASE", "https://api.kie.ai")
+AI_API_KEY     = os.getenv("AI_API_KEY", "cbc437104f5c302e296b8771ca523030")
+AI_API_BASE    = os.getenv("AI_API_BASE", "https://kie.ai")
 AI_MODEL       = os.getenv("AI_MODEL", "gpt-5-2")
