@@ -96,8 +96,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     # Показываем нижнее меню
-    await update.message.reply_text(
-        "Выберите действие:",
+    await context.bot.send_message(
+        chat_id=user.id,
+        text="",
         reply_markup=main_menu(),
     )
 
