@@ -215,26 +215,32 @@ async def etalon_articul_received(update: Update, context: ContextTypes.DEFAULT_
             [InlineKeyboardButton("🔄 Переделать эталон", callback_data="etalon_redo_ref")],
             [InlineKeyboardButton("✅ Готово, перейти в меню", callback_data="etalon_go_menu")],
         ])
-        await update.message.reply_text(
+        _card_text = (
             f"✅ Артикул <code>{raw}</code> найден на Wildberries 🟣\n\n"
             + "\n".join(meta_lines) + "\n\n"
-            "Эталон для этого артикула уже создан. Хотите переделать?",
-            reply_markup=keyboard,
-            parse_mode="HTML",
+            "Эталон для этого артикула уже создан. Хотите переделать?"
         )
+        _images = info.get("images", [])
+        if _images:
+            await update.message.reply_photo(photo=_images[0], caption=_card_text, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            await update.message.reply_text(_card_text, reply_markup=keyboard, parse_mode="HTML")
     else:
         # Эталона нет — предлагаем создать
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Создать эталон", callback_data="etalon_create_ref")],
             [InlineKeyboardButton("🔄 Ввести другой артикул", callback_data="etalon_new_article")],
         ])
-        await update.message.reply_text(
+        _card_text = (
             f"✅ Артикул <code>{raw}</code> найден на Wildberries 🟣\n\n"
             + "\n".join(meta_lines) + "\n\n"
-            "Эталон для этого артикула ещё не создан. Создать?",
-            reply_markup=keyboard,
-            parse_mode="HTML",
+            "Эталон для этого артикула ещё не создан. Создать?"
         )
+        _images = info.get("images", [])
+        if _images:
+            await update.message.reply_photo(photo=_images[0], caption=_card_text, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            await update.message.reply_text(_card_text, reply_markup=keyboard, parse_mode="HTML")
 
     context.user_data["etalon_article"] = raw
     context.user_data["product_info"] = {
@@ -1024,11 +1030,15 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
     if material:
         meta_lines.append(f"🧵 {material}")
 
-    await update.message.reply_text(
+    _card_text = (
         f"✅ Артикул <code>{raw}</code> найден на Wildberries 🟣\n\n"
-        + "\n".join(meta_lines),
-        parse_mode="HTML",
+        + "\n".join(meta_lines)
     )
+    _images = info.get("images", [])
+    if _images:
+        await update.message.reply_photo(photo=_images[0], caption=_card_text, parse_mode="HTML")
+    else:
+        await update.message.reply_text(_card_text, parse_mode="HTML")
 
     await save_article(
         user_id=user.id,
@@ -1045,7 +1055,7 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         "color": color,
         "material": material,
     }
-    context.user_data["wb_images"] = info.get("images", [])[:5]  # Берём первые 5 фото
+    context.user_data["wb_images"] = info.get("images", [])[:5]
 
     # Показываем кнопки выбора
     keyboard = InlineKeyboardMarkup([

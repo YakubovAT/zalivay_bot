@@ -313,12 +313,24 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Удаляем "загружаю" → отправляем карточку + кнопки
         await status_msg.delete()
-        await update.message.reply_text(
+        _card_text = (
             f"✅ Артикул <code>{raw}</code> найден на Wildberries 🟣\n\n"
-            + "\n".join(meta_lines),
-            reply_markup=keyboard,
-            parse_mode="HTML",
+            + "\n".join(meta_lines)
         )
+        _images = info.get("images", [])
+        if _images:
+            await update.message.reply_photo(
+                photo=_images[0],
+                caption=_card_text,
+                reply_markup=keyboard,
+                parse_mode="HTML",
+            )
+        else:
+            await update.message.reply_text(
+                _card_text,
+                reply_markup=keyboard,
+                parse_mode="HTML",
+            )
     else:
         await status_msg.delete()
         keyboard = InlineKeyboardMarkup([
