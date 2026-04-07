@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 BTN_PROFILE = "Профиль"
 BTN_PHOTO   = "Фото"
 BTN_VIDEO   = "Видео"
-BTN_IDEA    = "Есть идея"
+BTN_ETALON  = "Эталон товара"
 BTN_PRICING = "Прайс"
 BTN_HELP    = "Помощь"
-BTN_RESTART    = "Перезапуск"
+BTN_RESTART = "Перезапуск"
 
 # Состояния ConversationHandler
 WAITING_MP_PHOTO         = 1
@@ -44,8 +44,8 @@ WAITING_REF_FEEDBACK_V   = 8
 
 def main_menu() -> ReplyKeyboardMarkup:
     keyboard = [
-        [KeyboardButton(BTN_PROFILE), KeyboardButton(BTN_PHOTO),    KeyboardButton(BTN_VIDEO)],
-        [KeyboardButton(BTN_IDEA),    KeyboardButton(BTN_PRICING),   KeyboardButton(BTN_HELP)],
+        [KeyboardButton(BTN_ETALON),    KeyboardButton(BTN_PHOTO),    KeyboardButton(BTN_VIDEO)],
+        [KeyboardButton(BTN_PROFILE),   KeyboardButton(BTN_PRICING),  KeyboardButton(BTN_HELP)],
         [KeyboardButton(BTN_RESTART)],
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -510,18 +510,6 @@ async def video_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ---------------------------------------------------------------------------
-# Есть идея
-# ---------------------------------------------------------------------------
-
-async def idea(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    logger.info("MENU_IDEA | user_id=%s | username=%s", user.id, user.username)
-    await update.message.reply_text(
-        "Напишите вашу идею напрямую: @work_wb01\n\nМы рассмотрим каждое предложение!"
-    )
-
-
-# ---------------------------------------------------------------------------
 # Прайс
 # ---------------------------------------------------------------------------
 
@@ -559,11 +547,12 @@ async def _cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def build_conversation_handler() -> ConversationHandler:
     any_menu_button = filters.Regex(
-        f"^({BTN_PROFILE}|{BTN_PHOTO}|{BTN_VIDEO}|{BTN_IDEA}|{BTN_PRICING}|{BTN_HELP})$"
+        f"^({BTN_PROFILE}|{BTN_PHOTO}|{BTN_VIDEO}|{BTN_ETALON}|{BTN_PRICING}|{BTN_HELP})$"
     )
 
     return ConversationHandler(
         entry_points=[
+            MessageHandler(filters.Regex(f"^{BTN_ETALON}$"), photo_start),
             MessageHandler(filters.Regex(f"^{BTN_PHOTO}$"), photo_start),
             MessageHandler(filters.Regex(f"^{BTN_VIDEO}$"), video_start),
         ],

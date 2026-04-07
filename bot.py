@@ -10,11 +10,10 @@ from handlers import (
     build_registration_handler,
     build_conversation_handler,
     profile,
-    idea,
     pricing,
     help_cmd,
 )
-from handlers.menu import BTN_PROFILE, BTN_IDEA, BTN_PRICING, BTN_HELP, BTN_RESTART
+from handlers.menu import BTN_PROFILE, BTN_ETALON, BTN_PRICING, BTN_HELP, BTN_RESTART
 from handlers.action_logger import log_message, log_callback
 
 logging.basicConfig(
@@ -76,9 +75,8 @@ def main() -> None:
 
     # Простые кнопки меню
     application.add_handler(MessageHandler(filters.Regex(f"^{BTN_PROFILE}$"), profile))
-    application.add_handler(MessageHandler(filters.Regex(f"^{BTN_IDEA}$"),    idea))
     application.add_handler(MessageHandler(filters.Regex(f"^{BTN_PRICING}$"), pricing))
-    application.add_handler(MessageHandler(filters.Regex(f"^{BTN_HELP}$"),    help_cmd))
+    application.add_handler(MessageHandler(filters.Regex(f"^{BTN_HELP}$"), help_cmd))
 
     logger.info("Бот запущен")
     application.run_polling()
