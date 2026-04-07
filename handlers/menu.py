@@ -13,7 +13,7 @@ from telegram.ext import (
 
 from database import ensure_user, get_user, get_user_references, get_reference, save_article, save_reference
 from wb_parser import get_product_info
-from config import REFERENCE_COST, AI_API_KEY, AI_API_BASE, AI_MODEL
+from config import REFERENCE_COST, PHOTO_COST, AI_API_KEY, AI_API_BASE, AI_MODEL
 from services.reference_t2t import generate_reference_prompt
 from services.reference_i2i import generate_reference_image
 
