@@ -70,14 +70,6 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await ensure_user(user.id, user.username)
     ensure_user_media_dirs(user.id)  # Создаём папку пользователя
 
-    if await is_registered(user.id):
-        logger.info("START | existing user %s returning", user.id)
-        await update.message.reply_text(
-            f"С возвращением, {user.first_name}! Выберите действие:",
-            reply_markup=main_menu(),
-        )
-        return ConversationHandler.END
-
     # Статистика пользователя (пока 0 эталонов, но баланс уже есть)
     stats = await get_user_stats(user.id)
 
