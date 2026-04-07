@@ -125,7 +125,7 @@ async def poll_task_status(
                 data  = await resp.json()
                 code  = data.get("code")
                 inner = data.get("data", {})
-                state = inner.get("state", "unknown") if inner else "unknown"
+                state = inner.get("state") or "unknown"
 
                 logger.info(
                     "I2I POLL #%d | taskId=%s | code=%s | state=%s",

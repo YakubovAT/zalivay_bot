@@ -176,17 +176,15 @@ async def create_task(req: CreateTaskRequest, authorization: Optional[str] = Hea
     _tasks[task_id] = {
         "taskId": task_id,
         "model": req.model,
-        "status": "completed",
+        "state": "success",
         "progress": 100,
         "input": req.input.model_dump(),
-        "result": {
-            "imageUrl": MOCK_IMAGE_URL,
-        },
+        "resultJson": '{"resultUrls": ["' + MOCK_IMAGE_URL + '"]}',
         "created_at": int(time.time()),
         "credits_used": 1,
     }
 
-    logger.info("CREATE TASK RESPONSE | taskId=%s | status=completed", task_id)
+    logger.info("CREATE TASK RESPONSE | taskId=%s | state=success", task_id)
 
     return {
         "code": 200,
@@ -215,8 +213,8 @@ async def task_detail(taskId: str, authorization: Optional[str] = Header(None)):
         )
 
     logger.info(
-        "TASK DETAIL | taskId=%s | model=%s | status=%s | result=%s",
-        taskId, task["model"], task["status"], task.get("result"),
+        "TASK DETAIL | taskId=%s | model=%s | state=%s | resultJson=%s",
+        taskId, task["model"], task["state"], task.get("resultJson"),
     )
 
     return {
@@ -225,9 +223,9 @@ async def task_detail(taskId: str, authorization: Optional[str] = Header(None)):
         "data": {
             "taskId": task["taskId"],
             "model": task["model"],
-            "status": task["status"],
+            "state": task["state"],
             "progress": task["progress"],
-            "result": task.get("result", {}),
+            "resultJson": task.get("resultJson", ""),
             "created_at": task["created_at"],
             "credits_used": task["credits_used"],
         },
