@@ -521,7 +521,10 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 # Списываем баланс перед I2I
                 new_balance = await deduct_balance(user_id, REFERENCE_COST)
 
-                image_url = await generate_reference_image(
+                from services.reference_i2i import create_i2i_task, poll_task_status, I2I_MODEL
+
+                # Создаём I2I задачу
+                task_id = await create_i2i_task(
                     session=session,
                     api_base=I2I_API_BASE,
                     api_key=I2I_API_KEY,
@@ -529,11 +532,74 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     prompt=t2t_result["prompt"],
                 )
 
-                if not image_url:
+                if not task_id:
                     await context.bot.edit_message_text(
                         chat_id=user_id,
                         message_id=status_msg.message_id,
                         text="❌ Ошибка генерации изображения. Попробуйте снова.",
+                    )
+                    return
+
+                # Polling с обновлением статуса каждые 5 сек
+                import json as _json
+                from services.reference_i2i import MAX_POLL_ATTEMPTS, POLL_INTERVAL
+                _url = f"{I2I_API_BASE}/api/v1/jobs/recordInfo"
+                _params = {"taskId": task_id}
+                _headers = {"Authorization": f"Bearer {I2I_API_KEY}"}
+                image_url = None
+
+                for attempt in range(1, MAX_POLL_ATTEMPTS + 1):
+                    try:
+                        async with session.get(
+                            _url, params=_params, headers=_headers,
+                            timeout=aiohttp.ClientTimeout(total=15),
+                        ) as resp:
+                            _data = await resp.json()
+                            _code = _data.get("code")
+                            _inner = _data.get("data", {})
+                            _state = _inner.get("state", "unknown")
+
+                        if _code == 200 and _state == "success":
+                            # Готово — извлекаем URL
+                            _result_json = _inner.get("resultJson", "")
+                            try:
+                                _result_data = _json.loads(_result_json)
+                                image_url = _result_data.get("resultUrls", [None])[0]
+                            except Exception:
+                                logger.error("I2I result parse error: %s", _result_json)
+                            break
+                        elif _state == "fail":
+                            await context.bot.edit_message_text(
+                                chat_id=user_id,
+                                message_id=status_msg.message_id,
+                                text=f"❌ Ошибка генерации: {_inner.get('failMsg', 'неизвестная ошибка')}",
+                            )
+                            return
+                        elif _code == 249 or _state in ("waiting", "queuing", "generating"):
+                            # Показываем прогресс
+                            _emoji = {"waiting": "⏳", "queuing": "🔄", "generating": "🎨"}.get(_state, "⏳")
+                            await context.bot.edit_message_text(
+                                chat_id=user_id,
+                                message_id=status_msg.message_id,
+                                text=f"⏳ <b>Генерация эталона...</b>\n\n"
+                                     f"Артикул: <code>{articul}</code>\n"
+                                     f"{_emoji} Статус: {_state} (попытка {attempt})\n\n"
+                                     f"Обычно занимает 1–3 минуты ⏱",
+                                parse_mode="HTML",
+                            )
+                            await asyncio.sleep(POLL_INTERVAL)
+                        else:
+                            logger.warning("I2I POLL unexpected | code=%s state=%s", _code, _state)
+                            await asyncio.sleep(POLL_INTERVAL)
+                    except Exception as e:
+                        logger.warning("I2I poll #%d error: %s", attempt, e)
+                        await asyncio.sleep(POLL_INTERVAL)
+
+                if not image_url:
+                    await context.bot.edit_message_text(
+                        chat_id=user_id,
+                        message_id=status_msg.message_id,
+                        text="❌ Превышено время ожидания. Попробуйте снова.",
                     )
                     return
 
