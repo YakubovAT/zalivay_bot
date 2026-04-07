@@ -147,6 +147,10 @@ async def generate_reference_prompt(
         ],
     }
 
+    logger.info("T2T request payload | model=%s | name=%r | color=%r | material=%r",
+                model, name, color, material)
+    logger.debug("T2T request messages: %s", json.dumps(payload["messages"], ensure_ascii=False))
+
     try:
         # Kie.ai T2T endpoint: {api_base_url}/{model}/v1/chat/completions
         # Пример: https://kie.ai/gpt-5-2/v1/chat/completions
