@@ -608,7 +608,7 @@ async def photo_count_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "📝 Укажите критерии для генерации:\n\n"
             "Формат: локация, время года, цвет волос, пожелания\n\n"
             "Например: <i>студия, лето, блонд, улыбка</i>\n\n"
-            "Можно оставить пустым — AI подберёт автоматически.",
+            "Можно оставить пустым мы подберём автоматически.",
             parse_mode="HTML",
         )
         return PHOTO_CRITERIA_INPUT

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 
@@ -15,6 +16,7 @@ from handlers import (
 )
 from handlers.menu import BTN_PROFILE, BTN_PRICING, BTN_HELP, BTN_RESTART
 from handlers.action_logger import log_message, log_callback
+from services.task_worker import run_worker
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -45,13 +47,30 @@ async def on_startup(application: Application) -> None:
     await init_db()
     logger.info("БД инициализирована")
 
+    # Отдельная сессия для воркера — длинные таймауты для I2I генерации
+    worker_connector = aiohttp.TCPConnector(limit=10, ttl_dns_cache=300)
+    worker_session = aiohttp.ClientSession(
+        connector=worker_connector,
+        timeout=aiohttp.ClientTimeout(connect=10, total=120),
+    )
+    application.bot_data["worker_session"] = worker_session
+
+    # Запускаем фоновый воркер генерации фото/видео
+    asyncio.create_task(run_worker(application.bot, worker_session))
+    logger.info("Task worker запущен")
+
 
 async def on_shutdown(application: Application) -> None:
-    # Корректное закрытие HTTP-сессии при остановке бота
+    # Корректное закрытие HTTP-сессий при остановке бота
     session: aiohttp.ClientSession | None = application.bot_data.get("http_session")
     if session and not session.closed:
         await session.close()
         logger.info("HTTP-сессия закрыта")
+
+    worker_session: aiohttp.ClientSession | None = application.bot_data.get("worker_session")
+    if worker_session and not worker_session.closed:
+        await worker_session.close()
+        logger.info("Worker HTTP-сессия закрыта")
 
 
 def main() -> None:

@@ -17,6 +17,11 @@ from .db import (
     save_article,
     save_reference,
     deduct_balance,
+    create_task,
+    get_pending_tasks,
+    complete_task,
+    fail_task,
+    fail_stuck_tasks,
 )
 
 __all__ = [
@@ -38,4 +43,9 @@ __all__ = [
     "save_article",
     "save_reference",
     "deduct_balance",
+    "create_task",
+    "get_pending_tasks",
+    "complete_task",
+    "fail_task",
+    "fail_stuck_tasks",
 ]

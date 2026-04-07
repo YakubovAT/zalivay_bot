@@ -48,6 +48,27 @@ CREATE TABLE IF NOT EXISTS articles (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_user_article
     ON articles (user_id, article_code, marketplace);
 
+-- Очередь задач генерации фото и видео
+CREATE TABLE IF NOT EXISTS generation_tasks (
+    id          SERIAL PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    chat_id     BIGINT NOT NULL,
+    task_type   TEXT NOT NULL CHECK (task_type IN ('photo', 'video')),
+    articul     TEXT NOT NULL,
+    prompt      TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+    result_url  TEXT,
+    error_msg   TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_generation_tasks_status
+    ON generation_tasks (status, created_at);
+CREATE INDEX IF NOT EXISTS idx_generation_tasks_user
+    ON generation_tasks (user_id, created_at DESC);
+
 -- Кэш маркетплейса: хранит подтверждённый результат (WB/OZON)
 -- для ускорения повторного ввода того же артикула.
 CREATE TABLE IF NOT EXISTS marketplace_cache (

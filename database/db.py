@@ -255,3 +255,87 @@ async def save_marketplace_cache(user_id: int, article: str, marketplace: str) -
         article,
         marketplace,
     )
+
+
+# ---------------------------------------------------------------------------
+# Очередь задач генерации (фото / видео)
+# ---------------------------------------------------------------------------
+
+async def create_task(
+    user_id: int,
+    chat_id: int,
+    task_type: str,
+    articul: str,
+    prompt: str,
+) -> int:
+    """Создаёт задачу генерации. Возвращает id записи."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        INSERT INTO generation_tasks (user_id, chat_id, task_type, articul, prompt)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
+        """,
+        user_id, chat_id, task_type, articul, prompt,
+    )
+    return row["id"] if row else -1
+
+
+async def get_pending_tasks(limit: int = 5) -> list[asyncpg.Record]:
+    """Возвращает pending задачи, переводя их в processing (атомарно)."""
+    pool = await get_pool()
+    return await pool.fetch(
+        """
+        UPDATE generation_tasks
+        SET status = 'processing', updated_at = NOW()
+        WHERE id IN (
+            SELECT id FROM generation_tasks
+            WHERE status = 'pending'
+            ORDER BY created_at
+            LIMIT $1
+        )
+        RETURNING *
+        """,
+        limit,
+    )
+
+
+async def complete_task(task_id: int, result_url: str) -> None:
+    """Помечает задачу как выполненную."""
+    pool = await get_pool()
+    await pool.execute(
+        """
+        UPDATE generation_tasks
+        SET status = 'completed', result_url = $2, updated_at = NOW()
+        WHERE id = $1
+        """,
+        task_id, result_url,
+    )
+
+
+async def fail_task(task_id: int, error_msg: str) -> None:
+    """Помечает задачу как неудачную."""
+    pool = await get_pool()
+    await pool.execute(
+        """
+        UPDATE generation_tasks
+        SET status = 'failed', error_msg = $2, updated_at = NOW()
+        WHERE id = $1
+        """,
+        task_id, error_msg,
+    )
+
+
+async def fail_stuck_tasks(minutes: int = 10) -> int:
+    """Переводит зависшие processing задачи обратно в pending."""
+    pool = await get_pool()
+    result = await pool.execute(
+        """
+        UPDATE generation_tasks
+        SET status = 'pending', updated_at = NOW()
+        WHERE status = 'processing'
+          AND updated_at < NOW() - ($1 || ' minutes')::INTERVAL
+        """,
+        str(minutes),
+    )
+    return int(result.split()[-1])

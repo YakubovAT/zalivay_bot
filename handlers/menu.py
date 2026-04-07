@@ -808,21 +808,20 @@ async def photo_custom_count_handler(update: Update, context: ContextTypes.DEFAU
 
 
 # ---------------------------------------------------------------------------
-# Фото: генерация (I2I AI → списание → результат)
+# Фото: генерация — запись тасков в очередь
 # ---------------------------------------------------------------------------
 
 async def _generate_photos(chat_id, context, count):
     articul = context.user_data.get("current_article", "")
     product = context.user_data.get("product_info", {})
-    ref_file_id = context.user_data.get("ref_file_id", "")
-    user_id = context.user_data.get("_user_id_for_photos")  # должен быть установлен вызывающим
+    user_id = context.user_data.get("_user_id_for_photos")
 
     if not user_id:
         logger.error("PHOTO_GEN | user_id not set in context!")
         return ConversationHandler.END
 
     # Проверка баланса
-    from database import get_user, deduct_balance
+    from database import get_user, deduct_balance, get_reference, create_task
     db_user = await get_user(user_id)
     balance = db_user["balance"] if db_user else 0
     cost = PHOTO_COST * count
@@ -838,23 +837,44 @@ async def _generate_photos(chat_id, context, count):
         )
         return ConversationHandler.END
 
-    # TODO: I2I AI генерация lifestyle фото
-    # Пока заглушка — в будущем здесь будет:
-    # 1. T2T AI → генерация lifestyle промпта
-    # 2. I2I AI → генерация фото по эталону
-    # 3. Отправка фото пользователю
-    # 4. deduct_balance(user_id, cost)
-    # 5. Показ результата
+    # Получаем category из БД
+    ref = await get_reference(user_id, articul)
+    category = ref["category"] if ref and ref["category"] else "верх"
 
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=f"📸 Генерация {count} фото в разработке (TODO)...\n\n"
-             f"Когда будет готово: T2T AI промпт → I2I AI фото → списание {cost} руб. → результат",
+    # Генерируем N промптов локально
+    from services.prompt_generator_cloth import generate_photo_prompts
+    prompts = generate_photo_prompts(
+        name=product.get("name", ""),
+        color=product.get("color", ""),
+        material=product.get("material", ""),
+        category=category,
+        count=count,
     )
 
+    # Списываем баланс
+    new_balance = await deduct_balance(user_id, cost)
+
+    # Записываем N тасков в очередь
+    for prompt in prompts:
+        await create_task(
+            user_id=user_id,
+            chat_id=chat_id,
+            task_type="photo",
+            articul=articul,
+            prompt=prompt,
+        )
+
+    logger.info("PHOTO_GEN | user_id=%d | articul=%s | tasks=%d | cost=%d",
+                user_id, articul, count, cost)
+
     await context.bot.send_message(
         chat_id=chat_id,
-        text="Выберите действие:",
+        text=f"✅ <b>{count} фото</b> поставлено в очередь!\n\n"
+             f"Артикул: <code>{articul}</code>\n"
+             f"Категория: <b>{category}</b>\n\n"
+             f"Списано <b>{cost} руб.</b> Баланс: <b>{new_balance} руб.</b>\n\n"
+             f"Фото будут отправляться по мере готовности 🔄",
+        parse_mode="HTML",
         reply_markup=main_menu(),
     )
     return ConversationHandler.END
