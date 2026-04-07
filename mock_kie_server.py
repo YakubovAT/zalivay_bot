@@ -39,7 +39,8 @@ MOCK_IMAGE_URL = "http://localhost:8080/static/reference.png"
 # ---------------------------------------------------------------------------
 
 MOCK_PROMPT = (
-    "Analyze the provided product photographs and isolate ONLY the clothing item. "
+    "CATEGORY: верх\n"
+    "PROMPT: Analyze the provided product photographs and isolate ONLY the clothing item. "
     "Remove the model body, background, accessories, text, and all other objects. "
     "Preserve the natural 3D shape with accurate proportions, all fabric details: "
     "texture, folds, seams, stitching, patterns, prints, exact colors and lighting. "
