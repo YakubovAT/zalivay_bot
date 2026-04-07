@@ -148,19 +148,26 @@ async def save_article(
     name: str,
     color: str,
     material: str,
+    wb_images: list[str] | None = None,
 ) -> int:
-    """Сохраняет артикул в БД, возвращает id записи."""
+    """Сохраняет артикул в БД, возвращает id записи.
+
+    wb_images: список URL фото товара с WB (для I2I генерации)
+    """
+    import json
     pool = await get_pool()
+    wb_images_json = json.dumps(wb_images or [])
     row = await pool.fetchrow(
         """
-        INSERT INTO articles (user_id, article_code, marketplace, name, color, material)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO articles (user_id, article_code, marketplace, name, color, material, wb_images)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (user_id, article_code, marketplace)
         DO UPDATE SET name = EXCLUDED.name, color = EXCLUDED.color,
-                      material = EXCLUDED.material, parsed_at = NOW()
+                      material = EXCLUDED.material, wb_images = EXCLUDED.wb_images,
+                      parsed_at = NOW()
         RETURNING id
         """,
-        user_id, article_code, marketplace, name, color, material,
+        user_id, article_code, marketplace, name, color, material, wb_images_json,
     )
     return row["id"] if row else -1
 

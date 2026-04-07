@@ -274,18 +274,40 @@ USER:
 | `get_user_stats(user_id)` | Вернуть `{references, photos, videos, balance}` |
 | `get_user_references(user_id)` | Список эталонов пользователя |
 | `get_reference(user_id, articul)` | Один эталон по артикулу |
-| `save_reference(user_id, articul, file_id, file_path, reference_image_url, category, reference_prompt)` | Сохранить/обновить эталон с URL картинки, категорией и EN промптом |
-| `save_article(...)` | Сохранить артикул товара |
+| `save_reference(user_id, articul, file_id, file_path, reference_image_url, category, reference_prompt)` | Сохранить/обновить эталон с URL картинки, категорией и промптом |
+| `save_article(user_id, article_code, marketplace, name, color, material, wb_images)` | Сохранить артикул + массив URL фото с WB (JSON) |
+| `get_article_wb_images(user_id, article_code)` | Получить список URL фото товара из БД |
 | `deduct_balance(user_id, amount)` | Списать с баланса, вернуть новый |
 | `get_marketplace_cache(...)` | Получить кэш МП |
 | `save_marketplace_cache(...)` | Сохранить кэш МП |
 | `log_user_action(...)` | Логировать действие |
 
 ### ⚙️ Интеграции и логика
+
+#### 🧬 Процесс создания эталона (пошагово)
+1. **WB парсер** (`wb_parser.py`)
+   - Находит товар по артикулу через CDN корзины (`basket-XX.wbcontent.net`)
+   - Возвращает: **все фото товара** (обычно 10-30 шт), название, цвет, материал
+   - Фото **не сохраняются локально** — передаются по URL
+
+2. **AI текстовая модель** (kie.ai gpt-5-2)
+   - Вход: название + цвет + материал товара
+   - Выход: **категория** (`верх/низ/обувь/головной убор`) + **промпт на английском** для обработки фото
+   - Промпт instructs AI: "найди товар, удали фон, модель, аксессуары, сохрани детали"
+
+3. **AI генерация изображений** (kie.ai gpt-image/1.5-image-to-image)
+   - Вход: **первые 3 фото товара** (URL) + промпт
+   - Выход: **эталон** — товар на прозрачном фоне (PNG)
+   - Polling статуса: POST createTask → GET recordInfo (до 60 попыток, 5 сек интервал)
+
+4. **Сохранение в БД:**
+   - `articles.wb_images` → JSON массив всех URL фото с WB (привязка к артикулу)
+   - `article_references` → file_id, file_path, reference_image_url, category, reference_prompt
+
 - **WB парсер** (`wb_parser.py` → CDN корзины `basket-XX.wbcontent.net`) — реализован ✅
 - **OZON парсер** — заглушка 🚧
-- **T2T AI** (`services/reference_t2t.py` → `POST /gpt-5-2/v1/chat/completions`) — **один запрос** возвращает категорию товара (`верх/низ/обувь/головной убор`) + EN промпт для I2I; результат сохраняется в `article_references.category` и `article_references.reference_prompt` ✅
-- **I2I AI** (`services/reference_i2i.py` → `POST /api/v1/jobs/createTask` + polling `GET /api/v1/jobs/recordInfo`) — генерация изображения ✅
+- **AI текстовая модель** (`services/reference_t2t.py` → `POST /gpt-5-2/v1/chat/completions`) — **один запрос** возвращает категорию товара (`верх/низ/обувь/головной убор`) + промпт на английском; результат сохраняется в `article_references.category` и `article_references.reference_prompt` ✅
+- **AI генерация изображений** (`services/reference_i2i.py` → `POST /api/v1/jobs/createTask` + polling `GET /api/v1/jobs/recordInfo`) — генерация изображения ✅
   - **Поле изображений:** `image_urls` (НЕ `input_urls`)
   - **Статус задачи:** `data.state` — значения: `waiting` / `queuing` / `generating` / `success` / `fail`
   - **Код ответа:** `code 249` = ещё обрабатывается (продолжаем polling), `code 200` = запрос обработан (смотрим `state`)
@@ -297,7 +319,7 @@ USER:
   - Для `photo`: `generate_reference_image(image_urls=[ref_url], prompt=prompt)` → скачать → `bot.send_photo()` → `complete_task()`
   - При ошибке: `fail_task()` + уведомление пользователю
   - При старте: сбрасывает зависшие `processing` задачи старше 10 мин обратно в `pending`
-- **Lifestyle T2T** (`services/lifestyle_generator.py`) — генерация промпта для lifestyle-фото ✅
+- **Lifestyle AI** (`services/lifestyle_generator.py`) — генерация промпта для lifestyle-фото ✅
 - **Mock-сервер** (`mock_kie_server.py` — FastAPI, `localhost:8080`) — для локальной разработки ✅
 - **Медиа-хранилище** (`services/media_storage.py`) — сохранение эталонов на диск ✅
 - **Обработка ошибок:** Таймауты, макс. 3 попытки с фидбеком, подробное логирование
