@@ -82,7 +82,7 @@
 5. При создании: проверка баланса → **T2T AI** (1 запрос: категория + EN промпт) → I2I AI → фото с `[✅ Подходит] [🔄 Переделать]`
 6. `✅ Подходит` → `save_reference(category, reference_prompt)` → `deduct_balance()` → edit caption → главное меню
 
-### 📸 Поток 2: Фото (из главного меню)
+### 📸 Поток 2: Фото (из главного меню) — ПУТЬ A (полный, production)
 1. Пользователь нажимает **Фото** → информативное сообщение:
    ```
    📸 Сгенерируем 1 или более фото в разных локациях и стилях для вашего товара!
@@ -91,11 +91,26 @@
    Введите артикул товара:
    ```
 2. Ввод артикула → **проверка в БД** (по user_id + article_code):
-   - **Эталон есть:** сразу выбор количества: `[📸 1 фото] [📸 5 фото] [📸 10 фото] [✏️ Своё число]`
+   - **Эталон есть:** сразу выбор количества: `[📸 Одно фото] [📸 Несколько фото] [↩️ Назад]`
+     - **Одно фото:** сразу генерация 1 фото
+     - **Несколько фото:** ввод числа (1–20) → генерация
+     - **Назад:** возврат в главное меню
    - **Эталона нет:** запрос маркетплейса `[🟣 Wildberries] [🔵 OZON]` → парсинг WB → карточка товара → создание эталона → `✅ Подходит, создать фото` → выбор количества
-3. Выбор количества → запрос критериев (локация, сезон, волосы, пожелания) → **генерация промптов** → проверка баланса → I2I AI → списание монет → показ результата
+3. Выбор количества → **генерация промптов** (локально, `prompt_generator_cloth.py`) → проверка баланса → списание монет → **запись задач в очередь** (`generation_tasks`)
+4. **Фоновый воркер** (`task_worker.py`) каждые 5 сек берёт pending задачи → берёт `reference_image_url` из БД → вызывает I2I API (`image_urls=[ref_url]` + промпт) → скачивает фото → отправляет пользователю
 
-#### 🧠 Логика генерации промптов для фото (Вариант 4)
+#### 📸 Поток 2: Фото (из онбординга) — ПУТЬ B (полный, production)
+После создания эталона и нажатия `📸 Создать фото`:
+1. Выбор: `[📸 Одно фото] [📸 Несколько фото] [↩️ Назад]`
+   - **Одно фото:** сразу генерация 1 фото
+   - **Несколько фото:** ввод числа (1–20) → генерация
+   - **Назад:** возврат в главное меню
+2. Локальная генерация промптов (`prompt_generator_cloth.py`) → проверка баланса → списание → запись задач в очередь
+3. Фоновый воркер обрабатывает задачи так же, как в Пути A
+
+> **Важно:** Оба потока полностью самодостаточные — не зависят друг от друга. Просто используют общую инфраструктуру: очередь задач (`generation_tasks`) и фоновый воркер (`task_worker.py`). Фото генерируются асинхронно, пользователь получает их по мере готовности.
+
+#### 🧠 Логика генерации промптов для фото
 Промпты для I2I генерируются **локально** на основе `category` из БД — без T2T запросов.
 Реализовано в `services/prompt_generator_cloth.py` ✅
 
@@ -110,7 +125,7 @@
 | `головной убор` | name / color / material | локация (12 шт.) | нейтральный аутфит (5 шт.) | — |
 
 3. Каждый промпт генерируется на **английском** прямо в коде (без T2T)
-4. Каждый из N промптов → отдельный I2I запрос
+4. Каждый из N промптов → отдельная задача в очереди → I2I запрос воркера
 
 **Итого:** 1 T2T (при создании эталона) + 0 T2T при генерации фото + N I2I
 
@@ -242,7 +257,7 @@ USER:
 |---|---|
 | `users` | `user_id`, `username`, `balance`, `ad_budget`, `articles_count`, `is_registered`, `created_at` |
 | `articles` | `id`, `user_id`, `article_code`, `marketplace`, `name`, `color`, `material`, `parsed_at` |
-| `article_references` | `id`, `user_id`, `articul`, `file_id`, `file_path`, `category`, `reference_prompt`, `created_at` — **один эталон на артикул** (общий для фото и видео) |
+| `article_references` | `id`, `user_id`, `articul`, `file_id`, `file_path`, `reference_image_url`, `category`, `reference_prompt`, `created_at` — **один эталон на артикул** (общий для фото и видео) |
 | `user_actions` | `id`, `user_id`, `username`, `action_type`, `content`, `created_at` |
 | `marketplace_cache` | `user_id`, `article`, `marketplace`, `cached_at` |
 
@@ -259,7 +274,7 @@ USER:
 | `get_user_stats(user_id)` | Вернуть `{references, photos, videos, balance}` |
 | `get_user_references(user_id)` | Список эталонов пользователя |
 | `get_reference(user_id, articul)` | Один эталон по артикулу |
-| `save_reference(user_id, articul, file_id, file_path, category, reference_prompt)` | Сохранить/обновить эталон с категорией и EN промптом |
+| `save_reference(user_id, articul, file_id, file_path, reference_image_url, category, reference_prompt)` | Сохранить/обновить эталон с URL картинки, категорией и EN промптом |
 | `save_article(...)` | Сохранить артикул товара |
 | `deduct_balance(user_id, amount)` | Списать с баланса, вернуть новый |
 | `get_marketplace_cache(...)` | Получить кэш МП |
@@ -270,7 +285,18 @@ USER:
 - **WB парсер** (`wb_parser.py` → CDN корзины `basket-XX.wbcontent.net`) — реализован ✅
 - **OZON парсер** — заглушка 🚧
 - **T2T AI** (`services/reference_t2t.py` → `POST /gpt-5-2/v1/chat/completions`) — **один запрос** возвращает категорию товара (`верх/низ/обувь/головной убор`) + EN промпт для I2I; результат сохраняется в `article_references.category` и `article_references.reference_prompt` ✅
-- **I2I AI** (`services/reference_i2i.py` → `POST /api/v1/jobs/createTask` + polling `GET /api/v1/jobs/recordInfo`) — генерация изображения эталона ✅
+- **I2I AI** (`services/reference_i2i.py` → `POST /api/v1/jobs/createTask` + polling `GET /api/v1/jobs/recordInfo`) — генерация изображения ✅
+  - **Поле изображений:** `image_urls` (НЕ `input_urls`)
+  - **Статус задачи:** `data.state` — значения: `waiting` / `queuing` / `generating` / `success` / `fail`
+  - **Код ответа:** `code 249` = ещё обрабатывается (продолжаем polling), `code 200` = запрос обработан (смотрим `state`)
+  - **URL результата:** `data.resultJson` → JSON-строка → `json.loads()` → `resultUrls[0]`
+  - **Polling:** до 60 попыток с интервалом 5 сек
+  - **Эталон для фото:** воркер берёт `reference_image_url` из `article_references` и передаёт в `image_urls=[ref_url]`
+- **Очередь задач** (`services/task_worker.py`) — фоновый воркер:
+  - Каждые 5 сек берёт pending задачи из `generation_tasks` (пачками по 3)
+  - Для `photo`: `generate_reference_image(image_urls=[ref_url], prompt=prompt)` → скачать → `bot.send_photo()` → `complete_task()`
+  - При ошибке: `fail_task()` + уведомление пользователю
+  - При старте: сбрасывает зависшие `processing` задачи старше 10 мин обратно в `pending`
 - **Lifestyle T2T** (`services/lifestyle_generator.py`) — генерация промпта для lifestyle-фото ✅
 - **Mock-сервер** (`mock_kie_server.py` — FastAPI, `localhost:8080`) — для локальной разработки ✅
 - **Медиа-хранилище** (`services/media_storage.py`) — сохранение эталонов на диск ✅

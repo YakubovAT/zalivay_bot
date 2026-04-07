@@ -170,29 +170,32 @@ async def save_reference(
     articul: str,
     file_id: str,
     file_path: str = "",
+    reference_image_url: str = "",
     category: str = "",
     reference_prompt: str = "",
 ) -> int:
     """Сохраняет эталон в БД. Один эталон на артикул.
 
+    reference_image_url: публичный URL эталона для I2I API
     category: классификация товара (верх/низ/обувь/головной убор)
     reference_prompt: промпт на английском для I2I генерации
     """
     pool = await get_pool()
     row = await pool.fetchrow(
         """
-        INSERT INTO article_references (user_id, articul, file_id, file_path, category, reference_prompt)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO article_references (user_id, articul, file_id, file_path, reference_image_url, category, reference_prompt)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (user_id, articul)
         DO UPDATE SET
-            file_id          = EXCLUDED.file_id,
-            file_path        = EXCLUDED.file_path,
-            category         = EXCLUDED.category,
-            reference_prompt = EXCLUDED.reference_prompt,
-            created_at       = NOW()
+            file_id             = EXCLUDED.file_id,
+            file_path           = EXCLUDED.file_path,
+            reference_image_url = EXCLUDED.reference_image_url,
+            category            = EXCLUDED.category,
+            reference_prompt    = EXCLUDED.reference_prompt,
+            created_at          = NOW()
         RETURNING id
         """,
-        user_id, articul, file_id, file_path, category, reference_prompt,
+        user_id, articul, file_id, file_path, reference_image_url, category, reference_prompt,
     )
     return row["id"] if row else -1
 

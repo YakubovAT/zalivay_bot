@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS article_references (
     articul           TEXT NOT NULL,
     file_id           TEXT NOT NULL,
     file_path         TEXT,
+    reference_image_url TEXT,
     category          TEXT,
     reference_prompt  TEXT,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
