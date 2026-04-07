@@ -18,7 +18,7 @@ import subprocess
 
 from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article, save_reference, get_user, get_reference, deduct_balance
 from handlers.menu import main_menu, BTN_RESTART
-from config import REFERENCE_COST
+from config import REFERENCE_COST, PHOTO_COST
 from wb_parser import get_product_info
 from services.media_storage import ensure_user_media_dirs, MEDIA_ROOT
 
@@ -37,6 +37,9 @@ ONBOARD_ARTICLE    = 15  # Ввод артикула
 ONBOARD_REF_CHOICE = 16  # Выбор: создать эталон / другой артикул
 ONBOARD_REF_FEEDBACK = 17 # ✅ Подходит / 🔄 Переделать
 ONBOARD_REDO_FEEDBACK = 18 # Ввод текста для переделки
+PHOTO_COUNT_CHOICE = 19    # Выбор: одно или несколько фото
+PHOTO_CRITERIA_INPUT = 20  # Ввод критериев для фото
+PHOTO_MULTI_COUNT = 21     # Ввод количества для мульти-генерации
 
 # ---------------------------------------------------------------------------
 # Перезапуск онбординга
@@ -544,9 +547,17 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
         return ConversationHandler.END
 
     if query.data == "go_photo":
-        # TODO: Запустить воркфлоу создания фото
-        await query.message.reply_text("📸 Воркфлоу создания фото в разработке.")
-        return ConversationHandler.END
+        # Выбор: одно или несколько фото
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📸 Одно фото", callback_data="photo_one")],
+            [InlineKeyboardButton("📸 Несколько фото", callback_data="photo_multi")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="photo_back")],
+        ])
+        await query.message.reply_text(
+            "Сколько фото создать?",
+            reply_markup=keyboard,
+        )
+        return PHOTO_COUNT_CHOICE
 
     if query.data == "go_video":
         # TODO: Запустить воркфлоу создания видео
@@ -560,6 +571,163 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         context.user_data["redo_prompt_msg_id"] = msg.message_id
         return ONBOARD_REDO_FEEDBACK
+
+
+# ---------------------------------------------------------------------------
+# Фото: выбор количества
+# ---------------------------------------------------------------------------
+
+async def photo_count_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    logger.info("PHOTO_COUNT_CHOICE | user_id=%s | choice=%s", query.from_user.id, query.data)
+    await query.answer()
+
+    if query.data == "photo_back":
+        # Возврат к фото после эталона — просто завершаем
+        await query.edit_message_text("Отмена. Выберите действие в меню.")
+        await context.bot.send_message(
+            chat_id=query.message.chat.id,
+            text="Выберите действие:",
+            reply_markup=main_menu(),
+        )
+        return ConversationHandler.END
+
+    if query.data == "photo_one":
+        context.user_data["photo_count"] = 1
+        await query.edit_message_text(
+            "📝 Укажите критерии для генерации:\n\n"
+            "Формат: локация, время года, цвет волос, пожелания\n\n"
+            "Например: <i>студия, лето, блонд, улыбка</i>\n\n"
+            "Можно оставить пустым — AI подберёт автоматически.",
+            parse_mode="HTML",
+        )
+        return PHOTO_CRITERIA_INPUT
+
+    if query.data == "photo_multi":
+        await query.edit_message_text("Сколько фото создать? (1–20)")
+        return PHOTO_MULTI_COUNT
+
+
+# ---------------------------------------------------------------------------
+# Фото: ввод количества для мульти-генерации
+# ---------------------------------------------------------------------------
+
+async def photo_multi_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    raw = update.message.text.strip()
+    try:
+        n = int(raw)
+        if not 1 <= n <= 20:
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text("Введите число от 1 до 20:")
+        return PHOTO_MULTI_COUNT
+
+    context.user_data["photo_count"] = n
+    await update.message.reply_text(
+        f"📝 Укажите критерии для {n} фото:\n\n"
+        "Формат: локация, время года, цвет волос, пожелания\n\n"
+        "Например: <i>студия, лето, блонд, улыбка</i>\n\n"
+        "Можно оставить пустым — AI подберёт автоматически для каждого.",
+        parse_mode="HTML",
+    )
+    return PHOTO_CRITERIA_INPUT
+
+
+# ---------------------------------------------------------------------------
+# Фото: ввод критериев и генерация
+# ---------------------------------------------------------------------------
+
+async def photo_criteria_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    chat_id = update.message.chat.id
+    criteria = update.message.text.strip()
+    count = context.user_data.get("photo_count", 1)
+    articul = context.user_data.get("onboard_article", "")
+    product = context.user_data.get("product_info", {})
+    ref_file_id = context.user_data.get("ref_file_id", "")
+
+    logger.info("PHOTO_CRITERIA | user_id=%s | article=%s | count=%d | criteria=%s",
+                user.id, articul, count, criteria)
+
+    # Парсим критерии
+    parts = [p.strip() for p in criteria.split(",") if p.strip()]
+    location = parts[0] if len(parts) > 0 else ""
+    season = parts[1] if len(parts) > 1 else ""
+    hair_color = parts[2] if len(parts) > 2 else ""
+    extra = parts[3] if len(parts) > 3 else ""
+
+    # Проверка баланса
+    cost = PHOTO_COST * count
+    db_user = await get_user(user.id)
+    balance = db_user["balance"] if db_user else 0
+
+    if balance < cost:
+        await update.message.reply_text(
+            f"❌ Недостаточно средств.\n\n"
+            f"Стоимость: <b>{cost} руб.</b> ({count} × {PHOTO_COST} руб.)\n"
+            f"Баланс: <b>{balance} руб.</b>",
+            parse_mode="HTML",
+        )
+        return ConversationHandler.END
+
+    # Списываем баланс
+    new_balance = await deduct_balance(user.id, cost)
+
+    # Получаем URL эталона для I2I AI
+    # TODO: загрузить эталон на S3 или получить URL из file_id
+    # Пока используем заглушку
+    from config import AI_API_KEY, AI_API_BASE, AI_MODEL
+    from services.lifestyle_generator import generate_lifestyle_prompt
+    from services.i2i_generator import generate_reference_image
+
+    session = context.bot_data.get("http_session")
+    if not session:
+        await update.message.reply_text("⚠️ Техническая ошибка.")
+        return ConversationHandler.END
+
+    # Для мульти-генерации — цикл
+    for i in range(count):
+        status = await update.message.reply_text(
+            f"🔄 Генерация фото {i+1}/{count}..."
+        )
+
+        # T2T AI — генерация промпта lifestyle
+        prompt = await generate_lifestyle_prompt(
+            session=session,
+            name=product.get("name", ""),
+            color=product.get("color", ""),
+            material=product.get("material", ""),
+            location=location,
+            season=season,
+            hair_color=hair_color,
+            extra=extra,
+            api_key=AI_API_KEY,
+            api_base_url=AI_API_BASE,
+            model=AI_MODEL,
+        )
+
+        if not prompt:
+            await status.edit_text(f"❌ Ошибка генерации промпта (фото {i+1}).")
+            continue
+
+        # TODO: I2I AI — нужно загрузить эталон и передать URL
+        # Пока заглушка — используем тот же механизм
+        # image_url = await generate_reference_image(...)
+
+        # TODO: скачать и отправить фото
+        # Пока отправляем тот же placeholder
+        await status.edit_text(
+            f"✅ Фото {i+1}/{count} готово!\n\n"
+            f"Списано {cost} руб. Баланс: {new_balance} руб.\n\n"
+            "# TODO: показать сгенерированное фото"
+        )
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="Выберите действие:",
+        reply_markup=main_menu(),
+    )
+    return ConversationHandler.END
 
 
 # ---------------------------------------------------------------------------
@@ -707,6 +875,9 @@ def build_registration_handler() -> ConversationHandler:
             ONBOARD_REF_CHOICE: [CallbackQueryHandler(onboard_ref_choice, pattern="^(create_ref|redo_ref|new_article|go_menu)$")],
             ONBOARD_REF_FEEDBACK: [CallbackQueryHandler(onboard_ref_feedback, pattern="^(ref_ok|ref_redo|go_photo|go_video)$")],
             ONBOARD_REDO_FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, onboard_redo_feedback)],
+            PHOTO_COUNT_CHOICE: [CallbackQueryHandler(photo_count_choice, pattern="^(photo_one|photo_multi|photo_back)$")],
+            PHOTO_MULTI_COUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, photo_multi_count)],
+            PHOTO_CRITERIA_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, photo_criteria_input)],
         },
         fallbacks=[CommandHandler("start", cmd_start)],
         per_message=False,
