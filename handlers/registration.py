@@ -554,10 +554,11 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
         return ConversationHandler.END
 
     if query.data == "ref_redo":
-        await query.message.reply_text(
+        msg = await query.message.reply_text(
             "✍️ Напишите что нужно изменить в эталоне.\n"
-            "Например: обратить внимание на какие-то делали."
+            "Например: «убрать фон» или «изменить цвет»"
         )
+        context.user_data["redo_prompt_msg_id"] = msg.message_id
         return ONBOARD_REDO_FEEDBACK
 
 
@@ -566,19 +567,32 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
 # ---------------------------------------------------------------------------
 
 async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    feedback = update.message.text.strip()
+    user_msg = update.message
+    feedback = user_msg.text.strip()
     user_id = update.effective_user.id
+    chat_id = user_msg.chat.id
     articul = context.user_data.get("onboard_article", "")
     product = context.user_data.get("product_info", {})
     logger.info("ONBOARD_REDO_INPUT | user_id=%s | article=%s | feedback=%s", user_id, articul, feedback)
 
-    await update.message.reply_text(
-        "🔄 Перегенерирую промпт с учётом ваших пожеланий..."
-    )
+    # Удаляем сообщение пользователя и подсказку
+    try:
+        await user_msg.delete()
+    except Exception:
+        pass
+    prompt_msg_id = context.user_data.pop("redo_prompt_msg_id", None)
+    if prompt_msg_id:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=prompt_msg_id)
+        except Exception:
+            pass
+
+    status_msg = await context.bot.send_message(chat_id=chat_id, text="🔄 Перегенерирую промпт с учётом ваших пожеланий...")
+    context.user_data["redo_status_msg_id"] = status_msg.message_id
 
     session = context.bot_data.get("http_session")
     if not session:
-        await update.message.reply_text("⚠️ Техническая ошибка.")
+        await context.bot.send_message(chat_id=chat_id, text="⚠️ Техническая ошибка.")
         return ConversationHandler.END
 
     from config import AI_API_KEY, AI_API_BASE, AI_MODEL
@@ -598,7 +612,7 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
     if not prompt:
-        await update.message.reply_text("❌ Ошибка генерации промпта.")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Ошибка генерации промпта.")
         return ConversationHandler.END
 
     context.user_data["reference_prompt"] = prompt
@@ -606,7 +620,7 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
     # I2I AI — генерируем изображение с новым промптом
     wb_images = context.user_data.get("wb_images", [])
     if not wb_images:
-        await update.message.reply_text("❌ Не удалось найти фото товара.")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Не удалось найти фото товара.")
         return ConversationHandler.END
 
     image_url = await generate_reference_image(
@@ -618,7 +632,7 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
     if not image_url:
-        await update.message.reply_text("❌ Ошибка генерации изображения.")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Ошибка генерации изображения.")
         return ConversationHandler.END
 
     try:
@@ -626,20 +640,38 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
             image_data = await img_resp.read()
     except Exception as e:
         logger.error("Failed to download image: %s", e)
-        await update.message.reply_text("❌ Ошибка загрузки изображения.")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Ошибка загрузки изображения.")
         return ConversationHandler.END
 
+    # Удаляем статус "Перегенерирую..."
+    status_msg_id = context.user_data.pop("redo_status_msg_id", None)
+    if status_msg_id:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=status_msg_id)
+        except Exception:
+            pass
+
+    # Удаляем старое фото
+    old_photo_msg_id = context.user_data.pop("ref_photo_msg_id", None)
+    if old_photo_msg_id:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=old_photo_msg_id)
+        except Exception:
+            pass
+
+    # Отправляем новое фото
     context.user_data["reference_image_data"] = image_data
 
     # Списываем за переделку
-    new_balance = await deduct_balance(update.effective_user.id, REFERENCE_COST)
+    new_balance = await deduct_balance(user_id, REFERENCE_COST)
     context.user_data["redo_charged"] = True
 
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
         [InlineKeyboardButton("🔄 Ещё раз", callback_data="ref_redo")],
     ])
-    await update.message.reply_photo(
+    sent = await context.bot.send_photo(
+        chat_id=chat_id,
         photo=BytesIO(image_data),
         caption=(
             f"🎨 Вот новый вариант!\n\n"
@@ -649,6 +681,8 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup=keyboard,
         parse_mode="HTML",
     )
+    context.user_data["ref_photo_msg_id"] = sent.message_id
+    context.user_data["ref_file_id"] = sent.photo[-1].file_id
 
     return ONBOARD_REF_FEEDBACK
 
