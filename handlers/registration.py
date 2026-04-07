@@ -390,8 +390,6 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return ConversationHandler.END
 
         # T2T AI → генерация промпта
-        await query.edit_message_text("⚙️ Генерирую промпт...")
-
         session = context.bot_data.get("http_session")
         if not session:
             await query.message.reply_text("⚠️ Техническая ошибка.")
@@ -514,12 +512,15 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
                 parse_mode="HTML",
             )
 
-        await context.bot.send_message(
-            chat_id=user_id,
-            text="Выберите действие в меню:",
-            reply_markup=main_menu(),
-        )
-        return ConversationHandler.END
+        if query.data == "go_photo":
+            # TODO: Запустить воркфлоу создания фото
+            await query.edit_message_text("📸 Воркфлоу создания фото в разработке.")
+            return ConversationHandler.END
+
+        if query.data == "go_video":
+            # TODO: Запустить воркфлоу создания видео
+            await query.edit_message_text("🎬 Воркфлоу создания видео в разработке.")
+            return ConversationHandler.END
 
     if query.data == "ref_redo":
         await query.message.reply_text(
@@ -637,7 +638,7 @@ def build_registration_handler() -> ConversationHandler:
             ONBOARD_SELECT_MP: [CallbackQueryHandler(onboard_select_mp, pattern="^onboard_mp_(wb|ozon)$")],
             ONBOARD_ARTICLE:   [MessageHandler(filters.TEXT & ~filters.COMMAND, onboard_article)],
             ONBOARD_REF_CHOICE: [CallbackQueryHandler(onboard_ref_choice, pattern="^(create_ref|redo_ref|new_article|go_menu)$")],
-            ONBOARD_REF_FEEDBACK: [CallbackQueryHandler(onboard_ref_feedback, pattern="^(ref_ok|ref_redo)$")],
+            ONBOARD_REF_FEEDBACK: [CallbackQueryHandler(onboard_ref_feedback, pattern="^(ref_ok|ref_redo|go_photo|go_video)$")],
             ONBOARD_REDO_FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, onboard_redo_feedback)],
         },
         fallbacks=[CommandHandler("start", cmd_start)],
