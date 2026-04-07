@@ -217,9 +217,14 @@ async def onboard_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["onboard_marketplace"] = mp
 
     label = "Wildberries" if mp == "WB" else "OZON"
-    await query.edit_message_text(
-        f"Введите артикул товара {label}:",
+    
+    # Удаляем старое сообщение с кнопками и отправляем новый запрос
+    await query.message.delete()
+    msg = await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text=f"Введите артикул товара {label}:",
     )
+    context.user_data["mp_prompt_msg_id"] = msg.message_id
     return ONBOARD_ARTICLE
 
 
@@ -228,17 +233,27 @@ async def onboard_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_msg = update.message
+    chat_id = user_msg.chat.id
     user_id = update.effective_user.id
-    raw = update.message.text.strip()
+    raw = user_msg.text.strip()
     marketplace = context.user_data.get("onboard_marketplace", "WB")
 
     # Удаляем сообщение пользователя с артикулом
     try:
-        await update.message.delete()
+        await user_msg.delete()
     except Exception:
         pass
 
-    status_msg = await update.message.reply_text("🔍 Загружаю информацию о товаре...")
+    # Удаляем сообщение "Введите артикул..."
+    prompt_id = context.user_data.pop("mp_prompt_msg_id", None)
+    if prompt_id:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=prompt_id)
+        except Exception:
+            pass
+
+    status_msg = await context.bot.send_message(chat_id=chat_id, text="🔍 Загружаю информацию о товаре...")
 
     name = color = material = ""
     info = {}
@@ -251,8 +266,9 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not info:
             await status_msg.delete()
-            await update.message.reply_text(
-                "❌ Товар не найден на Wildberries. Проверьте артикул и введите ещё раз:"
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="❌ Товар не найден на Wildberries. Проверьте артикул и введите ещё раз:"
             )
             return ONBOARD_ARTICLE
 
@@ -289,14 +305,15 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("✅ Создать эталон — 100 руб.", callback_data="create_ref")],
             [InlineKeyboardButton("🔄 Ввести другой артикул", callback_data="new_article")],
         ])
-        await update.message.reply_text(
-            f"✅ Артикул <code>{raw}</code> сохранён для OZON 🔵",
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"✅ Артикул <code>{raw}</code> сохранён для OZON 🔵",
             reply_markup=keyboard,
             parse_mode="HTML",
         )
 
     await save_article(
-        user_id=user_id,
+        user_id=update.effective_user.id,
         article_code=raw,
         marketplace=marketplace,
         name=name,
