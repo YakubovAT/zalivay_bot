@@ -1,5 +1,5 @@
 """
-services/reference_generator.py
+services/reference_t2t.py
 
 Генерация промпта для эталона через Text AI.
 

@@ -1,5 +1,5 @@
 """
-services/i2i_generator.py
+services/reference_i2i.py
 
 Генерация эталона через Image-to-Image API (Kie.ai).
 

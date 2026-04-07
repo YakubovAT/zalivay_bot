@@ -424,8 +424,8 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return ConversationHandler.END
 
         from config import AI_API_KEY, AI_API_BASE, AI_MODEL
-        from services.reference_generator import generate_reference_prompt
-        from services.i2i_generator import generate_reference_image
+        from services.reference_t2t import generate_reference_prompt
+        from services.reference_i2i import generate_reference_image
 
         prompt = await generate_reference_prompt(
             session=session,
@@ -685,7 +685,7 @@ async def photo_criteria_input(update: Update, context: ContextTypes.DEFAULT_TYP
     # Пока используем заглушку
     from config import AI_API_KEY, AI_API_BASE, AI_MODEL
     from services.lifestyle_generator import generate_lifestyle_prompt
-    from services.i2i_generator import generate_reference_image
+    from services.reference_i2i import generate_reference_image
 
     session = context.bot_data.get("http_session")
     if not session:
@@ -771,8 +771,8 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
         return ConversationHandler.END
 
     from config import AI_API_KEY, AI_API_BASE, AI_MODEL
-    from services.reference_generator import generate_reference_prompt
-    from services.i2i_generator import generate_reference_image
+    from services.reference_t2t import generate_reference_prompt
+    from services.reference_i2i import generate_reference_image
 
     # T2T AI — генерируем новый промпт с пожеланиями
     prompt = await generate_reference_prompt(
