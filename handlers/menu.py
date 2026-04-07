@@ -94,6 +94,11 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def photo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     logger.info("MENU_PHOTO | user_id=%s | username=%s", user.id, user.username)
+
+    from database import get_user_stats
+    stats = await get_user_stats(user.id)
+    ref_count = stats["references"]
+
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🟣 Wildberries", callback_data="photo_mp_wb"),
@@ -101,8 +106,18 @@ async def photo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ])
     await update.message.reply_text(
-        "Выберите маркетплейс:",
+        f"📸 Сгенерируем <b>1 или более фото</b> в разных локациях и стилях для вашего товара!\n\n"
+        f"У вас уже <b>{ref_count}</b> эталон(ов) в базе.\n\n"
+        f"Как это работает:\n"
+        f"1️⃣ Введите артикул товара\n"
+        f"2️⃣ Если эталон уже есть — сразу генерируем фото\n"
+        f"3️⃣ Если нет — создаём эталон, потом фото\n"
+        f"4️⃣ Выберите количество фото (1–20)\n"
+        f"5️⃣ AI создаст изображения в разных локациях и стилях\n\n"
+        f"Стоимость: <b>{PHOTO_COST} руб.</b> за каждое фото.\n\n"
+        f"Выберите маркетплейс:",
         reply_markup=keyboard,
+        parse_mode="HTML",
     )
     return WAITING_MP_PHOTO
 
@@ -439,7 +454,7 @@ async def photo_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     label = "Wildberries" if mp == "WB" else "OZON"
     await query.edit_message_text(
-        f"Введите артикул товара {label} для создания фото:"
+        f"Введите артикул товара {label}:"
     )
     return WAITING_ARTICUL_PHOTO
 
@@ -449,7 +464,6 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
     raw = update.message.text.strip()
     marketplace = context.user_data.get("photo_marketplace", "WB")
     logger.info("PHOTO_ARTICLE_INPUT | user_id=%s | article=%s | mp=%s", user.id, raw, marketplace)
-    await ensure_user(user.id, user.username)
 
     # --- OZON: заглушка ---
     if marketplace == "OZON":
@@ -512,17 +526,37 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         "color": color,
         "material": material,
     }
-    context.user_data["wb_images"] = info.get("images", [])[:5]  # Берём первые 5 фото
+    context.user_data["wb_images"] = info.get("images", [])[:5]
 
-    # Показываем кнопки выбора
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Создать эталон", callback_data="create_ref")],
-        [InlineKeyboardButton("🔄 Ввести артикул", callback_data="new_article")],
-    ])
-    await update.message.reply_text(
-        "Выберите действие:",
-        reply_markup=keyboard,
-    )
+    # Проверяем, есть ли уже эталон
+    from database import get_reference
+    existing_ref = await get_reference(user.id, raw)
+
+    if existing_ref:
+        # Эталон есть — сразу запрашиваем количество фото
+        context.user_data["ref_file_id"] = existing_ref["file_id"]
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📸 1 фото", callback_data="photo_count_1")],
+            [InlineKeyboardButton("📸 5 фото", callback_data="photo_count_5")],
+            [InlineKeyboardButton("📸 10 фото", callback_data="photo_count_10")],
+            [InlineKeyboardButton("✏️ Своё число", callback_data="photo_count_custom")],
+        ])
+        await update.message.reply_text(
+            f"✅ Эталон для артикула <code>{raw}</code> уже есть в базе!\n\n"
+            f"Сколько фото сгенерировать?",
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+    else:
+        # Эталона нет — предлагаем создать
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Создать эталон", callback_data="create_ref")],
+            [InlineKeyboardButton("🔄 Ввести другой артикул", callback_data="new_article")],
+        ])
+        await update.message.reply_text(
+            "Эталон для этого артикула ещё не создан. Сначала создадим эталон?",
+            reply_markup=keyboard,
+        )
 
     return WAITING_REF_CHOICE_PHOTO
 
@@ -532,8 +566,21 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("PHOTO_REF_CHOICE | user_id=%s | choice=%s", query.from_user.id, query.data)
     await query.answer()
 
+    # --- Запрос количества фото ---
+    if query.data.startswith("photo_count_"):
+        context.user_data["_user_id_for_photos"] = query.from_user.id
+        if query.data == "photo_count_custom":
+            await query.message.reply_text("Введите количество фото (1–20):")
+            return PHOTO_CUSTOM_COUNT
+        else:
+            count = int(query.data.split("_")[-1])
+            context.user_data["photo_count"] = count
+            # Переходим к генерации
+            return await _generate_photos(query.message.chat.id, context, count)
+
+    # --- Новый артикул ---
     if query.data == "new_article":
-        await query.edit_message_text("Выберите маркетплейс:")
+        await query.message.delete()
         keyboard = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("🟣 Wildberries", callback_data="photo_mp_wb"),
@@ -546,6 +593,7 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return WAITING_MP_PHOTO
 
+    # --- Создать эталон ---
     if query.data == "create_ref":
         articul = context.user_data.get("current_article", "")
         product = context.user_data.get("product_info", {})
@@ -553,7 +601,7 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         balance = db_user["balance"] if db_user else 0
 
         if balance < REFERENCE_COST:
-            await query.edit_message_text(
+            await query.message.reply_text(
                 f"❌ Недостаточно средств.\n\n"
                 f"Стоимость создания эталона: <b>{REFERENCE_COST} руб.</b>\n"
                 f"Ваш баланс: <b>{balance} руб.</b>\n\n"
@@ -561,6 +609,11 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="HTML",
             )
             return ConversationHandler.END
+
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
 
         session = context.bot_data.get("http_session")
         if not session:
@@ -581,9 +634,6 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("❌ Ошибка генерации промпта. Попробуйте снова.")
             return ConversationHandler.END
 
-        context.user_data["reference_prompt"] = prompt
-
-        # I2I AI — генерируем эталон
         wb_images = context.user_data.get("wb_images", [])
         if not wb_images:
             await query.message.reply_text("❌ Не удалось найти фото товара.")
@@ -593,7 +643,7 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             session=session,
             api_base=AI_API_BASE,
             api_key=AI_API_KEY,
-            image_urls=wb_images[:3],  # Берём первые 3 фото
+            image_urls=wb_images[:3],
             prompt=prompt,
         )
 
@@ -601,7 +651,6 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("❌ Ошибка генерации изображения. Попробуйте снова.")
             return ConversationHandler.END
 
-        # Скачиваем и отправляем фото
         try:
             async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=15)) as img_resp:
                 image_data = await img_resp.read()
@@ -611,18 +660,94 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return ConversationHandler.END
 
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
-            [InlineKeyboardButton("🔄 Переделать", callback_data="ref_redo")],
+            [InlineKeyboardButton("✅ Подходит, создать фото", callback_data="ref_ok_continue")],
+            [InlineKeyboardButton("🔄 Переделать эталон", callback_data="ref_redo")],
         ])
-        await query.message.reply_photo(
+        sent = await context.bot.send_photo(
+            chat_id=query.message.chat.id,
             photo=BytesIO(image_data),
-            caption="🎨 Эталон готов!\n\nЭталон должен быть <i>похож</i>, а не 100% копией. Небольшие расхождения допустимы.",
+            caption="🎨 Эталон готов!\n\nОн должен быть <i>похож</i>, а не 100% копией.",
             reply_markup=keyboard,
             parse_mode="HTML",
         )
+        context.user_data["ref_photo_msg_id"] = sent.message_id
+        context.user_data["ref_file_id"] = sent.photo[-1].file_id
 
-        # TODO: списать баланс
         return WAITING_REF_FEEDBACK
+
+
+# ---------------------------------------------------------------------------
+# Фото: ввод своего количества
+# ---------------------------------------------------------------------------
+
+PHOTO_CUSTOM_COUNT = 22
+
+async def photo_custom_count_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    raw = update.message.text.strip()
+    try:
+        n = int(raw)
+        if not 1 <= n <= 20:
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text("Введите число от 1 до 20:")
+        return PHOTO_CUSTOM_COUNT
+
+    context.user_data["photo_count"] = n
+    context.user_data["_user_id_for_photos"] = update.effective_user.id
+    return await _generate_photos(update.message.chat.id, context, n)
+
+
+# ---------------------------------------------------------------------------
+# Фото: генерация (I2I AI → списание → результат)
+# ---------------------------------------------------------------------------
+
+async def _generate_photos(chat_id, context, count):
+    articul = context.user_data.get("current_article", "")
+    product = context.user_data.get("product_info", {})
+    ref_file_id = context.user_data.get("ref_file_id", "")
+    user_id = context.user_data.get("_user_id_for_photos")  # должен быть установлен вызывающим
+
+    if not user_id:
+        logger.error("PHOTO_GEN | user_id not set in context!")
+        return ConversationHandler.END
+
+    # Проверка баланса
+    from database import get_user, deduct_balance
+    db_user = await get_user(user_id)
+    balance = db_user["balance"] if db_user else 0
+    cost = PHOTO_COST * count
+
+    if balance < cost:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"❌ Недостаточно средств.\n\n"
+                 f"Стоимость: <b>{cost} руб.</b> ({count} × {PHOTO_COST} руб.)\n"
+                 f"Баланс: <b>{balance} руб.</b>\n\n"
+                 f"Пополните баланс и попробуйте снова.",
+            parse_mode="HTML",
+        )
+        return ConversationHandler.END
+
+    # TODO: I2I AI генерация lifestyle фото
+    # Пока заглушка — в будущем здесь будет:
+    # 1. T2T AI → генерация lifestyle промпта
+    # 2. I2I AI → генерация фото по эталону
+    # 3. Отправка фото пользователю
+    # 4. deduct_balance(user_id, cost)
+    # 5. Показ результата
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"📸 Генерация {count} фото в разработке (TODO)...\n\n"
+             f"Когда будет готово: T2T AI промпт → I2I AI фото → списание {cost} руб. → результат",
+    )
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="Выберите действие:",
+        reply_markup=main_menu(),
+    )
+    return ConversationHandler.END
 
 
 async def ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -632,18 +757,43 @@ async def ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     articul = context.user_data.get("current_article", "")
 
-    if query.data == "ref_ok":
-        # Сохраняем эталон в БД (пока placeholder file_id)
+    if query.data in ("ref_ok", "ref_ok_continue"):
+        # Сохраняем эталон в БД
+        file_id = context.user_data.get("ref_file_id", "")
+        import os
+        from services.media_storage import MEDIA_ROOT
+        user_ref_dir = os.path.join(MEDIA_ROOT, str(update.effective_user.id), "references")
+        os.makedirs(user_ref_dir, exist_ok=True)
+        file_path = os.path.join(user_ref_dir, f"{articul}.png")
+
         await save_reference(
             user_id=update.effective_user.id,
             articul=articul,
-            file_id="placeholder_ref_225616209",
+            file_id=file_id,
+            file_path=file_path,
         )
+
         await query.edit_message_text(
             f"✅ Эталон для артикула <code>{articul}</code> сохранён!\n\n"
             f"Теперь вы можете создавать фото и видео через меню.",
             parse_mode="HTML",
         )
+
+        # Если ref_ok_continue — сразу переходим к выбору количества фото
+        if query.data == "ref_ok_continue":
+            context.user_data["_user_id_for_photos"] = query.from_user.id
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("📸 1 фото", callback_data="photo_count_1")],
+                [InlineKeyboardButton("📸 5 фото", callback_data="photo_count_5")],
+                [InlineKeyboardButton("📸 10 фото", callback_data="photo_count_10")],
+                [InlineKeyboardButton("✏️ Своё число", callback_data="photo_count_custom")],
+            ])
+            await query.message.reply_text(
+                "Сколько фото сгенерировать?",
+                reply_markup=keyboard,
+            )
+            return WAITING_REF_CHOICE_PHOTO
+
         return ConversationHandler.END
 
     if query.data == "ref_redo":
@@ -919,10 +1069,13 @@ def build_conversation_handler() -> ConversationHandler:
                 MessageHandler(filters.TEXT & ~any_menu_button, photo_articul_received)
             ],
             WAITING_REF_CHOICE_PHOTO: [
-                CallbackQueryHandler(photo_ref_choice, pattern="^(create_ref|new_article)$")
+                CallbackQueryHandler(photo_ref_choice, pattern=r"^(photo_count_\d+|photo_count_custom|create_ref|new_article)$")
             ],
             WAITING_REF_FEEDBACK: [
-                CallbackQueryHandler(ref_feedback, pattern="^(ref_ok|ref_redo)$")
+                CallbackQueryHandler(ref_feedback, pattern="^(ref_ok|ref_redo|ref_ok_continue)$")
+            ],
+            PHOTO_CUSTOM_COUNT: [
+                MessageHandler(filters.TEXT & ~any_menu_button, photo_custom_count_handler)
             ],
             # --- Видео ---
             WAITING_MP_VIDEO: [
