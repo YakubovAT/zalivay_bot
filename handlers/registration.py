@@ -442,7 +442,6 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             return ConversationHandler.END
 
-        # T2T AI → генерация промпта
         session = context.bot_data.get("http_session")
         if not session:
             await query.message.reply_text("⚠️ Техническая ошибка.")
@@ -452,6 +451,7 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         from services.reference_t2t import generate_reference_prompt
         from services.reference_i2i import generate_reference_image
 
+        # T2T AI → генерация промпта (быстро, ~10 сек)
         t2t_result = await generate_reference_prompt(
             session=session,
             name=product.get("name", ""),
@@ -469,53 +469,99 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         context.user_data["reference_prompt"] = t2t_result["prompt"]
         context.user_data["product_category"] = t2t_result["category"]
 
-        # I2I AI → генерация изображения
         wb_images = context.user_data.get("wb_images", [])
         if not wb_images:
             await query.message.reply_text("❌ Не удалось найти фото товара.")
             return ConversationHandler.END
 
-        image_url = await generate_reference_image(
-            session=session,
-            api_base=I2I_API_BASE,
-            api_key=I2I_API_KEY,
-            image_urls=wb_images[:3],
-            prompt=t2t_result["prompt"],
-        )
+        # Списываем баланс до фоновой генерации
+        new_balance = await deduct_balance(update.effective_user.id, REFERENCE_COST)
 
-        if not image_url:
-            await query.message.reply_text("❌ Ошибка генерации изображения.")
-            return ConversationHandler.END
-
-        context.user_data["reference_image_url"] = image_url
-
-        # Скачиваем и отправляем фото с кнопками
-        try:
-            async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=15)) as img_resp:
-                image_data = await img_resp.read()
-        except Exception as e:
-            logger.error("Failed to download image: %s", e)
-            await query.message.reply_text("❌ Ошибка загрузки изображения.")
-            return ConversationHandler.END
-
-        # Сохраняем в context для следующего шага
-        context.user_data["reference_image_data"] = image_data
-
-        # Показываем фото с кнопками
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
-            [InlineKeyboardButton("🔄 Переделать", callback_data="ref_redo")],
-        ])
-        sent = await query.message.reply_photo(
-            photo=BytesIO(image_data),
-            caption="🎨 Эталон готов!\n\nОн должен быть <i>похож</i>, а не 100% копией.",
-            reply_markup=keyboard,
+        # Уведомляем пользователя и завершаем conversation
+        await query.message.reply_text(
+            f"⏳ <b>Генерация эталона запущена!</b>\n\n"
+            f"Артикул: <code>{context.user_data.get('onboard_article', '')}</code>\n"
+            f"Списано: <b>{REFERENCE_COST} руб.</b> Баланс: <b>{new_balance} руб.</b>\n\n"
+            f"Это займёт 1–2 минуты. Мы отправим результат, как только будет готово ✅",
             parse_mode="HTML",
         )
-        context.user_data["ref_photo_msg_id"] = sent.message_id
-        context.user_data["ref_file_id"] = sent.photo[-1].file_id
+        await query.message.reply_text(
+            "Выберите действие:",
+            reply_markup=main_menu(),
+        )
 
-        return ONBOARD_REF_FEEDBACK
+        # Фоновая задача: I2I → скачать → отправить фото
+        async def _background_generate():
+            try:
+                image_url = await generate_reference_image(
+                    session=session,
+                    api_base=I2I_API_BASE,
+                    api_key=I2I_API_KEY,
+                    image_urls=wb_images[:3],
+                    prompt=t2t_result["prompt"],
+                )
+
+                if not image_url:
+                    await context.bot.send_message(
+                        chat_id=update.effective_user.id,
+                        text="❌ Ошибка генерации изображения. Попробуйте снова.",
+                    )
+                    return
+
+                async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=15)) as img_resp:
+                    image_data = await img_resp.read()
+
+                articul = context.user_data.get("onboard_article", "")
+                user_id = update.effective_user.id
+                from services.media_storage import MEDIA_ROOT
+                import os
+                user_ref_dir = os.path.join(MEDIA_ROOT, str(user_id), "references")
+                os.makedirs(user_ref_dir, exist_ok=True)
+                file_path = os.path.join(user_ref_dir, f"{articul}.png")
+
+                from database import save_reference
+                sent_photo = await context.bot.send_photo(
+                    chat_id=update.effective_user.id,
+                    photo=BytesIO(image_data),
+                )
+                file_id = sent_photo.photo[-1].file_id
+
+                await save_reference(
+                    user_id=user_id,
+                    articul=articul,
+                    file_id=file_id,
+                    file_path=file_path,
+                    reference_image_url=image_url,
+                    category=context.user_data.get("product_category", ""),
+                    reference_prompt=context.user_data.get("reference_prompt", ""),
+                )
+
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📸 Создать фото", callback_data="go_photo")],
+                    [InlineKeyboardButton("🎬 Создать видео", callback_data="go_video")],
+                ])
+                await context.bot.send_photo(
+                    chat_id=update.effective_user.id,
+                    photo=BytesIO(image_data),
+                    caption=(
+                        f"✅ Эталон для <code>{articul}</code> сохранён в базу!\n\n"
+                        f"Теперь для создания фото и видео мы будем использовать этот эталон."
+                    ),
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                )
+            except Exception as e:
+                logger.error("Background ref generation failed: %s", e)
+                try:
+                    await context.bot.send_message(
+                        chat_id=update.effective_user.id,
+                        text=f"❌ Ошибка генерации: {str(e)}",
+                    )
+                except Exception:
+                    pass
+
+        asyncio.create_task(_background_generate())
+        return ConversationHandler.END
 
 
 # ---------------------------------------------------------------------------
