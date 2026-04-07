@@ -73,13 +73,6 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Статистика пользователя
     stats = await get_user_stats(user.id)
 
-    # Сначала — нижнее меню (чтобы оно оказалось внизу)
-    await context.bot.send_message(
-        chat_id=user.id,
-        text="Меню:",
-        reply_markup=main_menu(),
-    )
-
     # Приветствие + кнопка "Дальше →"
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
