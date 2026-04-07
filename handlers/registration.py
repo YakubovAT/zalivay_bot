@@ -1,6 +1,7 @@
 import logging
 import os
 from io import BytesIO
+from urllib.parse import quote
 
 import aiohttp
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -307,11 +308,11 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         meta_lines = []
         if name:
-            meta_lines.append(f"📦 <b>{name}</b>")
+            meta_lines.append(f'📦 <a href="https://www.wildberries.ru/catalog/{raw}/detail.aspx">{name}</a>')
         if info.get("brand"):
-            meta_lines.append(f"🏷 {info['brand']}")
+            meta_lines.append(f'👤 <a href="https://www.wildberries.ru/catalog?search={quote(info["brand"])}">{info["brand"]}</a>')
         if color:
-            meta_lines.append(f"🎨 {color}")
+            meta_lines.append(f"🎨 {color[:1].upper() + color[1:]}")
         if material:
             meta_lines.append(f"🧵 {material}")
 

@@ -1,5 +1,6 @@
 import logging
 from io import BytesIO
+from urllib.parse import quote
 
 import aiohttp
 from telegram import ReplyKeyboardMarkup, KeyboardButton, Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -197,11 +198,11 @@ async def etalon_articul_received(update: Update, context: ContextTypes.DEFAULT_
 
     meta_lines = []
     if name:
-        meta_lines.append(f"📦 <b>{name}</b>")
+        meta_lines.append(f'📦 <a href="https://www.wildberries.ru/catalog/{raw}/detail.aspx">{name}</a>')
     if info.get("brand"):
-        meta_lines.append(f"🏷 {info['brand']}")
+        meta_lines.append(f'👤 <a href="https://www.wildberries.ru/catalog?search={quote(info["brand"])}">{info["brand"]}</a>')
     if color:
-        meta_lines.append(f"🎨 {color}")
+        meta_lines.append(f"🎨 {color[:1].upper() + color[1:]}")
     if material:
         meta_lines.append(f"🧵 {material}")
 
@@ -510,11 +511,11 @@ async def _photo_parse_and_process(update, context, raw, mp):
 
     meta_lines = []
     if name:
-        meta_lines.append(f"📦 <b>{name}</b>")
+        meta_lines.append(f'📦 <a href="https://www.wildberries.ru/catalog/{raw}/detail.aspx">{name}</a>')
     if info.get("brand"):
-        meta_lines.append(f"🏷 {info['brand']}")
+        meta_lines.append(f'👤 <a href="https://www.wildberries.ru/catalog?search={quote(info["brand"])}">{info["brand"]}</a>')
     if color:
-        meta_lines.append(f"🎨 {color}")
+        meta_lines.append(f"🎨 {color[:1].upper() + color[1:]}")
     if material:
         meta_lines.append(f"🧵 {material}")
 
@@ -1022,11 +1023,11 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
 
     meta_lines = []
     if name:
-        meta_lines.append(f"📦 <b>{name}</b>")
+        meta_lines.append(f'📦 <a href="https://www.wildberries.ru/catalog/{raw}/detail.aspx">{name}</a>')
     if info.get("brand"):
-        meta_lines.append(f"🏷 {info['brand']}")
+        meta_lines.append(f'👤 <a href="https://www.wildberries.ru/catalog?search={quote(info["brand"])}">{info["brand"]}</a>')
     if color:
-        meta_lines.append(f"🎨 {color}")
+        meta_lines.append(f"🎨 {color[:1].upper() + color[1:]}")
     if material:
         meta_lines.append(f"🧵 {material}")
 
