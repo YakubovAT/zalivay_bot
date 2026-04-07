@@ -622,23 +622,7 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 with open(file_path, "wb") as f:
                     f.write(image_data)
 
-                # Сохраняем в БД
                 from database import save_reference
-                sent_photo = await context.bot.send_photo(
-                    chat_id=user_id,
-                    photo=BytesIO(image_data),
-                )
-                file_id = sent_photo.photo[-1].file_id
-
-                await save_reference(
-                    user_id=user_id,
-                    articul=articul,
-                    file_id=file_id,
-                    file_path=file_path,
-                    reference_image_url=image_url,
-                    category=context.user_data.get("product_category", ""),
-                    reference_prompt=context.user_data.get("reference_prompt", ""),
-                )
 
                 # Удаляем статус и отправляем фото с кнопками ✅ Подходит / 🔄 Переделать
                 try:
@@ -664,8 +648,19 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     parse_mode="HTML",
                 )
 
+                file_id = ref_msg.photo[-1].file_id
                 context.user_data["ref_photo_msg_id"] = ref_msg.message_id
                 context.user_data["ref_file_id"] = file_id
+
+                await save_reference(
+                    user_id=user_id,
+                    articul=articul,
+                    file_id=file_id,
+                    file_path=file_path,
+                    reference_image_url=image_url,
+                    category=context.user_data.get("product_category", ""),
+                    reference_prompt=context.user_data.get("reference_prompt", ""),
+                )
 
             except Exception as e:
                 logger.error("Background ref generation failed: %s", e)
@@ -679,7 +674,7 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     pass
 
         asyncio.create_task(_background_generate())
-        return ConversationHandler.END
+        return ONBOARD_REF_FEEDBACK
 
 
 # ---------------------------------------------------------------------------
@@ -698,6 +693,11 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
         msg_id = context.user_data.get("ref_photo_msg_id")
 
         # Обновляем caption — подтверждаем что эталон принят
+        # Одним вызовом меняем caption и заменяем кнопки
+        next_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📸 Создать фото", callback_data="go_photo")],
+            [InlineKeyboardButton("🎬 Создать видео", callback_data="go_video")],
+        ])
         if msg_id:
             await context.bot.edit_message_caption(
                 chat_id=query.message.chat.id,
@@ -708,20 +708,9 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
                     f"Вы всегда можете переделать его, если что-то не понравится "
                     f"при создании фото или видеоконтента."
                 ),
-                reply_markup=None,
+                reply_markup=next_keyboard,
                 parse_mode="HTML",
             )
-
-        # Добавляем кнопки под фото для действий после эталона
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📸 Создать фото", callback_data="go_photo")],
-            [InlineKeyboardButton("🎬 Создать видео", callback_data="go_video")],
-        ])
-        await context.bot.edit_message_reply_markup(
-            chat_id=query.message.chat.id,
-            message_id=msg_id,
-            reply_markup=keyboard,
-        )
         return ONBOARD_REF_FEEDBACK
 
     if query.data == "go_photo":
