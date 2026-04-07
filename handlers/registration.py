@@ -510,6 +510,13 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
                 async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=15)) as img_resp:
                     image_data = await img_resp.read()
+                    # Определяем расширение по Content-Type от KIE.ai
+                    ct = img_resp.headers.get("Content-Type", "image/png")
+                    ext = {
+                        "image/png": "png",
+                        "image/jpeg": "jpg",
+                        "image/webp": "webp",
+                    }.get(ct, "png")
 
                 articul = context.user_data.get("onboard_article", "")
                 user_id = update.effective_user.id
@@ -517,7 +524,11 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 import os
                 user_ref_dir = os.path.join(MEDIA_ROOT, str(user_id), "references")
                 os.makedirs(user_ref_dir, exist_ok=True)
-                file_path = os.path.join(user_ref_dir, f"{articul}.png")
+                file_path = os.path.join(user_ref_dir, f"{articul}.{ext}")
+
+                # Сохраняем эталон на диск в формате от KIE.ai
+                with open(file_path, "wb") as f:
+                    f.write(image_data)
 
                 from database import save_reference
                 sent_photo = await context.bot.send_photo(
