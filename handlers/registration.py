@@ -16,7 +16,7 @@ from telegram.ext import (
 import asyncio
 import subprocess
 
-from database import ensure_user, is_registered, save_registration, reset_registration, delete_user, save_article, save_reference, get_user, get_reference, deduct_balance
+from database import ensure_user, is_registered, save_registration, reset_registration, save_article, save_reference, get_user, get_reference, deduct_balance
 from handlers.menu import main_menu, BTN_RESTART
 from config import REFERENCE_COST, PHOTO_COST
 from wb_parser import get_product_info
@@ -48,8 +48,8 @@ PHOTO_MULTI_COUNT = 21     # Ввод количества для мульти-�
 async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     logger.info("RESTART | user_id=%s | username=%s", user.id, user.username)
-    await delete_user(user.id)
-    context.user_data.clear()
+    # НЕ удаляем данные из БД — баланс, эталоны и артикулы сохраняются
+    # Только перезапускаем код и обновляем репозиторий
     await update.message.reply_text("🔄 Обновление и перезапуск бота...")
     await asyncio.sleep(1)
     subprocess.Popen(
