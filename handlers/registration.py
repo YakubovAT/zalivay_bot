@@ -433,7 +433,7 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         balance = db_user["balance"] if db_user else 0
 
         if balance < REFERENCE_COST:
-            await query.edit_message_text(
+            await query.message.reply_text(
                 f"❌ Недостаточно средств.\n\n"
                 f"Стоимость: <b>{REFERENCE_COST} руб.</b>\n"
                 f"Баланс: <b>{balance} руб.</b>\n\n"
@@ -447,52 +447,80 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.message.reply_text("⚠️ Техническая ошибка.")
             return ConversationHandler.END
 
-        from config import AI_API_KEY, AI_API_BASE, AI_MODEL, I2I_API_KEY, I2I_API_BASE
-        from services.reference_t2t import generate_reference_prompt
-        from services.reference_i2i import generate_reference_image
-
-        # T2T AI → генерация промпта (быстро, ~10 сек)
-        t2t_result = await generate_reference_prompt(
-            session=session,
-            name=product.get("name", ""),
-            color=product.get("color", ""),
-            material=product.get("material", ""),
-            api_key=AI_API_KEY,
-            api_base_url=AI_API_BASE,
-            model=AI_MODEL,
-        )
-
-        if not t2t_result:
-            await query.message.reply_text("❌ Ошибка генерации промпта.")
-            return ConversationHandler.END
-
-        context.user_data["reference_prompt"] = t2t_result["prompt"]
-        context.user_data["product_category"] = t2t_result["category"]
-
         wb_images = context.user_data.get("wb_images", [])
         if not wb_images:
             await query.message.reply_text("❌ Не удалось найти фото товара.")
             return ConversationHandler.END
 
-        # Списываем баланс до фоновой генерации
-        new_balance = await deduct_balance(update.effective_user.id, REFERENCE_COST)
+        articul = context.user_data.get("onboard_article", "")
+        user_id = update.effective_user.id
+        product_info = context.user_data.get("product_info", {})
 
-        # Уведомляем пользователя и завершаем conversation
-        await query.message.reply_text(
-            f"⏳ <b>Генерация эталона запущена!</b>\n\n"
-            f"Артикул: <code>{context.user_data.get('onboard_article', '')}</code>\n"
-            f"Списано: <b>{REFERENCE_COST} руб.</b> Баланс: <b>{new_balance} руб.</b>\n\n"
-            f"Это займёт 1–2 минуты. Мы отправим результат, как только будет готово ✅",
+        # Показываем статус и сразу разблокируем меню
+        status_msg = await query.message.reply_text(
+            f"⏳ <b>Генерация эталона...</b>\n\n"
+            f"Артикул: <code>{articul}</code>\n"
+            f"🔄 Генерирую промпт → создаю изображение",
             parse_mode="HTML",
         )
+
         await query.message.reply_text(
             "Выберите действие:",
             reply_markup=main_menu(),
         )
 
-        # Фоновая задача: I2I → скачать → отправить фото
+        # Фоновая задача: T2T → I2I → показать фото с кнопками ✅ Подходит / 🔄 Переделать
         async def _background_generate():
             try:
+                from config import AI_API_KEY, AI_API_BASE, AI_MODEL, I2I_API_KEY, I2I_API_BASE
+                from services.reference_t2t import generate_reference_prompt
+                from services.reference_i2i import generate_reference_image
+
+                # Этап 1: T2T
+                await context.bot.edit_message_text(
+                    chat_id=user_id,
+                    message_id=status_msg.message_id,
+                    text=f"⏳ <b>Генерация эталона...</b>\n\n"
+                         f"Артикул: <code>{articul}</code>\n"
+                         f"📝 Анализирую товар, создаю промпт...",
+                    parse_mode="HTML",
+                )
+
+                t2t_result = await generate_reference_prompt(
+                    session=session,
+                    name=product_info.get("name", ""),
+                    color=product_info.get("color", ""),
+                    material=product_info.get("material", ""),
+                    api_key=AI_API_KEY,
+                    api_base_url=AI_API_BASE,
+                    model=AI_MODEL,
+                )
+
+                if not t2t_result:
+                    await context.bot.edit_message_text(
+                        chat_id=user_id,
+                        message_id=status_msg.message_id,
+                        text="❌ Ошибка генерации промпта. Попробуйте снова.",
+                    )
+                    return
+
+                context.user_data["reference_prompt"] = t2t_result["prompt"]
+                context.user_data["product_category"] = t2t_result["category"]
+
+                # Этап 2: I2I
+                await context.bot.edit_message_text(
+                    chat_id=user_id,
+                    message_id=status_msg.message_id,
+                    text=f"⏳ <b>Генерация эталона...</b>\n\n"
+                         f"Артикул: <code>{articul}</code>\n"
+                         f"🎨 Создаю эталон с помощью ИИ...\n\n"
+                         f"Это займёт 1–2 минуты ⏱",
+                    parse_mode="HTML",
+                )
+
+                # Списываем баланс перед I2I
+                new_balance = await deduct_balance(user_id, REFERENCE_COST)
+
                 image_url = await generate_reference_image(
                     session=session,
                     api_base=I2I_API_BASE,
@@ -502,15 +530,16 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 )
 
                 if not image_url:
-                    await context.bot.send_message(
-                        chat_id=update.effective_user.id,
+                    await context.bot.edit_message_text(
+                        chat_id=user_id,
+                        message_id=status_msg.message_id,
                         text="❌ Ошибка генерации изображения. Попробуйте снова.",
                     )
                     return
 
-                async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=15)) as img_resp:
+                # Скачиваем фото
+                async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=30)) as img_resp:
                     image_data = await img_resp.read()
-                    # Определяем расширение по Content-Type от KIE.ai
                     ct = img_resp.headers.get("Content-Type", "image/png")
                     ext = {
                         "image/png": "png",
@@ -518,21 +547,19 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         "image/webp": "webp",
                     }.get(ct, "png")
 
-                articul = context.user_data.get("onboard_article", "")
-                user_id = update.effective_user.id
+                # Сохраняем на диск
                 from services.media_storage import MEDIA_ROOT
                 import os
                 user_ref_dir = os.path.join(MEDIA_ROOT, str(user_id), "references")
                 os.makedirs(user_ref_dir, exist_ok=True)
                 file_path = os.path.join(user_ref_dir, f"{articul}.{ext}")
-
-                # Сохраняем эталон на диск в формате от KIE.ai
                 with open(file_path, "wb") as f:
                     f.write(image_data)
 
+                # Сохраняем в БД
                 from database import save_reference
                 sent_photo = await context.bot.send_photo(
-                    chat_id=update.effective_user.id,
+                    chat_id=user_id,
                     photo=BytesIO(image_data),
                 )
                 file_id = sent_photo.photo[-1].file_id
@@ -547,25 +574,39 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     reference_prompt=context.user_data.get("reference_prompt", ""),
                 )
 
-                keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📸 Создать фото", callback_data="go_photo")],
-                    [InlineKeyboardButton("🎬 Создать видео", callback_data="go_video")],
+                # Удаляем статус и отправляем фото с кнопками ✅ Подходит / 🔄 Переделать
+                try:
+                    await context.bot.delete_message(chat_id=user_id, message_id=status_msg.message_id)
+                except Exception:
+                    pass
+
+                feedback_keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("✅ Подходит", callback_data="ref_ok")],
+                    [InlineKeyboardButton("🔄 Переделать", callback_data="ref_redo")],
                 ])
-                await context.bot.send_photo(
-                    chat_id=update.effective_user.id,
+                ref_msg = await context.bot.send_photo(
+                    chat_id=user_id,
                     photo=BytesIO(image_data),
                     caption=(
-                        f"✅ Эталон для <code>{articul}</code> сохранён в базу!\n\n"
-                        f"Теперь для создания фото и видео мы будем использовать этот эталон."
+                        f"🎨 <b>Эталон для артикула {articul} готов!</b>\n\n"
+                        f"Он должен быть <i>похож</i>, а не 100% копией.\n\n"
+                        f"Списано <b>{REFERENCE_COST} руб.</b> Баланс: <b>{new_balance} руб.</b>\n\n"
+                        f"Если эталон хороший — нажмите <b>✅ Подходит</b>.\n"
+                        f"Если нужно переделать — нажмите <b>🔄 Переделать</b> и опишите что изменить."
                     ),
-                    reply_markup=keyboard,
+                    reply_markup=feedback_keyboard,
                     parse_mode="HTML",
                 )
+
+                context.user_data["ref_photo_msg_id"] = ref_msg.message_id
+                context.user_data["ref_file_id"] = file_id
+
             except Exception as e:
                 logger.error("Background ref generation failed: %s", e)
                 try:
-                    await context.bot.send_message(
-                        chat_id=update.effective_user.id,
+                    await context.bot.edit_message_text(
+                        chat_id=user_id,
+                        message_id=status_msg.message_id,
                         text=f"❌ Ошибка генерации: {str(e)}",
                     )
                 except Exception:
@@ -588,33 +629,9 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if query.data == "ref_ok":
         user_id = update.effective_user.id
-        file_id = context.user_data.get("ref_file_id", "")
-
-        # Сохраняем в БД
-        if file_id:
-            user_ref_dir = os.path.join(MEDIA_ROOT, str(user_id), "references")
-            os.makedirs(user_ref_dir, exist_ok=True)
-            file_path = os.path.join(user_ref_dir, f"{articul}.png")
-
-            await save_reference(
-                user_id=user_id,
-                articul=articul,
-                file_id=file_id,
-                file_path=file_path,
-                reference_image_url=context.user_data.get("reference_image_url", ""),
-                category=context.user_data.get("product_category", ""),
-                reference_prompt=context.user_data.get("reference_prompt", ""),
-            )
-
-        # Списываем баланс (только если ещё не списали при переделке)
-        if not context.user_data.pop("redo_charged", False):
-            new_balance = await deduct_balance(user_id, REFERENCE_COST)
-            balance_info = f"\n\nСписано <b>{REFERENCE_COST} руб.</b> Баланс: <b>{new_balance} руб.</b>"
-        else:
-            balance_info = ""
-
-        # Редактируем caption фото-сообщения
         msg_id = context.user_data.get("ref_photo_msg_id")
+
+        # Обновляем caption — подтверждаем что эталон принят
         if msg_id:
             await context.bot.edit_message_caption(
                 chat_id=query.message.chat.id,
@@ -623,7 +640,7 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
                     f"✅ Эталон для <code>{articul}</code> сохранён в базу!\n\n"
                     f"Теперь для создания фото и видео мы будем использовать этот эталон. "
                     f"Вы всегда можете переделать его, если что-то не понравится "
-                    f"при создании фото или видеоконтента.{balance_info}"
+                    f"при создании фото или видеоконтента."
                 ),
                 reply_markup=None,
                 parse_mode="HTML",
