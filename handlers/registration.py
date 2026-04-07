@@ -100,29 +100,37 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ---------------------------------------------------------------------------
-# Шаг 1 → Шаг 2: бюджет на рекламу
+# Шаг 1 → сразу к сохранению + главное меню (шаги с бюджетом/артикулами временно отключены)
 # ---------------------------------------------------------------------------
 
 async def step1_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    logger.info("ONBOARD_STEP1 | user_id=%s | callback=%s", query.from_user.id, query.data)
+    logger.info("ONBOARD_STEP1 | user_id=%s | callback=%s | skipping to finish", query.from_user.id, query.data)
     await query.answer()
 
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("А: до 100к",    callback_data="budget_a"),
-            InlineKeyboardButton("Б: 100–500к",   callback_data="budget_b"),
-        ],
-        [
-            InlineKeyboardButton("В: 500к–1млн",  callback_data="budget_c"),
-            InlineKeyboardButton("Г: 1млн+",      callback_data="budget_d"),
-        ],
-    ])
+    # Шаги с бюджетом и количеством артикулов временно отключены — сразу переходим к завершению
+    user_id = update.effective_user.id
+    ad_budget = ""
+    articles_count = ""
+
+    await save_registration(user_id, ad_budget, articles_count)
+
     await query.edit_message_text(
-        "Затраты на рекламу в месяц?",
-        reply_markup=keyboard,
+        "✅ Отлично! Теперь давайте начнём создавать контент.\n\n"
+        "Для создания фото и видеоконтента и продвижения "
+        "в социальных сетях, нам необходимо для каждого артикула "
+        "создать <b>эталон</b>.\n\n"
+        "Эталон — это чистое фото товара без фона. "
+        "Создаётся один раз для каждого артикула и "
+        "используется для всех будущих фото и видео.\n\n"
+        "Выберите маркетплейс и введите артикул:",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🟣 Wildberries", callback_data="onboard_mp_wb"),
+            InlineKeyboardButton("🔵 OZON",        callback_data="onboard_mp_ozon"),
+        ]]),
     )
-    return ONBOARD_STEP2
+    return ONBOARD_SELECT_MP
 
 
 # ---------------------------------------------------------------------------
@@ -867,9 +875,7 @@ def build_registration_handler() -> ConversationHandler:
         ],
         states={
             ONBOARD_STEP1:     [CallbackQueryHandler(step1_next,       pattern="^onboard_step1$")],
-            ONBOARD_STEP2:     [CallbackQueryHandler(step2_budget,     pattern="^budget_[abcd]$")],
-            ONBOARD_STEP3:     [CallbackQueryHandler(step3_articles,   pattern="^articles_[abc]$")],
-            ONBOARD_STEP4:     [CallbackQueryHandler(step4_finish,     pattern="^onboard_finish$")],
+            # ONBOARD_STEP2, ONBOARD_STEP3, ONBOARD_STEP4 — временно отключены
             ONBOARD_SELECT_MP: [CallbackQueryHandler(onboard_select_mp, pattern="^onboard_mp_(wb|ozon)$")],
             ONBOARD_ARTICLE:   [MessageHandler(filters.TEXT & ~filters.COMMAND, onboard_article)],
             ONBOARD_REF_CHOICE: [CallbackQueryHandler(onboard_ref_choice, pattern="^(create_ref|redo_ref|new_article|go_menu)$")],
