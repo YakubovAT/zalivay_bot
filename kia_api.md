@@ -40,11 +40,11 @@ Content-Type: application/json
 
 ```json
 {
-  "code": 200,
-  "msg": "success",
-  "data": {
-    "taskId": "task_gpt-image_1765968156336"
-  }
+    "code": 200,
+    "msg": "success",
+    "data": {
+        "taskId": "task_gpt-image_1765968156336"
+    }
 }
 ```
 

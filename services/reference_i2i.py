@@ -78,7 +78,8 @@ async def create_i2i_task(
         ) as resp:
             data = await resp.json()
             code = data.get("code")
-            logger.info("I2I CREATE RESPONSE | code=%s | data=%s", code, data.get("data"))
+            logger.info("I2I CREATE RESPONSE | code=%s | data=%s | msg=%s",
+                        code, data.get("data"), data.get("msg"))
 
             if code == 200:
                 task_id = data.get("data", {}).get("taskId")
