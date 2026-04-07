@@ -166,12 +166,19 @@ async def generate_reference_prompt(
             json=payload,
             timeout=aiohttp.ClientTimeout(total=30),
         ) as resp:
+            raw_text = await resp.text()
+            logger.info("T2T response | status=%s | content_type=%s | body_len=%d",
+                        resp.status, resp.content_type, len(raw_text))
+
             if resp.status != 200:
-                text = await resp.text()
-                logger.error("T2T error: status=%s, body=%s", resp.status, text)
+                logger.error("T2T error: status=%s, body=%s", resp.status, raw_text[:500])
                 return None
 
-            data = await resp.json()
+            try:
+                data = await resp.json()
+            except Exception as e:
+                logger.error("T2T JSON parse error: %s | body=%s", e, raw_text[:500])
+                return None
             logger.info("T2T full JSON response: %s", json.dumps(data, ensure_ascii=False)[:500])
             raw = (
                 data.get("choices", [{}])[0]
