@@ -17,7 +17,7 @@ import asyncio
 import subprocess
 
 from database import ensure_user, is_registered, save_registration, reset_registration, save_article, save_reference, get_user, get_reference, deduct_balance, get_user_stats
-from handlers.menu import main_menu, BTN_RESTART
+from handlers.menu import main_menu, BTN_RESTART, BTN_PROFILE, BTN_PRICING, BTN_HELP, BTN_ETALON, BTN_PHOTO, BTN_VIDEO
 from config import REFERENCE_COST, PHOTO_COST
 from wb_parser import get_product_info
 from services.media_storage import ensure_user_media_dirs, MEDIA_ROOT
@@ -863,10 +863,42 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 # ---------------------------------------------------------------------------
+# Fallbacks: обработка кнопок меню из любого состояния
+# ---------------------------------------------------------------------------
+
+async def _menu_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """При нажатии кнопки меню — отменяем текущий разговор и показываем главное меню."""
+    text = update.message.text
+    logger.info("REGISTRATION_FALLBACK | user_id=%s | button=%s", update.effective_user.id, text)
+
+    # Кнопки потока — отмена и показ меню
+    if text in (BTN_ETALON, BTN_PHOTO, BTN_VIDEO):
+        await update.message.reply_text("Выберите действие:", reply_markup=main_menu())
+
+    # Действия с прямым ответом
+    elif text == BTN_PROFILE:
+        from handlers.menu import profile
+        return await profile(update, context)
+    elif text == BTN_PRICING:
+        from handlers.menu import pricing
+        return await pricing(update, context)
+    elif text == BTN_HELP:
+        from handlers.menu import help_cmd
+        return await help_cmd(update, context)
+
+    return ConversationHandler.END
+
+
+# ---------------------------------------------------------------------------
 # Сборка ConversationHandler
 # ---------------------------------------------------------------------------
 
 def build_registration_handler() -> ConversationHandler:
+    # Все кнопки главного меню — fallback из любого состояния
+    menu_buttons = filters.Regex(
+        f"^({BTN_PROFILE}|{BTN_PRICING}|{BTN_HELP}|{BTN_ETALON}|{BTN_PHOTO}|{BTN_VIDEO}|{BTN_RESTART})$"
+    )
+
     return ConversationHandler(
         entry_points=[
             CommandHandler("start", cmd_start),
@@ -876,14 +908,17 @@ def build_registration_handler() -> ConversationHandler:
             ONBOARD_STEP1:     [CallbackQueryHandler(step1_next,       pattern="^onboard_step1$")],
             # ONBOARD_STEP2, ONBOARD_STEP3, ONBOARD_STEP4 — временно отключены
             ONBOARD_SELECT_MP: [CallbackQueryHandler(onboard_select_mp, pattern="^onboard_mp_(wb|ozon)$")],
-            ONBOARD_ARTICLE:   [MessageHandler(filters.TEXT & ~filters.COMMAND, onboard_article)],
+            ONBOARD_ARTICLE:   [MessageHandler(filters.TEXT & ~menu_buttons & ~filters.COMMAND, onboard_article)],
             ONBOARD_REF_CHOICE: [CallbackQueryHandler(onboard_ref_choice, pattern="^(create_ref|redo_ref|new_article|go_menu)$")],
             ONBOARD_REF_FEEDBACK: [CallbackQueryHandler(onboard_ref_feedback, pattern="^(ref_ok|ref_redo|go_photo|go_video)$")],
-            ONBOARD_REDO_FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, onboard_redo_feedback)],
+            ONBOARD_REDO_FEEDBACK: [MessageHandler(filters.TEXT & ~menu_buttons & ~filters.COMMAND, onboard_redo_feedback)],
             PHOTO_COUNT_CHOICE: [CallbackQueryHandler(photo_count_choice, pattern="^(photo_one|photo_multi|photo_back)$")],
-            PHOTO_MULTI_COUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, photo_multi_count)],
-            PHOTO_CRITERIA_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, photo_criteria_input)],
+            PHOTO_MULTI_COUNT: [MessageHandler(filters.TEXT & ~menu_buttons & ~filters.COMMAND, photo_multi_count)],
+            PHOTO_CRITERIA_INPUT: [MessageHandler(filters.TEXT & ~menu_buttons & ~filters.COMMAND, photo_criteria_input)],
         },
-        fallbacks=[CommandHandler("start", cmd_start)],
+        fallbacks=[
+            CommandHandler("start", cmd_start),
+            MessageHandler(menu_buttons, _menu_fallback),
+        ],
         per_message=False,
     )

@@ -861,16 +861,34 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ---------------------------------------------------------------------------
-# ConversationHandler (Фото + Видео)
+# ConversationHandler (Фото + Видео + Эталон)
 # ---------------------------------------------------------------------------
 
-async def _cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _menu_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """При нажатии кнопки меню — отменяем текущий разговор и выполняем действие."""
+    text = update.message.text
+    user_id = update.effective_user.id
+    logger.info("CONVERSATION_FALLBACK | user_id=%s | button=%s", user_id, text)
+
+    # Кнопки входа в другой поток — просто завершаем, entry_point подхватит
+    if text in (BTN_ETALON, BTN_PHOTO, BTN_VIDEO):
+        await update.message.reply_text("Выберите действие:", reply_markup=main_menu())
+        return ConversationHandler.END
+
+    # Кнопки с прямым ответом
+    elif text == BTN_PROFILE:
+        return await profile(update, context)
+    elif text == BTN_PRICING:
+        return await pricing(update, context)
+    elif text == BTN_HELP:
+        return await help_cmd(update, context)
+
     return ConversationHandler.END
 
 
 def build_conversation_handler() -> ConversationHandler:
     any_menu_button = filters.Regex(
-        f"^({BTN_PROFILE}|{BTN_PHOTO}|{BTN_VIDEO}|{BTN_ETALON}|{BTN_PRICING}|{BTN_HELP})$"
+        f"^({BTN_PROFILE}|{BTN_PHOTO}|{BTN_VIDEO}|{BTN_ETALON}|{BTN_PRICING}|{BTN_HELP}|{BTN_RESTART})$"
     )
 
     return ConversationHandler(
@@ -921,6 +939,6 @@ def build_conversation_handler() -> ConversationHandler:
             ],
         },
         fallbacks=[
-            MessageHandler(any_menu_button, _cancel),
+            MessageHandler(any_menu_button, _menu_fallback),
         ],
     )
