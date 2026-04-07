@@ -397,6 +397,7 @@ async def etalon_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 articul=articul,
                 file_id=file_id,
                 file_path=file_path,
+                reference_image_url=context.user_data.get("reference_image_url", ""),
                 category=context.user_data.get("product_category", ""),
                 reference_prompt=context.user_data.get("reference_prompt", ""),
             )
@@ -583,6 +584,8 @@ async def _photo_parse_and_process(update, context, raw, mp):
         )
         return ConversationHandler.END
 
+    context.user_data["reference_image_url"] = image_url
+
     try:
         async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=15)) as img_resp:
             image_data = await img_resp.read()
@@ -637,10 +640,9 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
             }
 
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📸 1 фото", callback_data="photo_count_1")],
-            [InlineKeyboardButton("📸 5 фото", callback_data="photo_count_5")],
-            [InlineKeyboardButton("📸 10 фото", callback_data="photo_count_10")],
-            [InlineKeyboardButton("✏️ Своё число", callback_data="photo_count_custom")],
+            [InlineKeyboardButton("📸 Одно фото", callback_data="photo_one")],
+            [InlineKeyboardButton("📸 Несколько фото", callback_data="photo_multi")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="photo_back")],
         ])
         await update.message.reply_text(
             f"✅ Эталон для артикула <code>{raw}</code> уже есть в базе!\n\n"
@@ -673,17 +675,23 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("PHOTO_REF_CHOICE | user_id=%s | choice=%s", query.from_user.id, query.data)
     await query.answer()
 
-    # --- Запрос количества фото ---
-    if query.data.startswith("photo_count_"):
+    if query.data == "photo_back":
+        await query.message.reply_text("Отмена. Выберите действие в меню.")
+        await context.bot.send_message(
+            chat_id=query.message.chat.id,
+            text="Выберите действие:",
+            reply_markup=main_menu(),
+        )
+        return ConversationHandler.END
+
+    if query.data == "photo_one":
+        context.user_data["photo_count"] = 1
         context.user_data["_user_id_for_photos"] = query.from_user.id
-        if query.data == "photo_count_custom":
-            await query.message.reply_text("Введите количество фото (1–20):")
-            return PHOTO_CUSTOM_COUNT
-        else:
-            count = int(query.data.split("_")[-1])
-            context.user_data["photo_count"] = count
-            # Переходим к генерации
-            return await _generate_photos(query.message.chat.id, context, count)
+        return await _generate_photos(query.message.chat.id, context, 1)
+
+    if query.data == "photo_multi":
+        await query.message.reply_text("Сколько фото создать? (1–20)")
+        return PHOTO_CUSTOM_COUNT
 
     # --- Новый артикул ---
     if query.data == "new_article":
@@ -901,6 +909,7 @@ async def ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             articul=articul,
             file_id=file_id,
             file_path=file_path,
+            reference_image_url=context.user_data.get("reference_image_url", ""),
             category=context.user_data.get("product_category", ""),
             reference_prompt=context.user_data.get("reference_prompt", ""),
         )
@@ -915,10 +924,9 @@ async def ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if query.data == "ref_ok_continue":
             context.user_data["_user_id_for_photos"] = query.from_user.id
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("📸 1 фото", callback_data="photo_count_1")],
-                [InlineKeyboardButton("📸 5 фото", callback_data="photo_count_5")],
-                [InlineKeyboardButton("📸 10 фото", callback_data="photo_count_10")],
-                [InlineKeyboardButton("✏️ Своё число", callback_data="photo_count_custom")],
+                [InlineKeyboardButton("📸 Одно фото", callback_data="photo_one")],
+                [InlineKeyboardButton("📸 Несколько фото", callback_data="photo_multi")],
+                [InlineKeyboardButton("↩️ Назад", callback_data="photo_back")],
             ])
             await query.message.reply_text(
                 "Сколько фото сгенерировать?",
@@ -1201,7 +1209,7 @@ def build_conversation_handler() -> ConversationHandler:
                 MessageHandler(filters.TEXT & ~any_menu_button, photo_articul_received)
             ],
             WAITING_REF_CHOICE_PHOTO: [
-                CallbackQueryHandler(photo_ref_choice, pattern=r"^(photo_count_\d+|photo_count_custom|create_ref|new_article)$")
+                CallbackQueryHandler(photo_ref_choice, pattern=r"^(photo_one|photo_multi|photo_back|create_ref|new_article)$")
             ],
             WAITING_REF_FEEDBACK: [
                 CallbackQueryHandler(ref_feedback, pattern="^(ref_ok|ref_redo|ref_ok_continue)$")

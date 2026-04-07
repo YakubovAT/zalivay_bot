@@ -462,6 +462,8 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.message.reply_text("❌ Ошибка генерации изображения.")
             return ConversationHandler.END
 
+        context.user_data["reference_image_url"] = image_url
+
         # Скачиваем и отправляем фото с кнопками
         try:
             async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=15)) as img_resp:
@@ -517,6 +519,7 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
                 articul=articul,
                 file_id=file_id,
                 file_path=file_path,
+                reference_image_url=context.user_data.get("reference_image_url", ""),
                 category=context.user_data.get("product_category", ""),
                 reference_prompt=context.user_data.get("reference_prompt", ""),
             )
@@ -557,6 +560,7 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
         return ONBOARD_REF_FEEDBACK
 
     if query.data == "go_photo":
+        context.user_data["_onboard_user_id"] = query.from_user.id
         # Выбор: одно или несколько фото
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📸 Одно фото", callback_data="photo_one")],
@@ -593,7 +597,6 @@ async def photo_count_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
 
     if query.data == "photo_back":
-        # Возврат к фото после эталона — просто завершаем
         await query.edit_message_text("Отмена. Выберите действие в меню.")
         await context.bot.send_message(
             chat_id=query.message.chat.id,
@@ -604,14 +607,8 @@ async def photo_count_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if query.data == "photo_one":
         context.user_data["photo_count"] = 1
-        await query.edit_message_text(
-            "📝 Укажите критерии для генерации:\n\n"
-            "Формат: локация, время года, цвет волос, пожелания\n\n"
-            "Например: <i>студия, лето, блонд, улыбка</i>\n\n"
-            "Можно оставить пустым мы подберём автоматически.",
-            parse_mode="HTML",
-        )
-        return PHOTO_CRITERIA_INPUT
+        # Сразу переходим к генерации — критерии не нужны, промпты генерируются локально
+        return await _generate_photos_onboard(query.message.chat.id, context, 1)
 
     if query.data == "photo_multi":
         await query.edit_message_text("Сколько фото создать? (1–20)")
@@ -633,113 +630,83 @@ async def photo_multi_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return PHOTO_MULTI_COUNT
 
     context.user_data["photo_count"] = n
-    await update.message.reply_text(
-        f"📝 Укажите критерии для {n} фото:\n\n"
-        "Формат: локация, время года, цвет волос, пожелания\n\n"
-        "Например: <i>студия, лето, блонд, улыбка</i>\n\n"
-        "Можно оставить пустым — AI подберёт автоматически для каждого.",
-        parse_mode="HTML",
-    )
-    return PHOTO_CRITERIA_INPUT
+    return await _generate_photos_onboard(update.message.chat.id, context, n)
 
 
 # ---------------------------------------------------------------------------
-# Фото: ввод критериев и генерация
+# Фото: генерация — запись тасков в очередь (онбординг)
 # ---------------------------------------------------------------------------
 
-async def photo_criteria_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    chat_id = update.message.chat.id
-    criteria = update.message.text.strip()
-    count = context.user_data.get("photo_count", 1)
+async def _generate_photos_onboard(chat_id, context, count):
+    """Аналог _generate_photos из menu.py, но для онбординг-пути."""
     articul = context.user_data.get("onboard_article", "")
     product = context.user_data.get("product_info", {})
-    ref_file_id = context.user_data.get("ref_file_id", "")
+    category = context.user_data.get("product_category", "верх")
+    user_id = context.user_data.get("_onboard_user_id")
 
-    logger.info("PHOTO_CRITERIA | user_id=%s | article=%s | count=%d | criteria=%s",
-                user.id, articul, count, criteria)
+    if not user_id:
+        logger.error("PHOTO_GEN_ONBOARD | user_id not set in context!")
+        return ConversationHandler.END
 
-    # Парсим критерии
-    parts = [p.strip() for p in criteria.split(",") if p.strip()]
-    location = parts[0] if len(parts) > 0 else ""
-    season = parts[1] if len(parts) > 1 else ""
-    hair_color = parts[2] if len(parts) > 2 else ""
-    extra = parts[3] if len(parts) > 3 else ""
+    from database import get_user, deduct_balance, create_task
+    from services.prompt_generator_cloth import generate_photo_prompts
 
     # Проверка баланса
     cost = PHOTO_COST * count
-    db_user = await get_user(user.id)
+    db_user = await get_user(user_id)
     balance = db_user["balance"] if db_user else 0
 
     if balance < cost:
-        await update.message.reply_text(
-            f"❌ Недостаточно средств.\n\n"
-            f"Стоимость: <b>{cost} руб.</b> ({count} × {PHOTO_COST} руб.)\n"
-            f"Баланс: <b>{balance} руб.</b>",
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"❌ Недостаточно средств.\n\n"
+                 f"Стоимость: <b>{cost} руб.</b> ({count} × {PHOTO_COST} руб.)\n"
+                 f"Баланс: <b>{balance} руб.</b>\n\n"
+                 f"Пополните баланс и попробуйте снова.",
             parse_mode="HTML",
         )
         return ConversationHandler.END
 
+    # Генерируем N промптов локально
+    prompts = generate_photo_prompts(
+        name=product.get("name", ""),
+        color=product.get("color", ""),
+        material=product.get("material", ""),
+        category=category,
+        count=count,
+    )
+
     # Списываем баланс
-    new_balance = await deduct_balance(user.id, cost)
+    new_balance = await deduct_balance(user_id, cost)
 
-    # Получаем URL эталона для I2I AI
-    # TODO: загрузить эталон на S3 или получить URL из file_id
-    # Пока используем заглушку
-    from config import AI_API_KEY, AI_API_BASE, AI_MODEL
-    from services.lifestyle_generator import generate_lifestyle_prompt
-    from services.reference_i2i import generate_reference_image
-
-    session = context.bot_data.get("http_session")
-    if not session:
-        await update.message.reply_text("⚠️ Техническая ошибка.")
-        return ConversationHandler.END
-
-    # Для мульти-генерации — цикл
-    for i in range(count):
-        status = await update.message.reply_text(
-            f"🔄 Генерация фото {i+1}/{count}..."
+    # Записываем N тасков в очередь
+    for prompt in prompts:
+        await create_task(
+            user_id=user_id,
+            chat_id=chat_id,
+            task_type="photo",
+            articul=articul,
+            prompt=prompt,
         )
 
-        # T2T AI — генерация промпта lifestyle
-        prompt = await generate_lifestyle_prompt(
-            session=session,
-            name=product.get("name", ""),
-            color=product.get("color", ""),
-            material=product.get("material", ""),
-            location=location,
-            season=season,
-            hair_color=hair_color,
-            extra=extra,
-            api_key=AI_API_KEY,
-            api_base_url=AI_API_BASE,
-            model=AI_MODEL,
-        )
-
-        if not prompt:
-            await status.edit_text(f"❌ Ошибка генерации промпта (фото {i+1}).")
-            continue
-
-        # TODO: I2I AI — нужно загрузить эталон и передать URL
-        # Пока заглушка — используем тот же механизм
-        # image_url = await generate_reference_image(...)
-
-        # TODO: скачать и отправить фото
-        # Пока отправляем тот же placeholder
-        await status.edit_text(
-            f"✅ Фото {i+1}/{count} готово!\n\n"
-            f"Списано {cost} руб. Баланс: {new_balance} руб.\n\n"
-            "# TODO: показать сгенерированное фото"
-        )
+    logger.info("PHOTO_GEN_ONBOARD | user_id=%d | articul=%s | tasks=%d | cost=%d",
+                user_id, articul, count, cost)
 
     await context.bot.send_message(
         chat_id=chat_id,
-        text="Выберите действие:",
+        text=f"✅ <b>{count} фото</b> поставлено в очередь!\n\n"
+             f"Артикул: <code>{articul}</code>\n"
+             f"Категория: <b>{category}</b>\n\n"
+             f"Списано <b>{cost} руб.</b> Баланс: <b>{new_balance} руб.</b>\n\n"
+             f"Фото будут отправляться по мере готовности 🔄",
+        parse_mode="HTML",
         reply_markup=main_menu(),
     )
     return ConversationHandler.END
 
 
+# ---------------------------------------------------------------------------
+# Видео — выбор маркетплейса (TODO)
 # ---------------------------------------------------------------------------
 # Онбординг: ввод фидбека для переделки
 # ---------------------------------------------------------------------------

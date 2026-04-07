@@ -18,7 +18,7 @@ from io import BytesIO
 
 import aiohttp
 
-from database import get_pending_tasks, complete_task, fail_task, fail_stuck_tasks
+from database import get_pending_tasks, complete_task, fail_task, fail_stuck_tasks, get_reference
 from services.reference_i2i import generate_reference_image
 from config import AI_API_BASE, AI_API_KEY
 
@@ -42,13 +42,23 @@ async def _process_task(task: dict, session: aiohttp.ClientSession, bot) -> None
 
     try:
         if task_type == "photo":
-            # I2I генерация — передаём промпт без входных изображений
-            # (промпт уже содержит полное описание lifestyle сцены)
+            # Получаем URL эталона из БД для I2I
+            ref = await get_reference(user_id, articul)
+            ref_image_url = ref["reference_image_url"] if ref and ref.get("reference_image_url") else ""
+
+            if ref_image_url:
+                logger.info("WORKER | task_id=%d | using reference_image: %s", task_id, ref_image_url[:80])
+                image_urls = [ref_image_url]
+            else:
+                logger.warning("WORKER | task_id=%d | no reference_image_url, using prompt-only", task_id)
+                image_urls = []
+
+            # I2I генерация — передаём эталон + промпт
             image_url = await generate_reference_image(
                 session=session,
                 api_base=AI_API_BASE,
                 api_key=AI_API_KEY,
-                image_urls=[],
+                image_urls=image_urls,
                 prompt=prompt,
             )
 

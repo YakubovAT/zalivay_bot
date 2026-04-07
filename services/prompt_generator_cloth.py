@@ -87,7 +87,8 @@ COLORS = [
 
 PROMPT_TOP = (
     "Professional lifestyle fashion photograph. "
-    "A model wearing {name} in {product_color} color made of {material}, "
+    "Product: {name} — {product_color} {material}. "
+    "A model wearing this {product_color} {material} {name}, "
     "paired with {item_color} {bottom_item}. "
     "Location: {location}. "
     "Natural relaxed pose, high-quality e-commerce photography, "
@@ -96,7 +97,8 @@ PROMPT_TOP = (
 
 PROMPT_BOTTOM = (
     "Professional lifestyle fashion photograph. "
-    "A model wearing {name} in {product_color} color made of {material}, "
+    "Product: {name} — {product_color} {material}. "
+    "A model wearing this {product_color} {material} {name}, "
     "paired with {item_color} {top_item}. "
     "Location: {location}. "
     "Natural relaxed pose, high-quality e-commerce photography, "
@@ -105,7 +107,8 @@ PROMPT_BOTTOM = (
 
 PROMPT_SHOES = (
     "Professional lifestyle fashion photograph. "
-    "A model wearing {name} in {product_color} color made of {material}. "
+    "Product: {name} — {product_color} {material}. "
+    "A model wearing this {product_color} {material} {name}. "
     "Outfit: {neutral_outfit}. "
     "Location: {location}. "
     "Natural relaxed pose, high-quality e-commerce photography, "
@@ -114,7 +117,8 @@ PROMPT_SHOES = (
 
 PROMPT_HAT = (
     "Professional lifestyle fashion photograph. "
-    "A model wearing {name} in {product_color} color made of {material}. "
+    "Product: {name} — {product_color} {material}. "
+    "A model wearing this {product_color} {material} {name}. "
     "Outfit: {neutral_outfit}. "
     "Location: {location}. "
     "Natural relaxed pose, high-quality e-commerce photography, "
