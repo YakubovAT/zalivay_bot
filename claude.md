@@ -139,7 +139,7 @@
 
 ## 🤖 2. Системные промпты для AI (ТОЧНЫЕ КОПИИ)
 
-### 📜 Промпт для эталона (T2T)
+### 📜 Промпт для эталона (T2T) — `services/reference_t2t.py`
 ```text
 SYSTEM:
 Ты — профессиональный промпт-инженер для image-to-image AI.
@@ -172,7 +172,7 @@ USER:
 Верни ТОЛЬКО готовый промпт на английском языке. Без пояснений, без комментариев, без markdown-разметки.
 ```
 
-### 📸 Промпт для lifestyle-фото (T2T)
+### 📸 Промпт для lifestyle-фото (T2T) — `services/lifestyle_generator.py`
 ```text
 SYSTEM:
 Ты — профессиональный промпт-инженер для image-to-image AI.
@@ -245,8 +245,8 @@ USER:
 ### ⚙️ Интеграции и логика
 - **WB парсер** (`wb_parser.py` → CDN корзины `basket-XX.wbcontent.net`) — реализован ✅
 - **OZON парсер** — заглушка 🚧
-- **T2T AI** (`services/reference_generator.py` → `POST /gpt-5-2/v1/chat/completions`) — реализован ✅
-- **I2I AI** (`services/i2i_generator.py` → `POST /api/v1/jobs/createTask` + polling `GET /api/v1/jobs/recordInfo`) — реализован ✅
+- **T2T AI** (`services/reference_t2t.py` → `POST /gpt-5-2/v1/chat/completions`) — генерация промпта для эталона ✅
+- **I2I AI** (`services/reference_i2i.py` → `POST /api/v1/jobs/createTask` + polling `GET /api/v1/jobs/recordInfo`) — генерация изображения эталона ✅
 - **Lifestyle T2T** (`services/lifestyle_generator.py`) — генерация промпта для lifestyle-фото ✅
 - **Mock-сервер** (`mock_kie_server.py` — FastAPI, `localhost:8080`) — для локальной разработки ✅
 - **Медиа-хранилище** (`services/media_storage.py`) — сохранение эталонов на диск ✅
@@ -268,8 +268,8 @@ zalivai_bot/
 │   ├── menu.py                 # Главное меню: Эталон, Фото, Видео, Профиль, Прайс, Помощь, Перезапуск
 │   └── action_logger.py        # Логирование всех действий (MessageHandler, CallbackQueryHandler)
 ├── services/
-│   ├── reference_generator.py  # T2T AI: генерация промпта для эталона
-│   ├── i2i_generator.py        # I2I AI: генерация изображения по промпту + фото WB
+│   ├── reference_t2t.py        # T2T AI: генерация промпта для эталона
+│   ├── reference_i2i.py        # I2I AI: генерация изображения по промпту + фото WB
 │   ├── lifestyle_generator.py  # T2T AI: генерация промпта для lifestyle-фото
 │   └── media_storage.py        # Создание папок пользователя, сохранение файлов
 └── database/
