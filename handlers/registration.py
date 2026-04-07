@@ -448,7 +448,7 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.message.reply_text("⚠️ Техническая ошибка.")
             return ConversationHandler.END
 
-        from config import AI_API_KEY, AI_API_BASE, AI_MODEL
+        from config import AI_API_KEY, AI_API_BASE, AI_MODEL, I2I_API_KEY, I2I_API_BASE
         from services.reference_t2t import generate_reference_prompt
         from services.reference_i2i import generate_reference_image
 
@@ -477,8 +477,8 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         image_url = await generate_reference_image(
             session=session,
-            api_base=AI_API_BASE,
-            api_key=AI_API_KEY,
+            api_base=I2I_API_BASE,
+            api_key=I2I_API_KEY,
             image_urls=wb_images[:3],
             prompt=t2t_result["prompt"],
         )
@@ -765,7 +765,7 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
         await context.bot.send_message(chat_id=chat_id, text="⚠️ Техническая ошибка.")
         return ConversationHandler.END
 
-    from config import AI_API_KEY, AI_API_BASE, AI_MODEL
+    from config import AI_API_KEY, AI_API_BASE, AI_MODEL, I2I_API_KEY, I2I_API_BASE
     from services.reference_t2t import generate_reference_prompt
     from services.reference_i2i import generate_reference_image
 
@@ -796,8 +796,8 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
 
     image_url = await generate_reference_image(
         session=session,
-        api_base=AI_API_BASE,
-        api_key=AI_API_KEY,
+        api_base=I2I_API_BASE,
+        api_key=I2I_API_KEY,
         image_urls=wb_images[:3],
         prompt=t2t_result["prompt"],
     )

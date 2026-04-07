@@ -20,7 +20,7 @@ import aiohttp
 
 from database import get_pending_tasks, complete_task, fail_task, fail_stuck_tasks, get_reference
 from services.reference_i2i import generate_reference_image
-from config import AI_API_BASE, AI_API_KEY
+from config import I2I_API_BASE, I2I_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +56,8 @@ async def _process_task(task: dict, session: aiohttp.ClientSession, bot) -> None
             # I2I генерация — передаём эталон + промпт
             image_url = await generate_reference_image(
                 session=session,
-                api_base=AI_API_BASE,
-                api_key=AI_API_KEY,
+                api_base=I2I_API_BASE,
+                api_key=I2I_API_KEY,
                 image_urls=image_urls,
                 prompt=prompt,
             )
