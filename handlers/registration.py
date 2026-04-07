@@ -43,7 +43,9 @@ ONBOARD_REDO_FEEDBACK = 18 # Ввод текста для переделки
 # ---------------------------------------------------------------------------
 
 async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await delete_user(update.effective_user.id)
+    user = update.effective_user
+    logger.info("RESTART | user_id=%s | username=%s", user.id, user.username)
+    await delete_user(user.id)
     context.user_data.clear()
     await update.message.reply_text("🔄 Обновление и перезапуск бота...")
     await asyncio.sleep(1)
@@ -61,10 +63,12 @@ async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    logger.info("START | user_id=%s | username=%s", user.id, user.username)
     await ensure_user(user.id, user.username)
     ensure_user_media_dirs(user.id)  # Создаём папку пользователя
 
     if await is_registered(user.id):
+        logger.info("START | existing user %s returning", user.id)
         await update.message.reply_text(
             f"С возвращением, {user.first_name}! Выберите действие:",
             reply_markup=main_menu(),
@@ -76,7 +80,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(
         "🤖 <b>AI-ассистент для селлеров маркетплейсов</b>\n\n"
-        "Автоматизированный бот, который создаёт фото и видео для социальных сетей на основе ваших товаров.\n\n"
+        "Автоматизировированный бот, который создаёт фото и видео для социальных сетей на основе ваших товаров.\n\n"
         "📌 <b>Какие задачи решает:</b>\n"
         "• Создание эталонных фото товаров без фотографа\n"
         "• Генерация lifestyle-контента для рекламы в соцсетях\n"
@@ -88,6 +92,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=keyboard,
         parse_mode="HTML",
     )
+    logger.info("START | sent onboarding welcome to user %s", user.id)
     return ONBOARD_STEP1
 
 
@@ -97,6 +102,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def step1_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    logger.info("ONBOARD_STEP1 | user_id=%s | callback=%s", query.from_user.id, query.data)
     await query.answer()
 
     keyboard = InlineKeyboardMarkup([
@@ -129,6 +135,7 @@ BUDGET_MAP = {
 
 async def step2_budget(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    logger.info("ONBOARD_STEP2 | user_id=%s | budget=%s", query.from_user.id, query.data)
     await query.answer()
 
     context.user_data["ad_budget"] = BUDGET_MAP[query.data]
@@ -159,6 +166,7 @@ ARTICLES_MAP = {
 
 async def step3_articles(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    logger.info("ONBOARD_STEP3 | user_id=%s | articles=%s", query.from_user.id, query.data)
     await query.answer()
 
     context.user_data["articles_count"] = ARTICLES_MAP[query.data]
@@ -179,6 +187,7 @@ async def step3_articles(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def step4_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    logger.info("ONBOARD_STEP4 | user_id=%s | onboarding complete", query.from_user.id)
     await query.answer()
 
     user_id = update.effective_user.id
@@ -211,9 +220,9 @@ async def step4_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def onboard_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
-
     mp = "WB" if query.data == "onboard_mp_wb" else "OZON"
+    logger.info("ONBOARD_MP_SELECT | user_id=%s | marketplace=%s", query.from_user.id, mp)
+    await query.answer()
     context.user_data["onboard_marketplace"] = mp
 
     label = "Wildberries" if mp == "WB" else "OZON"
@@ -238,6 +247,8 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     raw = user_msg.text.strip()
     marketplace = context.user_data.get("onboard_marketplace", "WB")
+
+    logger.info("ONBOARD_ARTICLE_INPUT | user_id=%s | article=%s | mp=%s", user_id, raw, marketplace)
 
     # Удаляем сообщение пользователя с артикулом
     try:
@@ -353,6 +364,7 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    logger.info("ONBOARD_REF_CHOICE | user_id=%s | choice=%s", query.from_user.id, query.data)
     await query.answer()
 
     articul = context.user_data.get("onboard_article", "")
@@ -474,6 +486,7 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    logger.info("ONBOARD_REF_FEEDBACK | user_id=%s | action=%s", query.from_user.id, query.data)
     await query.answer()
 
     articul = context.user_data.get("onboard_article", "")
@@ -554,8 +567,10 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     feedback = update.message.text.strip()
+    user_id = update.effective_user.id
     articul = context.user_data.get("onboard_article", "")
     product = context.user_data.get("product_info", {})
+    logger.info("ONBOARD_REDO_INPUT | user_id=%s | article=%s | feedback=%s", user_id, articul, feedback)
 
     await update.message.reply_text(
         "🔄 Перегенерирую промпт с учётом ваших пожеланий..."

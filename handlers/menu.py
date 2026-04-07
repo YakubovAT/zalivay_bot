@@ -70,6 +70,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    logger.info("MENU_PROFILE | user_id=%s | username=%s", user.id, user.username)
     await ensure_user(user.id, user.username)
 
     db_user = await get_user(user.id)
@@ -91,6 +92,8 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 async def photo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    logger.info("MENU_PHOTO | user_id=%s | username=%s", user.id, user.username)
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🟣 Wildberries", callback_data="photo_mp_wb"),
@@ -106,9 +109,9 @@ async def photo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def photo_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
-
     mp = "WB" if query.data == "photo_mp_wb" else "OZON"
+    logger.info("PHOTO_MP_SELECT | user_id=%s | marketplace=%s", query.from_user.id, mp)
+    await query.answer()
     context.user_data["photo_marketplace"] = mp
 
     label = "Wildberries" if mp == "WB" else "OZON"
@@ -120,10 +123,10 @@ async def photo_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    await ensure_user(user.id, user.username)
-
     raw = update.message.text.strip()
     marketplace = context.user_data.get("photo_marketplace", "WB")
+    logger.info("PHOTO_ARTICLE_INPUT | user_id=%s | article=%s | mp=%s", user.id, raw, marketplace)
+    await ensure_user(user.id, user.username)
 
     # --- OZON: заглушка ---
     if marketplace == "OZON":
@@ -203,6 +206,7 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
 
 async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    logger.info("PHOTO_REF_CHOICE | user_id=%s | choice=%s", query.from_user.id, query.data)
     await query.answer()
 
     if query.data == "new_article":
@@ -305,6 +309,7 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    logger.info("REF_FEEDBACK | user_id=%s | action=%s", query.from_user.id, query.data)
     await query.answer()
 
     articul = context.user_data.get("current_article", "")
@@ -335,6 +340,8 @@ async def ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 async def video_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    logger.info("MENU_VIDEO | user_id=%s | username=%s", user.id, user.username)
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🟣 Wildberries", callback_data="video_mp_wb"),
@@ -350,9 +357,9 @@ async def video_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def video_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
-
     mp = "WB" if query.data == "video_mp_wb" else "OZON"
+    logger.info("VIDEO_MP_SELECT | user_id=%s | marketplace=%s", query.from_user.id, mp)
+    await query.answer()
     context.user_data["video_marketplace"] = mp
 
     label = "Wildberries" if mp == "WB" else "OZON"
@@ -364,10 +371,10 @@ async def video_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    await ensure_user(user.id, user.username)
-
     raw = update.message.text.strip()
     marketplace = context.user_data.get("video_marketplace", "WB")
+    logger.info("VIDEO_ARTICLE_INPUT | user_id=%s | article=%s | mp=%s", user.id, raw, marketplace)
+    await ensure_user(user.id, user.username)
 
     # --- OZON: заглушка ---
     if marketplace == "OZON":
@@ -447,6 +454,7 @@ async def video_articul_received(update: Update, context: ContextTypes.DEFAULT_T
 
 async def video_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    logger.info("VIDEO_REF_CHOICE | user_id=%s | choice=%s", query.from_user.id, query.data)
     await query.answer()
 
     if query.data == "new_article":
@@ -519,6 +527,8 @@ async def video_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 async def idea(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    logger.info("MENU_IDEA | user_id=%s | username=%s", user.id, user.username)
     await update.message.reply_text(
         "Напишите вашу идею напрямую: @work_wb01\n\nМы рассмотрим каждое предложение!"
     )
@@ -529,6 +539,8 @@ async def idea(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 async def pricing(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    logger.info("MENU_PRICING | user_id=%s | username=%s", user.id, user.username)
     text = (
         "💰 <b>Прайс</b>\n\n"
         "🖼 Создание фото-эталона — <b>XX руб.</b>\n"
@@ -543,6 +555,8 @@ async def pricing(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    logger.info("MENU_HELP | user_id=%s | username=%s", user.id, user.username)
     await update.message.reply_text(
         "Если у вас возникли вопросы или нужна помощь — напишите нам: @work_wb01"
     )

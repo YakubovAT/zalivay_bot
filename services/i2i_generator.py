@@ -135,6 +135,7 @@ async def generate_reference_image(
     Полный цикл: создание задачи → polling → возврат URL результата.
     Возвращает URL готового изображения или None.
     """
+    logger.info("I2I GENERATE START | images=%d | prompt_len=%d", len(image_urls), len(prompt))
     task_id = await create_i2i_task(
         session=session,
         api_base=api_base,
