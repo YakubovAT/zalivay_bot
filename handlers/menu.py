@@ -239,9 +239,6 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return ConversationHandler.END
 
-        # Сначала показываем статус — ДО долгой операции
-        await query.edit_message_text("⚙️ Генерирую промпт...")
-
         session = context.bot_data.get("http_session")
         if not session:
             await query.message.reply_text("⚠️ Техническая ошибка. Попробуйте позже.")
@@ -268,8 +265,6 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not wb_images:
             await query.message.reply_text("❌ Не удалось найти фото товара.")
             return ConversationHandler.END
-
-        await query.message.reply_text("📥 Отправляю фото в I2I AI...")
 
         image_url = await generate_reference_image(
             session=session,
@@ -487,9 +482,6 @@ async def video_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return ConversationHandler.END
 
-        # Сначала показываем статус — ДО долгой операции
-        await query.edit_message_text("⚙️ Генерирую промпт...")
-
         session = context.bot_data.get("http_session")
         if not session:
             await query.message.reply_text("⚠️ Техническая ошибка. Попробуйте позже.")
@@ -511,14 +503,9 @@ async def video_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         context.user_data["reference_prompt"] = prompt
 
-        # Новое сообщение — не edit
-        await query.message.reply_text(
-            "✅ Промпт сгенерирован!\n\n"
-            "📥 Скачиваю фото товара с WB...\n\n"
-            "# TODO: I2I AI — создать PNG с прозрачным фоном"
-        )
+        # TODO: I2I AI — создать PNG с прозрачным фоном
         # TODO: списать баланс
-        # TODO: I2I AI
+        # TODO: скачать и отправить фото
         return ConversationHandler.END
 
 
