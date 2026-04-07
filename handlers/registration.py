@@ -375,6 +375,12 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
 
     if query.data in ("create_ref", "redo_ref"):
+        # Удаляем сообщение с кнопками для чистоты чата
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+
         # Проверка баланса
         db_user = await get_user(update.effective_user.id)
         balance = db_user["balance"] if db_user else 0
@@ -537,7 +543,7 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
     if query.data == "ref_redo":
         await query.message.reply_text(
             "✍️ Напишите что нужно изменить в эталоне.\n"
-            "Например: «убрать фон» или «изменить цвет»"
+            "Например: обратить внимание на какие-то делали."
         )
         return ONBOARD_REDO_FEEDBACK
 
