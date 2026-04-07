@@ -72,7 +72,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Статистика пользователя
     stats = await get_user_stats(user.id)
 
-    # Одно сообщение: приветствие + нижнее меню
+    # Приветствие + нижнее меню
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
     )
@@ -91,14 +91,15 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"<b>{stats['videos']}</b> изготовленных видео в базе, "
         f"баланс: <b>{stats['balance']}</b> руб.\n\n"
         "🚀 Давайте начнём!",
-        reply_markup=main_menu(),
+        reply_markup=keyboard,
         parse_mode="HTML",
     )
 
-    # Инлайн-кнопка «Дальше» отдельным сообщением
-    await update.message.reply_text(
-        ".",
-        reply_markup=keyboard,
+    # Нижнее меню отдельным сообщением (пустой текст — только кнопки)
+    await context.bot.send_message(
+        chat_id=user.id,
+        text="\u200B",
+        reply_markup=main_menu(),
     )
 
     logger.info("START | sent onboarding welcome to user %s", user.id)
