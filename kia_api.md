@@ -26,7 +26,7 @@ Content-Type: application/json
   "model": "gpt-image/1.5-image-to-image",
   "callBackUrl": "https://your-domain.com/callback",  // опционально
   "input": {
-    "image_urls": ["https://example.com/image.jpg"],  // НЕ input_urls!
+    "input_urls": ["https://example.com/image.jpg"],  // НЕ image_urls!
     "prompt": "...",
     "aspect_ratio": "1:1",  // "1:1" | "2:3" | "3:2"
     "quality": "medium"     // "medium" | "high"
@@ -34,7 +34,7 @@ Content-Type: application/json
 }
 ```
 
-> ⚠️ Поле изображений называется `image_urls`, не `input_urls`.
+> ⚠️ Поле изображений называется `input_urls`, не `image_urls`.
 
 ### Response (успех)
 

@@ -53,10 +53,10 @@ async def create_i2i_task(
     payload = {
         "model": I2I_MODEL,
         "input": {
-            "image_urls":   image_urls,
-            "prompt":       prompt,
-            "aspect_ratio": aspect_ratio,
-            "quality":      quality,
+            "input_urls":    image_urls,
+            "prompt":        prompt,
+            "aspect_ratio":  aspect_ratio,
+            "quality":       quality,
         },
     }
 
