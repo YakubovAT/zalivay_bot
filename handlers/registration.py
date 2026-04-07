@@ -73,7 +73,14 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Статистика пользователя
     stats = await get_user_stats(user.id)
 
-    # Приветствие + нижнее меню
+    # Сначала — нижнее меню (чтобы оно оказалось внизу)
+    await context.bot.send_message(
+        chat_id=user.id,
+        text="Меню:",
+        reply_markup=main_menu(),
+    )
+
+    # Приветствие + кнопка "Дальше →"
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
     )
@@ -94,13 +101,6 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🚀 Давайте начнём!",
         reply_markup=keyboard,
         parse_mode="HTML",
-    )
-
-    # Нижнее меню отдельным сообщением (пустой текст — только кнопки)
-    await context.bot.send_message(
-        chat_id=user.id,
-        text="\u200B",
-        reply_markup=main_menu(),
     )
 
     logger.info("START | sent onboarding welcome to user %s", user.id)
