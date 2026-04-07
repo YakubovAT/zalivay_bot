@@ -95,9 +95,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
     )
 
-    # Показываем нижнее меню отдельным сообщением
+    # Показываем нижнее меню
     await update.message.reply_text(
-        "📋 Меню:",
+        "Выберите действие:",
         reply_markup=main_menu(),
     )
 
