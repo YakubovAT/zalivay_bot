@@ -534,7 +534,7 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
                 parse_mode="HTML",
             )
 
-        # Добавляем кнопки под фото
+        # Добавляем кнопки под фото для действий после эталона
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📸 Создать фото", callback_data="go_photo")],
             [InlineKeyboardButton("🎬 Создать видео", callback_data="go_video")],
@@ -544,7 +544,7 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
             message_id=msg_id,
             reply_markup=keyboard,
         )
-        return ConversationHandler.END
+        return ONBOARD_REF_FEEDBACK
 
     if query.data == "go_photo":
         # Выбор: одно или несколько фото
