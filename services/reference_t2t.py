@@ -11,6 +11,7 @@ services/reference_t2t.py
 
 from __future__ import annotations
 
+import json
 import logging
 
 import aiohttp
@@ -167,6 +168,7 @@ async def generate_reference_prompt(
                 return None
 
             data = await resp.json()
+            logger.info("T2T full JSON response: %s", json.dumps(data, ensure_ascii=False)[:500])
             raw = (
                 data.get("choices", [{}])[0]
                 .get("message", {})
