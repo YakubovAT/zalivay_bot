@@ -175,7 +175,7 @@ async def generate_reference_prompt(
                 return None
 
             try:
-                data = await resp.json()
+                data = json.loads(raw_text)
             except Exception as e:
                 logger.error("T2T JSON parse error: %s | body=%s", e, raw_text[:500])
                 return None

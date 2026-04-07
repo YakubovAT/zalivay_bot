@@ -14,7 +14,11 @@ REFERENCE_COST = int(os.getenv("REFERENCE_COST", "100"))       # Создани�
 PHOTO_COST     = int(os.getenv("PHOTO_COST", "50"))            # Одно фото
 VIDEO_COST     = int(os.getenv("VIDEO_COST", "200"))           # Одно видео
 
-# AI провайдер
+# AI провайдер — T2T (текстовая модель)
 AI_API_KEY     = os.getenv("AI_API_KEY", "cbc437104f5c302e296b8771ca523030")
 AI_API_BASE    = os.getenv("AI_API_BASE", "https://api.kie.ai")
 AI_MODEL       = os.getenv("AI_MODEL", "gpt-5-2")
+
+# I2I (генерация изображений) — пока mock-сервер
+I2I_API_KEY    = os.getenv("I2I_API_KEY", "mock")
+I2I_API_BASE   = os.getenv("I2I_API_BASE", "http://localhost:8080")

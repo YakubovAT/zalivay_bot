@@ -13,7 +13,7 @@ from telegram.ext import (
 
 from database import ensure_user, get_user, get_user_references, get_reference, save_article, save_reference
 from wb_parser import get_product_info
-from config import REFERENCE_COST, PHOTO_COST, AI_API_KEY, AI_API_BASE, AI_MODEL
+from config import REFERENCE_COST, PHOTO_COST, I2I_API_KEY, I2I_API_BASE, AI_API_KEY, AI_API_BASE, AI_MODEL
 from services.reference_t2t import generate_reference_prompt
 from services.reference_i2i import generate_reference_image
 
@@ -342,8 +342,8 @@ async def etalon_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         image_url = await generate_reference_image(
             session=session,
-            api_base=AI_API_BASE,
-            api_key=AI_API_KEY,
+            api_base=I2I_API_BASE,
+            api_key=I2I_API_KEY,
             image_urls=wb_images[:3],
             prompt=t2t_result["prompt"],
         )
@@ -578,8 +578,8 @@ async def _photo_parse_and_process(update, context, raw, mp):
     wb_images = context.user_data.get("wb_images", [])
     image_url = await generate_reference_image(
         session=session,
-        api_base=AI_API_BASE,
-        api_key=AI_API_KEY,
+        api_base=I2I_API_BASE,
+        api_key=I2I_API_KEY,
         image_urls=wb_images[:3],
         prompt=t2t_result["prompt"],
     )
@@ -765,8 +765,8 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         image_url = await generate_reference_image(
             session=session,
-            api_base=AI_API_BASE,
-            api_key=AI_API_KEY,
+            api_base=I2I_API_BASE,
+            api_key=I2I_API_KEY,
             image_urls=wb_images[:3],
             prompt=t2t_result["prompt"],
         )
