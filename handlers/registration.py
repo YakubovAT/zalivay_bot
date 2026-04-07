@@ -512,15 +512,27 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
                 parse_mode="HTML",
             )
 
-        if query.data == "go_photo":
-            # TODO: Запустить воркфлоу создания фото
-            await query.edit_message_text("📸 Воркфлоу создания фото в разработке.")
-            return ConversationHandler.END
+        # Добавляем кнопки под фото
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📸 Создать фото", callback_data="go_photo")],
+            [InlineKeyboardButton("🎬 Создать видео", callback_data="go_video")],
+        ])
+        await context.bot.edit_message_reply_markup(
+            chat_id=query.message.chat.id,
+            message_id=msg_id,
+            reply_markup=keyboard,
+        )
+        return ConversationHandler.END
 
-        if query.data == "go_video":
-            # TODO: Запустить воркфлоу создания видео
-            await query.edit_message_text("🎬 Воркфлоу создания видео в разработке.")
-            return ConversationHandler.END
+    if query.data == "go_photo":
+        # TODO: Запустить воркфлоу создания фото
+        await query.message.reply_text("📸 Воркфлоу создания фото в разработке.")
+        return ConversationHandler.END
+
+    if query.data == "go_video":
+        # TODO: Запустить воркфлоу создания видео
+        await query.message.reply_text("🎬 Воркфлоу создания видео в разработке.")
+        return ConversationHandler.END
 
     if query.data == "ref_redo":
         await query.message.reply_text(
