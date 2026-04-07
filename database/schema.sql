@@ -9,12 +9,14 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS article_references (
-    id          SERIAL PRIMARY KEY,
-    user_id     BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    articul     TEXT NOT NULL,
-    file_id     TEXT NOT NULL,
-    file_path   TEXT,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id                SERIAL PRIMARY KEY,
+    user_id           BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    articul           TEXT NOT NULL,
+    file_id           TEXT NOT NULL,
+    file_path         TEXT,
+    category          TEXT,
+    reference_prompt  TEXT,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_article_references_unique

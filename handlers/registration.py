@@ -427,7 +427,7 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         from services.reference_t2t import generate_reference_prompt
         from services.reference_i2i import generate_reference_image
 
-        prompt = await generate_reference_prompt(
+        t2t_result = await generate_reference_prompt(
             session=session,
             name=product.get("name", ""),
             color=product.get("color", ""),
@@ -437,11 +437,12 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             model=AI_MODEL,
         )
 
-        if not prompt:
+        if not t2t_result:
             await query.message.reply_text("❌ Ошибка генерации промпта.")
             return ConversationHandler.END
 
-        context.user_data["reference_prompt"] = prompt
+        context.user_data["reference_prompt"] = t2t_result["prompt"]
+        context.user_data["product_category"] = t2t_result["category"]
 
         # I2I AI → генерация изображения
         wb_images = context.user_data.get("wb_images", [])
@@ -454,7 +455,7 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             api_base=AI_API_BASE,
             api_key=AI_API_KEY,
             image_urls=wb_images[:3],
-            prompt=prompt,
+            prompt=t2t_result["prompt"],
         )
 
         if not image_url:
@@ -516,6 +517,8 @@ async def onboard_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYP
                 articul=articul,
                 file_id=file_id,
                 file_path=file_path,
+                category=context.user_data.get("product_category", ""),
+                reference_prompt=context.user_data.get("reference_prompt", ""),
             )
 
         # Списываем баланс (только если ещё не списали при переделке)
@@ -775,7 +778,7 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
     from services.reference_i2i import generate_reference_image
 
     # T2T AI — генерируем новый промпт с пожеланиями
-    prompt = await generate_reference_prompt(
+    t2t_result = await generate_reference_prompt(
         session=session,
         name=product.get("name", ""),
         color=product.get("color", ""),
@@ -786,11 +789,12 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
         additional_requirements=feedback,
     )
 
-    if not prompt:
+    if not t2t_result:
         await context.bot.send_message(chat_id=chat_id, text="❌ Ошибка генерации промпта.")
         return ConversationHandler.END
 
-    context.user_data["reference_prompt"] = prompt
+    context.user_data["reference_prompt"] = t2t_result["prompt"]
+    context.user_data["product_category"] = t2t_result["category"]
 
     # I2I AI — генерируем изображение с новым промптом
     wb_images = context.user_data.get("wb_images", [])
@@ -803,7 +807,7 @@ async def onboard_redo_feedback(update: Update, context: ContextTypes.DEFAULT_TY
         api_base=AI_API_BASE,
         api_key=AI_API_KEY,
         image_urls=wb_images[:3],
-        prompt=prompt,
+        prompt=t2t_result["prompt"],
     )
 
     if not image_url:

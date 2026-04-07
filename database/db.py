@@ -165,18 +165,34 @@ async def save_article(
     return row["id"] if row else -1
 
 
-async def save_reference(user_id: int, articul: str, file_id: str, file_path: str = "") -> int:
-    """Сохраняет эталон (ссылку на изображение) в БД. Один эталон на артикул."""
+async def save_reference(
+    user_id: int,
+    articul: str,
+    file_id: str,
+    file_path: str = "",
+    category: str = "",
+    reference_prompt: str = "",
+) -> int:
+    """Сохраняет эталон в БД. Один эталон на артикул.
+
+    category: классификация товара (верх/низ/обувь/головной убор)
+    reference_prompt: промпт на английском для I2I генерации
+    """
     pool = await get_pool()
     row = await pool.fetchrow(
         """
-        INSERT INTO article_references (user_id, articul, file_id, file_path)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO article_references (user_id, articul, file_id, file_path, category, reference_prompt)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (user_id, articul)
-        DO UPDATE SET file_id = EXCLUDED.file_id, file_path = EXCLUDED.file_path, created_at = NOW()
+        DO UPDATE SET
+            file_id          = EXCLUDED.file_id,
+            file_path        = EXCLUDED.file_path,
+            category         = EXCLUDED.category,
+            reference_prompt = EXCLUDED.reference_prompt,
+            created_at       = NOW()
         RETURNING id
         """,
-        user_id, articul, file_id, file_path,
+        user_id, articul, file_id, file_path, category, reference_prompt,
     )
     return row["id"] if row else -1
 

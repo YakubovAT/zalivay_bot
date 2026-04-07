@@ -1,67 +1,112 @@
 """
 services/reference_t2t.py
 
-Генерация промпта для эталона через Text AI.
+Генерация промпта для эталона + классификация категории товара через Text AI.
 
 Вход:
   - name, color, material — данные товара из wb_parser
 Выход:
-  - Готовый промпт на английском для I2I AI генерации
+  - dict {"category": "верх|низ|обувь|головной убор", "prompt": "EN prompt"} или None
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 import aiohttp
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Системный промпт для эталона
+# Системный промпт
 # ---------------------------------------------------------------------------
 
 REFERENCE_SYSTEM_PROMPT = """Ты — профессиональный промпт-инженер для image-to-image AI.
-Твоя задача — сформировать точный промпт на английском языке
-для обработки фотографии одежды в image-to-image системе.
-Отвечай ТОЛЬКО готовым промптом. Без пояснений и комментариев."""
+
+Твои задачи:
+1. Определить категорию товара одежды из списка: верх / низ / обувь / головной убор
+2. Сформировать точный промпт на английском языке для обработки фотографии одежды в image-to-image системе.
+
+Отвечай СТРОГО в следующем формате (без пояснений, без markdown):
+CATEGORY: [верх|низ|обувь|головной убор]
+PROMPT: [готовый промпт на английском языке]"""
 
 REFERENCE_USER_TEMPLATE = (
     "У меня есть фотографии товара со следующими характеристиками:\n"
     "- Название: {name}\n"
     "- Цвет: {color}\n"
     "- Материал: {material}\n\n"
-    "На основе этих характеристик сформируй промпт на английском языке\n"
-    "для image-to-image AI, который выполнит следующее:\n\n"
-    "Промпт должен содержать задачу:\n"
+    "На основе этих характеристик:\n\n"
+    "1. Определи категорию: верх (рубашка, футболка, блузка, свитер, куртка и т.д.) / "
+    "низ (юбка, брюки, шорты, джинсы и т.д.) / "
+    "обувь (кроссовки, туфли, сапоги и т.д.) / "
+    "головной убор (шапка, кепка, шляпа и т.д.)\n\n"
+    "2. Сформируй промпт на английском языке для image-to-image AI, который выполнит следующее:\n\n"
+    "Задача промпта:\n"
     "— Проанализировать фотографии и найти [НАЗВАНИЕ] из [МАТЕРИАЛ АРТ.]\n"
     "   цвета [ЦВЕТ АРТ.], проверить соответствие цвета на фото\n"
     "— Выделить ТОЛЬКО [НАЗВАНИЕ] со всех изображений\n"
     "— Полностью удалить тело модели\n"
     "— Удалить фон, аксессуары, текст и все остальные объекты\n"
     "— Сохранить естественную 3D-форму изделия с точными пропорциями\n"
-    "— Сохранить все детали ткани: текстуру, складки, швы,\n"
-    "   строчку, узоры, принты\n"
+    "— Сохранить все детали ткани: текстуру, складки, швы, строчку, узоры, принты\n"
     "— Сохранить точные цвета и освещение\n\n"
-    "Промпт должен содержать требования к результату:\n"
+    "Требования к результату:\n"
     "— Создать новое PNG-изображение с выделенным [НАЗВАНИЕ]\n"
     "— Прозрачный фон (RGBA)\n"
     "— Максимальное разрешение, профессиональный e-commerce стандарт\n"
     "— По центру, как на невидимом манекене\n"
-    "— Сохранить оригинальные пропорции из исходных фотографий\n"
     "— Чистые края, без ореолов, без артефактов\n"
-    "— Подходит для каталога одежды и видео-анимации\n"
-    "— Форма изделия сохранена для 3D-реконструкции\n\n"
-    "Промпт должен содержать критические ограничения:\n"
+    "— Подходит для каталога одежды и видео-анимации\n\n"
+    "Критические ограничения:\n"
     "— Вывести ТОЛЬКО [НАЗВАНИЕ] — ничего больше\n"
     "— Не добавлять, не выдумывать и не изменять детали изделия\n"
     "— Не менять цвета или узоры\n"
-    "— Сгенерировать и выдать финальное изображение\n\n"
-    "Верни ТОЛЬКО готовый промпт на английском языке.\n"
-    "Без пояснений, без комментариев, без markdown-разметки."
-    "{additional_requirements}"
+    "— Сгенерировать и выдать финальное изображение\n"
+    "{additional_requirements}\n\n"
+    "Ответ СТРОГО в формате:\n"
+    "CATEGORY: [верх|низ|обувь|головной убор]\n"
+    "PROMPT: [готовый промпт на английском языке]"
 )
+
+# Допустимые категории
+VALID_CATEGORIES = {"верх", "низ", "обувь", "головной убор"}
+
+
+def _parse_response(raw: str) -> dict | None:
+    """
+    Парсит ответ T2T вида:
+      CATEGORY: низ
+      PROMPT: Extract only the...
+
+    Возвращает {"category": "низ", "prompt": "..."} или None.
+    """
+    category = ""
+    prompt_lines = []
+    in_prompt = False
+
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if stripped.upper().startswith("CATEGORY:"):
+            category = stripped[len("CATEGORY:"):].strip().lower()
+        elif stripped.upper().startswith("PROMPT:"):
+            prompt_lines.append(stripped[len("PROMPT:"):].strip())
+            in_prompt = True
+        elif in_prompt:
+            prompt_lines.append(line)
+
+    prompt = "\n".join(prompt_lines).strip()
+
+    if not category or not prompt:
+        logger.error("T2T parse failed: category=%r, prompt_len=%d", category, len(prompt))
+        return None
+
+    # Нормализуем категорию
+    if category not in VALID_CATEGORIES:
+        logger.warning("Unknown category %r, defaulting to 'верх'", category)
+        category = "верх"
+
+    return {"category": category, "prompt": prompt}
 
 
 async def generate_reference_prompt(
@@ -73,17 +118,16 @@ async def generate_reference_prompt(
     api_base_url: str = "https://kie.ai",
     model: str = "gpt-5-2",
     additional_requirements: str = "",
-) -> str | None:
+) -> dict | None:
     """
-    Генерирует промпт для эталона через Text AI.
+    Генерирует промпт для эталона + категорию товара через T2T AI.
 
-    additional_requirements: строка с пожеланиями пользователя на русском.
-        Будет добавлена в конец промпта как «Additional requirements: ...»
-
-    Returns: промпт на английском или None при ошибке.
+    Returns:
+        {"category": "верх|низ|обувь|головной убор", "prompt": "EN prompt"}
+        или None при ошибке.
     """
     additional = (
-        f"\n\nДополнительные пожелания: {additional_requirements}"
+        f"\nДополнительные пожелания: {additional_requirements}"
         if additional_requirements else ""
     )
 
@@ -114,21 +158,23 @@ async def generate_reference_prompt(
         ) as resp:
             if resp.status != 200:
                 text = await resp.text()
-                logger.error(
-                    "Text AI error: status=%s, body=%s", resp.status, text
-                )
+                logger.error("T2T error: status=%s, body=%s", resp.status, text)
                 return None
 
             data = await resp.json()
-            prompt = (
+            raw = (
                 data.get("choices", [{}])[0]
                 .get("message", {})
                 .get("content", "")
                 .strip()
             )
-            logger.info("Reference prompt generated (%d chars)", len(prompt))
-            return prompt if prompt else None
+            logger.info("T2T raw response (%d chars): %s", len(raw), raw[:200])
+
+            result = _parse_response(raw)
+            if result:
+                logger.info("T2T parsed: category=%s, prompt_len=%d", result["category"], len(result["prompt"]))
+            return result
 
     except Exception as e:
-        logger.error("Text AI request failed: %s", e)
+        logger.error("T2T request failed: %s", e)
         return None

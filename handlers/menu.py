@@ -312,7 +312,7 @@ async def etalon_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("⚠️ Техническая ошибка. Попробуйте позже.")
             return ConversationHandler.END
 
-        prompt = await generate_reference_prompt(
+        t2t_result = await generate_reference_prompt(
             session=session,
             name=product.get("name", ""),
             color=product.get("color", ""),
@@ -322,11 +322,12 @@ async def etalon_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             model=AI_MODEL,
         )
 
-        if not prompt:
+        if not t2t_result:
             await query.message.reply_text("❌ Ошибка генерации промпта. Попробуйте снова.")
             return ConversationHandler.END
 
-        context.user_data["reference_prompt"] = prompt
+        context.user_data["reference_prompt"] = t2t_result["prompt"]
+        context.user_data["product_category"] = t2t_result["category"]
 
         wb_images = context.user_data.get("wb_images", [])
         if not wb_images:
@@ -338,7 +339,7 @@ async def etalon_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             api_base=AI_API_BASE,
             api_key=AI_API_KEY,
             image_urls=wb_images[:3],
-            prompt=prompt,
+            prompt=t2t_result["prompt"],
         )
 
         if not image_url:
@@ -396,6 +397,8 @@ async def etalon_ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 articul=articul,
                 file_id=file_id,
                 file_path=file_path,
+                category=context.user_data.get("product_category", ""),
+                reference_prompt=context.user_data.get("reference_prompt", ""),
             )
 
         if not context.user_data.pop("redo_charged", False):
@@ -546,7 +549,7 @@ async def _photo_parse_and_process(update, context, raw, mp):
         )
         return ConversationHandler.END
 
-    prompt = await generate_reference_prompt(
+    t2t_result = await generate_reference_prompt(
         session=session,
         name=name,
         color=color,
@@ -556,11 +559,14 @@ async def _photo_parse_and_process(update, context, raw, mp):
         model=AI_MODEL,
     )
 
-    if not prompt:
+    if not t2t_result:
         await (update.message.reply_text if hasattr(update, 'message') and update.message else update.callback_query.message.reply_text)(
             "❌ Ошибка генерации промпта."
         )
         return ConversationHandler.END
+
+    context.user_data["reference_prompt"] = t2t_result["prompt"]
+    context.user_data["product_category"] = t2t_result["category"]
 
     wb_images = context.user_data.get("wb_images", [])
     image_url = await generate_reference_image(
@@ -568,7 +574,7 @@ async def _photo_parse_and_process(update, context, raw, mp):
         api_base=AI_API_BASE,
         api_key=AI_API_KEY,
         image_urls=wb_images[:3],
-        prompt=prompt,
+        prompt=t2t_result["prompt"],
     )
 
     if not image_url:
@@ -721,7 +727,7 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("⚠️ Техническая ошибка. Попробуйте позже.")
             return ConversationHandler.END
 
-        prompt = await generate_reference_prompt(
+        t2t_result = await generate_reference_prompt(
             session=session,
             name=product.get("name", ""),
             color=product.get("color", ""),
@@ -731,9 +737,12 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             model=AI_MODEL,
         )
 
-        if not prompt:
+        if not t2t_result:
             await query.message.reply_text("❌ Ошибка генерации промпта. Попробуйте снова.")
             return ConversationHandler.END
+
+        context.user_data["reference_prompt"] = t2t_result["prompt"]
+        context.user_data["product_category"] = t2t_result["category"]
 
         wb_images = context.user_data.get("wb_images", [])
         if not wb_images:
@@ -745,7 +754,7 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             api_base=AI_API_BASE,
             api_key=AI_API_KEY,
             image_urls=wb_images[:3],
-            prompt=prompt,
+            prompt=t2t_result["prompt"],
         )
 
         if not image_url:
@@ -872,6 +881,8 @@ async def ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             articul=articul,
             file_id=file_id,
             file_path=file_path,
+            category=context.user_data.get("product_category", ""),
+            reference_prompt=context.user_data.get("reference_prompt", ""),
         )
 
         await query.edit_message_text(
