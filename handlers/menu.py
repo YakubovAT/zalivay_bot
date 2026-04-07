@@ -279,17 +279,18 @@ async def etalon_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     if query.data == "etalon_new_article":
-        await query.message.delete()
+        chat_id = query.message.chat.id
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
         keyboard = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("🟣 Wildberries", callback_data="etalon_mp_wb"),
                 InlineKeyboardButton("🔵 OZON",        callback_data="etalon_mp_ozon"),
             ]
         ])
-        await query.message.reply_text(
-            "Введите артикул товара:",
-            reply_markup=keyboard,
-        )
+        await context.bot.send_message(chat_id=chat_id, text="Введите артикул товара:", reply_markup=keyboard)
         return WAITING_MP_ETALON
 
     if query.data in ("etalon_create_ref", "etalon_redo_ref"):
@@ -702,17 +703,18 @@ async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # --- Новый артикул ---
     if query.data == "new_article":
-        await query.message.delete()
+        chat_id = query.message.chat.id
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
         keyboard = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("🟣 Wildberries", callback_data="photo_mp_wb"),
                 InlineKeyboardButton("🔵 OZON",        callback_data="photo_mp_ozon"),
             ]
         ])
-        await query.message.reply_text(
-            "Выберите маркетплейс:",
-            reply_markup=keyboard,
-        )
+        await context.bot.send_message(chat_id=chat_id, text="Выберите маркетплейс:", reply_markup=keyboard)
         return WAITING_MP_PHOTO
 
     # --- Создать эталон ---
@@ -1077,17 +1079,18 @@ async def video_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if query.data == "new_article":
-        await query.edit_message_text("Выберите маркетплейс:")
+        chat_id = query.message.chat.id
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
         keyboard = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("🟣 Wildberries", callback_data="video_mp_wb"),
                 InlineKeyboardButton("🔵 OZON",        callback_data="video_mp_ozon"),
             ]
         ])
-        await query.message.reply_text(
-            "Выберите маркетплейс:",
-            reply_markup=keyboard,
-        )
+        await context.bot.send_message(chat_id=chat_id, text="Выберите маркетплейс:", reply_markup=keyboard)
         return WAITING_MP_VIDEO
 
     if query.data == "create_ref":

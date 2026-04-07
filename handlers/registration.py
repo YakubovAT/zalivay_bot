@@ -398,7 +398,12 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Возвращаемся к вводу артикула (МП запоминаем)
         mp = context.user_data.get("onboard_marketplace", "WB")
         label = "Wildberries" if mp == "WB" else "OZON"
-        await query.edit_message_text(f"Введите артикул товара {label}:")
+        chat_id = query.message.chat.id
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+        await context.bot.send_message(chat_id=chat_id, text=f"Введите артикул товара {label}:")
         return ONBOARD_ARTICLE
 
     if query.data == "go_menu":
