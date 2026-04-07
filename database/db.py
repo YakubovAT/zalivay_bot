@@ -47,6 +47,31 @@ async def get_user_references(user_id: int) -> list[asyncpg.Record]:
     )
 
 
+async def get_user_stats(user_id: int) -> dict:
+    """Возвращает статистику пользователя: эталоны, фото, видео, баланс."""
+    pool = await get_pool()
+    ref_count = await pool.fetchval(
+        "SELECT COUNT(*) FROM article_references WHERE user_id = $1",
+        user_id,
+    )
+    # TODO: фото и видео — пока нет таблицы content
+    photo_count = 0
+    video_count = 0
+
+    row = await pool.fetchrow(
+        "SELECT balance FROM users WHERE user_id = $1",
+        user_id,
+    )
+    balance = row["balance"] if row else 0
+
+    return {
+        "references": ref_count or 0,
+        "photos": photo_count,
+        "videos": video_count,
+        "balance": balance,
+    }
+
+
 async def is_registered(user_id: int) -> bool:
     pool = await get_pool()
     row = await pool.fetchrow(

@@ -16,7 +16,7 @@ from telegram.ext import (
 import asyncio
 import subprocess
 
-from database import ensure_user, is_registered, save_registration, reset_registration, save_article, save_reference, get_user, get_reference, deduct_balance
+from database import ensure_user, is_registered, save_registration, reset_registration, save_article, save_reference, get_user, get_reference, deduct_balance, get_user_stats
 from handlers.menu import main_menu, BTN_RESTART
 from config import REFERENCE_COST, PHOTO_COST
 from wb_parser import get_product_info
@@ -78,6 +78,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
+    # Статистика пользователя (пока 0 эталонов, но баланс уже есть)
+    stats = await get_user_stats(user.id)
+
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
     )
@@ -91,6 +94,10 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "⚡ <b>Как это работает:</b>\n"
         "Вы вводите артикул товара — AI создаёт эталон, "
         "на основе которого генерируются фото и видео.\n\n"
+        f"Сейчас у Вас <b>{stats['references']}</b> эталон(ов) товаров, "
+        f"<b>{stats['photos']}</b> изготовленных фото и "
+        f"<b>{stats['videos']}</b> изготовленных видео в базе, "
+        f"баланс: <b>{stats['balance']}</b> руб.\n\n"
         "🚀 Давайте начнём!",
         reply_markup=keyboard,
         parse_mode="HTML",
