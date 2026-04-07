@@ -108,6 +108,20 @@ async def log_user_action(user_id: int, username: str | None, action_type: str, 
     )
 
 
+async def get_user_articles(user_id: int, article_code: str = None) -> list[asyncpg.Record]:
+    """Возвращает артикулы пользователя. Если article_code — фильтрует по нему."""
+    pool = await get_pool()
+    if article_code:
+        return await pool.fetch(
+            "SELECT * FROM articles WHERE user_id = $1 AND article_code = $2 ORDER BY parsed_at DESC",
+            user_id, article_code,
+        )
+    return await pool.fetch(
+        "SELECT * FROM articles WHERE user_id = $1 ORDER BY parsed_at DESC",
+        user_id,
+    )
+
+
 async def delete_user(user_id: int):
     """Полностью удаляет пользователя и все его данные из БД (CASCADE)."""
     pool = await get_pool()

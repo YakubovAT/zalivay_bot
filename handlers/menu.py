@@ -99,27 +99,13 @@ async def photo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     stats = await get_user_stats(user.id)
     ref_count = stats["references"]
 
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🟣 Wildberries", callback_data="photo_mp_wb"),
-            InlineKeyboardButton("🔵 OZON",        callback_data="photo_mp_ozon"),
-        ]
-    ])
     await update.message.reply_text(
         f"📸 Сгенерируем <b>1 или более фото</b> в разных локациях и стилях для вашего товара!\n\n"
         f"У вас уже <b>{ref_count}</b> эталон(ов) в базе.\n\n"
-        f"Как это работает:\n"
-        f"1️⃣ Введите артикул товара\n"
-        f"2️⃣ Если эталон уже есть — сразу генерируем фото\n"
-        f"3️⃣ Если нет — создаём эталон, потом фото\n"
-        f"4️⃣ Выберите количество фото (1–20)\n"
-        f"5️⃣ AI создаст изображения в разных локациях и стилях\n\n"
-        f"Стоимость: <b>{PHOTO_COST} руб.</b> за каждое фото.\n\n"
-        f"Выберите маркетплейс:",
-        reply_markup=keyboard,
+        f"Введите артикул товара:",
         parse_mode="HTML",
     )
-    return WAITING_MP_PHOTO
+    return WAITING_ARTICUL_PHOTO
 
 
 # ---------------------------------------------------------------------------
@@ -452,6 +438,12 @@ async def photo_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     context.user_data["photo_marketplace"] = mp
 
+    # Если артикул уже был введён (pending) — сразу парсим
+    pending_article = context.user_data.get("photo_article_pending")
+    if pending_article:
+        logger.info("PHOTO_MP_SELECT | processing pending article: %s", pending_article)
+        return await _photo_parse_and_process(update, context, pending_article, mp)
+
     label = "Wildberries" if mp == "WB" else "OZON"
     await query.edit_message_text(
         f"Введите артикул товара {label}:"
@@ -459,24 +451,24 @@ async def photo_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return WAITING_ARTICUL_PHOTO
 
 
-async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    raw = update.message.text.strip()
-    marketplace = context.user_data.get("photo_marketplace", "WB")
-    logger.info("PHOTO_ARTICLE_INPUT | user_id=%s | article=%s | mp=%s", user.id, raw, marketplace)
+async def _photo_parse_and_process(update, context, raw, mp):
+    """Парсинг WB товара → создание эталона → выбор количества фото."""
+    user = update.effective_user if hasattr(update, 'effective_user') else None
+    chat_id = update.message.chat.id if hasattr(update, 'message') and update.message else update.callback_query.message.chat.id
 
     # --- OZON: заглушка ---
-    if marketplace == "OZON":
-        await update.message.reply_text(
+    if mp == "OZON":
+        await (update.message.reply_text if hasattr(update, 'message') and update.message else update.callback_query.message.reply_text)(
             f"✅ Артикул <code>{raw}</code> сохранён для OZON 🔵\n\n"
-            "⚠️ Генерация фото для OZON пока в разработке. "
-            "Скоро эта функция станет доступна!",
+            "⚠️ Генерация фото для OZON пока в разработке.",
             parse_mode="HTML",
         )
         return ConversationHandler.END
 
     # --- WB: парсер ---
-    status_msg = await update.message.reply_text("🔍 Загружаю информацию о товаре...")
+    status_msg = await (update.message.reply_text if hasattr(update, 'message') and update.message else update.callback_query.message.reply_text)(
+        "🔍 Загружаю информацию о товаре..."
+    )
 
     try:
         info = await get_product_info(raw)
@@ -486,10 +478,21 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
     await status_msg.delete()
 
     if not info:
-        await update.message.reply_text(
-            f"❌ Товар не найден на Wildberries. Проверьте артикул и введите ещё раз:"
+        await (update.message.reply_text if hasattr(update, 'message') and update.message else update.callback_query.message.reply_text)(
+            f"❌ Товар не найден на Wildberries. Проверьте артикул:"
         )
-        return WAITING_ARTICUL_PHOTO
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("🟣 Wildberries", callback_data="photo_mp_wb"),
+                InlineKeyboardButton("🔵 OZON",        callback_data="photo_mp_ozon"),
+            ]
+        ])
+        await (update.message.reply_text if hasattr(update, 'message') and update.message else update.callback_query.message.reply_text)(
+            "Выберите маркетплейс:",
+            reply_markup=keyboard,
+        )
+        context.user_data["photo_article_pending"] = raw
+        return WAITING_MP_PHOTO
 
     name     = info.get("name", "")
     color    = info["colors"][0] if info.get("colors") else ""
@@ -505,16 +508,10 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
     if material:
         meta_lines.append(f"🧵 {material}")
 
-    await update.message.reply_text(
-        f"✅ Артикул <code>{raw}</code> найден на Wildberries 🟣\n\n"
-        + "\n".join(meta_lines),
-        parse_mode="HTML",
-    )
-
     await save_article(
         user_id=user.id,
         article_code=raw,
-        marketplace=marketplace,
+        marketplace=mp,
         name=name,
         color=color,
         material=material,
@@ -527,14 +524,112 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
         "material": material,
     }
     context.user_data["wb_images"] = info.get("images", [])[:5]
+    context.user_data.pop("photo_article_pending", None)
 
-    # Проверяем, есть ли уже эталон
+    # Создаём эталон
+    db_user = await get_user(user.id)
+    balance = db_user["balance"] if db_user else 0
+
+    if balance < REFERENCE_COST:
+        await (update.message.reply_text if hasattr(update, 'message') and update.message else update.callback_query.message.reply_text)(
+            f"❌ Недостаточно средств.\n\n"
+            f"Стоимость создания эталона: <b>{REFERENCE_COST} руб.</b>\n"
+            f"Баланс: <b>{balance} руб.</b>",
+            parse_mode="HTML",
+        )
+        return ConversationHandler.END
+
+    session = context.bot_data.get("http_session")
+    if not session:
+        await (update.message.reply_text if hasattr(update, 'message') and update.message else update.callback_query.message.reply_text)(
+            "⚠️ Техническая ошибка."
+        )
+        return ConversationHandler.END
+
+    prompt = await generate_reference_prompt(
+        session=session,
+        name=name,
+        color=color,
+        material=material,
+        api_key=AI_API_KEY,
+        api_base_url=AI_API_BASE,
+        model=AI_MODEL,
+    )
+
+    if not prompt:
+        await (update.message.reply_text if hasattr(update, 'message') and update.message else update.callback_query.message.reply_text)(
+            "❌ Ошибка генерации промпта."
+        )
+        return ConversationHandler.END
+
+    wb_images = context.user_data.get("wb_images", [])
+    image_url = await generate_reference_image(
+        session=session,
+        api_base=AI_API_BASE,
+        api_key=AI_API_KEY,
+        image_urls=wb_images[:3],
+        prompt=prompt,
+    )
+
+    if not image_url:
+        await (update.message.reply_text if hasattr(update, 'message') and update.message else update.callback_query.message.reply_text)(
+            "❌ Ошибка генерации изображения."
+        )
+        return ConversationHandler.END
+
+    try:
+        async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=15)) as img_resp:
+            image_data = await img_resp.read()
+    except Exception as e:
+        logger.error("Failed to download image: %s", e)
+        await (update.message.reply_text if hasattr(update, 'message') and update.message else update.callback_query.message.reply_text)(
+            "❌ Ошибка загрузки изображения."
+        )
+        return ConversationHandler.END
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Подходит, создать фото", callback_data="ref_ok_continue")],
+        [InlineKeyboardButton("🔄 Переделать эталон", callback_data="ref_redo")],
+    ])
+    sent = await context.bot.send_photo(
+        chat_id=chat_id,
+        photo=BytesIO(image_data),
+        caption="🎨 Эталон готов!\n\nОн должен быть <i>похож</i>, а не 100% копией.",
+        reply_markup=keyboard,
+        parse_mode="HTML",
+    )
+    context.user_data["ref_photo_msg_id"] = sent.message_id
+    context.user_data["ref_file_id"] = sent.photo[-1].file_id
+
+    return WAITING_REF_FEEDBACK
+
+
+async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    raw = update.message.text.strip()
+    logger.info("PHOTO_ARTICLE_INPUT | user_id=%s | article=%s", user.id, raw)
+
+    # 1. Сначала ищем эталон в БД по этому артикулу (любой МП)
     from database import get_reference
     existing_ref = await get_reference(user.id, raw)
 
     if existing_ref:
-        # Эталон есть — сразу запрашиваем количество фото
+        # Эталон уже есть — сразу к выбору количества фото
+        logger.info("PHOTO_ARTICLE_INPUT | existing ref found, skipping to count")
+        context.user_data["current_article"] = raw
         context.user_data["ref_file_id"] = existing_ref["file_id"]
+
+        # Берём product_info из articles таблицы если есть
+        from database import get_user_articles
+        articles = await get_user_articles(user.id, raw)
+        if articles:
+            art = articles[0]
+            context.user_data["product_info"] = {
+                "name": art["name"] or "",
+                "color": art["color"] or "",
+                "material": art["material"] or "",
+            }
+
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📸 1 фото", callback_data="photo_count_1")],
             [InlineKeyboardButton("📸 5 фото", callback_data="photo_count_5")],
@@ -547,18 +642,24 @@ async def photo_articul_received(update: Update, context: ContextTypes.DEFAULT_T
             reply_markup=keyboard,
             parse_mode="HTML",
         )
-    else:
-        # Эталона нет — предлагаем создать
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Создать эталон", callback_data="create_ref")],
-            [InlineKeyboardButton("🔄 Ввести другой артикул", callback_data="new_article")],
-        ])
-        await update.message.reply_text(
-            "Эталон для этого артикула ещё не создан. Сначала создадим эталон?",
-            reply_markup=keyboard,
-        )
+        return WAITING_REF_CHOICE_PHOTO
 
-    return WAITING_REF_CHOICE_PHOTO
+    # 2. Эталона нет — запрашиваем маркетплейс для создания
+    logger.info("PHOTO_ARTICLE_INPUT | no ref found, asking for marketplace")
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🟣 Wildberries", callback_data="photo_mp_wb"),
+            InlineKeyboardButton("🔵 OZON",        callback_data="photo_mp_ozon"),
+        ]
+    ])
+    await update.message.reply_text(
+        f"Артикул <code>{raw}</code> не найден в базе.\n\n"
+        f"Для создания фото нужен эталон. Выберите маркетплейс для загрузки товара:",
+        reply_markup=keyboard,
+        parse_mode="HTML",
+    )
+    context.user_data["photo_article_pending"] = raw
+    return WAITING_MP_PHOTO
 
 
 async def photo_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
