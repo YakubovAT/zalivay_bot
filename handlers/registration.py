@@ -72,9 +72,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Статистика пользователя (пока 0 эталонов, но баланс уже есть)
     stats = await get_user_stats(user.id)
 
-    keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
-    )
+    # Главное меню (нижнее) — показываем сразу
     await update.message.reply_text(
         "🤖 <b>AI-ассистент для селлеров маркетплейсов</b>\n\n"
         "Автоматизировированный бот, который создаёт фото и видео для социальных сетей на основе ваших товаров.\n\n"
@@ -90,8 +88,17 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"<b>{stats['videos']}</b> изготовленных видео в базе, "
         f"баланс: <b>{stats['balance']}</b> руб.\n\n"
         "🚀 Давайте начнём!",
-        reply_markup=keyboard,
+        reply_markup=main_menu(),
         parse_mode="HTML",
+    )
+
+    # Inline-кнопка для продолжения онбординга
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
+    )
+    await update.message.reply_text(
+        "Нажмите «Дальше», чтобы создать первый эталон:",
+        reply_markup=keyboard,
     )
     logger.info("START | sent onboarding welcome to user %s", user.id)
     return ONBOARD_STEP1
