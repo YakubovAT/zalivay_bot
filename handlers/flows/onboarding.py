@@ -201,19 +201,25 @@ async def onboard_article(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if existing_ref:
-        await context.bot.send_message(
+        await replace_screen(
             chat_id=chat_id,
+            context=context,
             text=card_text + "\n\nЭталон уже есть. Переделать?",
-            reply_markup=etalon_existing_keyboard(),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Переделать эталон", callback_data="redo_ref")],
+                [InlineKeyboardButton("↩️ Выбрать другой МП", callback_data="back_to_mp")],
+            ]),
             parse_mode="HTML",
         )
     else:
-        await context.bot.send_message(
+        await replace_screen(
             chat_id=chat_id,
+            context=context,
             text=card_text + "\n\nСоздать эталон?",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("✅ Создать эталон", callback_data="create_ref")],
                 [InlineKeyboardButton("🔄 Другой артикул", callback_data="new_article")],
+                [InlineKeyboardButton("↩️ Выбрать другой МП", callback_data="back_to_mp")],
             ]),
             parse_mode="HTML",
         )
@@ -243,6 +249,15 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if query.data == "go_menu":
         await query.edit_message_text("✅ Готово! Используйте кнопки inline-меню для навигации.")
         return ConversationHandler.END
+
+    if query.data == "back_to_mp":
+        await edit_screen(
+            chat_id=chat_id,
+            context=context,
+            text="Выберите маркетплейс:",
+            reply_markup=mp_select_keyboard(),
+        )
+        return ONBOARD_SELECT_MP
 
     if query.data in ("create_ref", "redo_ref"):
         try:
@@ -643,7 +658,7 @@ def build_onboarding_handler() -> ConversationHandler:
         states={
             ONBOARD_SELECT_MP: [CallbackQueryHandler(onboard_select_mp, pattern="^mp_(wb|ozon)$")],
             ONBOARD_ARTICLE: [MessageHandler(tg_filters.TEXT & ~any_menu, onboard_article)],
-            ONBOARD_REF_CHOICE: [CallbackQueryHandler(onboard_ref_choice, pattern="^(create_ref|redo_ref|new_article|go_menu)$")],
+            ONBOARD_REF_CHOICE: [CallbackQueryHandler(onboard_ref_choice, pattern="^(create_ref|redo_ref|new_article|go_menu|back_to_mp)$")],
             ONBOARD_REF_FEEDBACK: [CallbackQueryHandler(onboard_ref_feedback, pattern="^(ref_ok|ref_redo|go_photo|go_video)$")],
             ONBOARD_REDO_FEEDBACK: [MessageHandler(tg_filters.TEXT & ~any_menu, onboard_redo_feedback)],
             PHOTO_COUNT_CHOICE: [CallbackQueryHandler(photo_count_choice, pattern="^(go_photo|go_video)$")],
