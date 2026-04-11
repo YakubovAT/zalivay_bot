@@ -134,39 +134,32 @@ async def send_screen(
     banner_path: str = None,
 ) -> Optional[int]:
     """
-    Отправляет экран: баннер + текст + кнопки.
-    Возвращает message_id текстового сообщения (для последующего edit).
+    Отправляет ОДНО сообщение: фото-баннер + caption (текст) + inline-кнопки.
+    Возвращает message_id.
     """
     path = banner_path or BANNER_PATH
-    # Сначала баннер
     try:
         with open(path, "rb") as f:
-            banner_msg = await context.bot.send_photo(
+            msg = await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=f,
+                caption=text,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode,
             )
+        store_msg_id(context, "screen_msg_id", msg.message_id)
+        return msg.message_id
     except Exception as e:
-        logger.warning("send_screen: не удалось отправить баннер %s: %s", path, e)
-        banner_msg = None
-
-    # Затем текст с кнопками
-    try:
+        logger.error("send_screen: %s", e)
+        # Fallback: текст без баннера
         text_msg = await context.bot.send_message(
             chat_id=chat_id,
             text=text,
             reply_markup=reply_markup,
             parse_mode=parse_mode,
         )
-    except Exception as e:
-        logger.error("send_screen: не удалось отправить текст: %s", e)
-        return None
-
-    # Сохраняем оба ID
-    if banner_msg:
-        store_msg_id(context, "screen_banner_msg_id", banner_msg.message_id)
-    store_msg_id(context, "screen_text_msg_id", text_msg.message_id)
-
-    return text_msg.message_id
+        store_msg_id(context, "screen_msg_id", text_msg.message_id)
+        return text_msg.message_id
 
 
 async def edit_screen(
@@ -177,22 +170,26 @@ async def edit_screen(
     parse_mode: str = "HTML",
 ) -> bool:
     """
-    Редактирует текст и кнопки текущего экрана.
-    Баннер остаётся на месте — редактируем только текстовое сообщение.
+    Редактирует caption и кнопки текущего экрана (одно сообщение).
     """
-    msg_id = get_msg_id(context, "screen_text_msg_id")
+    msg_id = get_msg_id(context, "screen_msg_id")
     if not msg_id:
-        # Fallback: отправляем новый экран
-        logger.warning("edit_screen: нет screen_text_msg_id, отправляю новый экран")
         await send_screen(chat_id, context, text, reply_markup, parse_mode)
         return True
 
-    success = await edit_text(chat_id, msg_id, context, text=text, reply_markup=reply_markup, parse_mode=parse_mode)
-    if not success:
-        # Сообщение уже нельзя редактировать — новый экран
-        logger.warning("edit_screen: edit failed, sending new screen")
+    try:
+        await context.bot.edit_message_caption(
+            chat_id=chat_id,
+            message_id=msg_id,
+            caption=text,
+            reply_markup=reply_markup,
+            parse_mode=parse_mode,
+        )
+        return True
+    except Exception as e:
+        logger.debug("edit_screen (caption) failed: %s, sending new", e)
         await send_screen(chat_id, context, text, reply_markup, parse_mode)
-    return success
+        return True
 
 
 async def replace_screen(
@@ -204,14 +201,10 @@ async def replace_screen(
     banner_path: str = None,
 ) -> Optional[int]:
     """
-    Полная замена экрана: удаляет старый баннер + текст, отправляет новый.
+    Полная замена экрана: удаляет старое сообщение, отправляет новое.
     """
-    old_banner = pop_msg_id(context, "screen_banner_msg_id")
-    old_text = pop_msg_id(context, "screen_text_msg_id")
-
-    if old_banner:
-        await safe_delete(chat_id, old_banner, context)
-    if old_text:
-        await safe_delete(chat_id, old_text, context)
+    old = pop_msg_id(context, "screen_msg_id")
+    if old:
+        await safe_delete(chat_id, old, context)
 
     return await send_screen(chat_id, context, text, reply_markup, parse_mode, banner_path)
