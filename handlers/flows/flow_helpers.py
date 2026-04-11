@@ -39,6 +39,7 @@ async def send_screen(
     text: str = "",
     keyboard: InlineKeyboardMarkup | None = None,
     parse_mode: str = "HTML",
+    banner_path: str | None = None,
 ) -> None:
     """
     Отправляет экран: баннер + caption + inline-кнопки.
@@ -46,8 +47,12 @@ async def send_screen(
     Если message_id указан — редактирует существующее сообщение.
     Если message_id = None — отправляет новое.
     parse_mode: "HTML" (по умолчанию) или "MarkdownV2" (для цитат).
+    banner_path: путь к баннеру (по умолчанию assets/banner_default.png).
     """
-    banner = _get_banner()
+    if banner_path:
+        banner = Path(banner_path).read_bytes()
+    else:
+        banner = _get_banner()
 
     if message_id is not None:
         # Редактируем существующее сообщение

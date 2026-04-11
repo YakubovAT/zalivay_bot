@@ -21,6 +21,9 @@ from database import ensure_user, get_user_stats
 from handlers.flows.flow_helpers import send_screen
 from handlers.keyboards import kb_start, kb_main_menu
 
+# Баннер для первого экрана приветствия
+WELCOME_BANNER = "assets/welcom_banner_1.png"
+
 logger = logging.getLogger(__name__)
 
 # Состояния
@@ -78,6 +81,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         chat_id=user.id,
         text=_WELCOME_TEXT,
         keyboard=kb_start(),
+        banner_path=WELCOME_BANNER,
     )
     return _WELCOME
 
