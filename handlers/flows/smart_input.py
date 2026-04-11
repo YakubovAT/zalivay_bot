@@ -21,7 +21,7 @@ from telegram.ext import (
 )
 
 from database import save_article
-from handlers.flows.flow_helpers import safe_delete, animate_loading
+from handlers.flows.flow_helpers import safe_delete, animate_loading, get_msg_id
 from services.wb_parser import get_product_info
 from services.media_storage import ensure_article_media_dir, download_all_images
 
@@ -87,17 +87,40 @@ def _selection_text(selected_count: int) -> str:
 
 async def on_any_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message.text.startswith("/"): return
+    
+    # Игнорируем, если это ответ на inline query или что-то служебное
+    if not update.message.text: return
+
     article = extract_article(update.message.text.strip())
     if not article: return
 
     user_id = update.effective_user.id
+    # Удаляем сообщение пользователя в любом случае
     await safe_delete(context.bot, user_id, update.message.message_id)
 
+    # Пытаемся найти ID текущего экрана, чтобы отредактировать его
+    current_msg_id = get_msg_id(user_id)
+    
     text = f"🔍 Распознан артикул: <b>{article}</b>\n\nХотите найти товар с этим артикулом сейчас?"
+    keyboard = kb_smart_prompt(article)
+
+    if current_msg_id:
+        # Пытаемся отредактировать текущий экран
+        try:
+            await context.bot.edit_message_caption(
+                chat_id=user_id, message_id=current_msg_id,
+                caption=text, reply_markup=keyboard, parse_mode="HTML"
+            )
+            context.user_data[f"smart_prompt_{user_id}"] = current_msg_id
+            return # Успешно отредактировали
+        except Exception:
+            pass # Если не вышло (например, другой тип медиа), отправим новое
+
+    # Если редактирование не удалось или ID нет — шлем новое
     prompt_msg = await context.bot.send_photo(
         chat_id=user_id,
         photo=open("assets/banner_default.png", "rb"),
-        caption=text, reply_markup=kb_smart_prompt(article), parse_mode="HTML"
+        caption=text, reply_markup=keyboard, parse_mode="HTML"
     )
     context.user_data[f"smart_prompt_{user_id}"] = prompt_msg.message_id
 
@@ -108,22 +131,44 @@ async def cb_smart_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     article = query.data.split("_")[-1]
     user_id = query.from_user.id
     
+    # Если мы редактировали экран, то prompt_id == экрану. Не удаляем его, а меняем контент.
     prompt_id = context.user_data.pop(f"smart_prompt_{user_id}", None)
-    if prompt_id: await safe_delete(context.bot, user_id, prompt_id)
+    
+    # Показываем загрузку ПРЯМО В ЭТОМ ЖЕ ОКНЕ
+    loading_caption = f"⏳ Ищу товар {article}..."
+    try:
+        if prompt_id:
+            await context.bot.edit_message_caption(
+                chat_id=user_id, message_id=prompt_id,
+                caption=loading_caption
+            )
+            loading_msg_id = prompt_id
+        else:
+            msg = await context.bot.send_photo(
+                chat_id=user_id, photo=open("assets/banner_default.png", "rb"),
+                caption=loading_caption
+            )
+            loading_msg_id = msg.message_id
+    except:
+        # Fallback
+        msg = await context.bot.send_message(chat_id=user_id, text=loading_caption)
+        loading_msg_id = msg.message_id
 
-    # Парсинг
-    loading_msg = await context.bot.send_photo(
-        chat_id=user_id, photo=open("assets/banner_default.png", "rb"),
-        caption=f"⏳ Ищу товар {article}..."
-    )
     product = await get_product_info(article)
-    await safe_delete(context.bot, user_id, loading_msg.message_id)
+    
+    # Удаляем загрузку
+    await safe_delete(context.bot, user_id, loading_msg_id)
 
     if not product or not product.get("name"):
+        # Алерт об ошибке (удаляется сам)
         alert = await context.bot.send_message(chat_id=user_id, text=f"❌ Артикул {article} не найден.")
         asyncio.get_event_loop().call_later(5, lambda: asyncio.create_task(safe_delete(context.bot, user_id, alert.message_id)))
+        # Возвращаемся в меню? Или оставляем как было?
+        # Лучше показать меню снова.
+        # Но это сложно без контекста. Просто оставим алерт.
         return
 
+    # Успех: сохраняем и переходим к фото
     await save_article(
         user_id=user_id, article_code=article, marketplace="WB",
         name=product.get("name"), color=product.get("colors", ["—"])[0] if product.get("colors") else "—",
@@ -144,7 +189,7 @@ async def cb_smart_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     context.user_data["smart_photo_selected"] = []
     context.user_data["smart_photo_idx"] = 0
 
-    # Показываем первое фото
+    # Показываем первое фото (создаем новое сообщение, т.к. загрузку удалили)
     await _show_smart_photo(context, user_id, 0, local_paths, [], is_new=True)
 
 

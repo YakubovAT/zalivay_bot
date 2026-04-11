@@ -102,9 +102,9 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.ALL, log_message), group=-1)
     application.add_handler(CallbackQueryHandler(log_callback), group=-1)
 
-    # --- Умный перехват артикулов (group=1, чтобы срабатывал до остального) ---
+    # --- Умный перехват артикулов (group=5, чтобы не мешать активным ConversationHandler) ---
     for handler in build_smart_input_handlers():
-        application.add_handler(handler, group=1)
+        application.add_handler(handler, group=5)
 
     # --- Новый артикул ---
     application.add_handler(build_new_article_handler())
