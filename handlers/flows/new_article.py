@@ -182,45 +182,26 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     article_code = digits[-1]  # берём последнее найденное число
     logger.info("ARTICLE_EXTRACTED | user=%s article=%s", user.id, article_code)
 
-    # Получаем ID текущего экрана, чтобы редактировать его
-    current_msg_id = get_msg_id(user.id)
-    
-    if current_msg_id:
-        # Редактируем текущий экран: меняем caption на "Ищу товар..."
-        try:
-            await context.bot.edit_message_caption(
-                chat_id=user.id,
-                message_id=current_msg_id,
-                caption="⏳ Ищу товар...1",
-            )
-        except Exception:
-            pass
-        
-        # Запускаем анимацию на этом же сообщении
-        stop_event = await animate_loading(
-            bot=context.bot,
-            chat_id=user.id,
-            message_id=current_msg_id,
-        )
-    else:
-        # Если ID нет — отправляем новое
-        loading_msg = await context.bot.send_photo(
-            chat_id=user.id,
-            photo=open("assets/banner_default.png", "rb"),
-            caption="⏳ Ищу товар...1",
-        )
-        stop_event = await animate_loading(
-            bot=context.bot,
-            chat_id=user.id,
-            message_id=loading_msg.message_id,
-        )
-        current_msg_id = loading_msg.message_id
+    # Отправляем отдельное сообщение загрузки
+    loading_msg = await context.bot.send_photo(
+        chat_id=user.id,
+        photo=open("assets/banner_default.png", "rb"),
+        caption="⏳ Ищу товар...1",
+    )
+
+    # Запускаем анимацию на этом сообщении
+    stop_event = await animate_loading(
+        bot=context.bot,
+        chat_id=user.id,
+        message_id=loading_msg.message_id,
+    )
 
     # Парсим WB
     product = await get_product_info(article_code)
 
-    # Останавливаем анимацию
+    # Останавливаем анимацию и удаляем сообщение загрузки
     stop_event.set()
+    await safe_delete(context.bot, user.id, loading_msg.message_id)
 
     if not product or not product.get("name"):
         # Алерт: товар не найден
@@ -231,7 +212,7 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         asyncio.get_event_loop().call_later(5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert.message_id)))
         return _ARTICLE_INPUT
 
-    # Товар найден — скачиваем первое фото, показываем карточку (РЕДАКТИРУЕМ текущий экран)
+    # Товар найден — скачиваем первое фото, показываем карточку
     context.user_data["article_code"] = article_code
     context.user_data["product"] = product
     logger.info("PRODUCT_FOUND | user=%s name=%s", user.id, product.get("name"))
@@ -260,29 +241,15 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         "Это тот товар?"
     )
 
-    # РЕДАКТИРУЕМ текущий экран: меняем фото и текст
-    photo_to_send = open(local_path, "rb") if local_path and os.path.exists(local_path) else open("assets/banner_default.png", "rb")
-    
-    try:
-        await context.bot.edit_message_media(
-            chat_id=user.id,
-            message_id=current_msg_id,
-            media=InputMediaPhoto(media=photo_to_send, caption=text),
-            reply_markup=kb_product_confirm(),
-        )
-    except Exception:
-        # Fallback: если не вышло заменить медиа, отправим новое и запомним ID
-        new_msg = await context.bot.send_photo(
-            chat_id=user.id,
-            photo=photo_to_send,
-            caption=text,
-            reply_markup=kb_product_confirm(),
-        )
-        store_msg_id(user.id, new_msg.message_id)
-        return _PRODUCT_CONFIRM
+    # Отправляем карточку как НОВОЕ сообщение
+    new_msg = await context.bot.send_photo(
+        chat_id=user.id,
+        photo=open(local_path, "rb") if local_path and os.path.exists(local_path) else open("assets/banner_default.png", "rb"),
+        caption=text,
+        reply_markup=kb_product_confirm(),
+    )
+    store_msg_id(user.id, new_msg.message_id)
 
-    # Успешно отредактировали — обновляем ID экрана
-    store_msg_id(user.id, current_msg_id)
     return _PRODUCT_CONFIRM
 
 
