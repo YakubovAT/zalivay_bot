@@ -168,10 +168,9 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     logger.info("ARTICLE_INPUT | user=%s text=%r", user.id, text)
 
-    # Извлекаем артикул: ищем 7-10 цифр подряд (или 6-9 для строгой валидации)
+    # Извлекаем артикул
     digits = re.findall(r"\d{6,10}", text)
     if not digits:
-        # Алерт: не распознан
         alert = await context.bot.send_message(
             chat_id=user.id,
             text="❌ Не удалось распознать артикул.\nВведите артикул (6-9 цифр) или ссылку на товар.",
@@ -179,17 +178,20 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         asyncio.get_event_loop().call_later(5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert.message_id)))
         return _ARTICLE_INPUT
 
-    article_code = digits[-1]  # берём последнее найденное число
+    article_code = digits[-1]
     logger.info("ARTICLE_EXTRACTED | user=%s article=%s", user.id, article_code)
 
-    # Отправляем отдельное сообщение загрузки
+    # Запоминаем ID текущего экрана (Шаг 4) — будем редактировать его в Шаг 5
+    screen_msg_id = get_msg_id(user.id)
+    
+    # Отправляем ВРЕМЕННОЕ окно скачивания (отдельное сообщение)
     loading_msg = await context.bot.send_photo(
         chat_id=user.id,
         photo=open("assets/banner_default.png", "rb"),
         caption="⏳ Ищу товар...1",
     )
 
-    # Запускаем анимацию на этом сообщении
+    # Анимация на временном окне
     stop_event = await animate_loading(
         bot=context.bot,
         chat_id=user.id,
@@ -199,7 +201,7 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # Парсим WB
     product = await get_product_info(article_code)
 
-    # Останавливаем анимацию и удаляем сообщение загрузки
+    # Останавливаем анимацию и УДАЛЯЕМ временное окно скачивания
     stop_event.set()
     await safe_delete(context.bot, user.id, loading_msg.message_id)
 
@@ -212,7 +214,7 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         asyncio.get_event_loop().call_later(5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert.message_id)))
         return _ARTICLE_INPUT
 
-    # Товар найден — скачиваем первое фото, показываем карточку
+    # Товар найден — РЕДАКТИРУЕМ экран Шага 4 в экран Шага 5
     context.user_data["article_code"] = article_code
     context.user_data["product"] = product
     logger.info("PRODUCT_FOUND | user=%s name=%s", user.id, product.get("name"))
@@ -241,14 +243,37 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         "Это тот товар?"
     )
 
-    # Отправляем карточку как НОВОЕ сообщение
-    new_msg = await context.bot.send_photo(
-        chat_id=user.id,
-        photo=open(local_path, "rb") if local_path and os.path.exists(local_path) else open("assets/banner_default.png", "rb"),
-        caption=text,
-        reply_markup=kb_product_confirm(),
-    )
-    store_msg_id(user.id, new_msg.message_id)
+    # РЕДАКТИРУЕМ экран Шага 4 → Шаг 5 (фото + текст + кнопки)
+    photo_to_send = open(local_path, "rb") if local_path and os.path.exists(local_path) else open("assets/banner_default.png", "rb")
+    
+    if screen_msg_id:
+        try:
+            await context.bot.edit_message_media(
+                chat_id=user.id,
+                message_id=screen_msg_id,
+                media=InputMediaPhoto(media=photo_to_send, caption=text),
+                reply_markup=kb_product_confirm(),
+            )
+        except Exception:
+            # Fallback: если не вышло — отправим новое и запомним
+            new_msg = await context.bot.send_photo(
+                chat_id=user.id,
+                photo=photo_to_send,
+                caption=text,
+                reply_markup=kb_product_confirm(),
+            )
+            store_msg_id(user.id, new_msg.message_id)
+            return _PRODUCT_CONFIRM
+    else:
+        # Если ID экрана нет — отправляем новое
+        new_msg = await context.bot.send_photo(
+            chat_id=user.id,
+            photo=photo_to_send,
+            caption=text,
+            reply_markup=kb_product_confirm(),
+        )
+        store_msg_id(user.id, new_msg.message_id)
+        return _PRODUCT_CONFIRM
 
     return _PRODUCT_CONFIRM
 
