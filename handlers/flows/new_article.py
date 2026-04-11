@@ -37,10 +37,11 @@ ARTICLE_RE = re.compile(r"^\d{6,9}$")
 # ---------------------------------------------------------------------------
 
 _MARKETPLACE_TEXT = (
-    "Выберите маркетплейс, где продается ваш товар. "
-    "Далее вы введёте артикул, а мы создадим эталон — "
-    "чистое изображение товара на прозрачном фоне. "
-    "На его основе будут генерироваться фото и видео для соцсетей."
+    "Выберите маркетплейс, на котором продаётся ваш товар. "
+    "После мы с вами создадим фото и видео контент "
+    "для последующего размещения в социальных сетях. "
+    "Вам нужно будет ввести артикул товара, и мы создадим эталон "
+    "вашего товара для генерации фото и видео контента."
 )
 
 _LOCKED_TEXT = "⏳ Этот маркетплейс скоро будет доступен"
@@ -63,7 +64,7 @@ async def cb_menu_new_article(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def cb_mp_wb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь выбрал Wildberries."""
+    """Пользователь выбрал WB."""
     query = update.callback_query
     await query.answer()
 
@@ -71,7 +72,7 @@ async def cb_mp_wb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         context.bot,
         chat_id=query.from_user.id,
         message_id=query.message.message_id,
-        text="Введите артикул товара Wildberries:",
+        text="Введите артикул товара WB:",
         keyboard=kb_enter_article(),
     )
     return _ARTICLE_INPUT
@@ -141,7 +142,7 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # TODO: Шаг 5 — парсинг WB (будет реализован следующим)
     await update.message.reply_text(
         f"✅ Артикул {text} принят.\n"
-        "Следующий шаг: парсинг товара с Wildberries."
+        "Следующий шаг: парсинг товара с WB."
     )
     return ConversationHandler.END
 
