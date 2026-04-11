@@ -19,7 +19,7 @@ from telegram.ext import (
     filters,
 )
 
-from database import ensure_user, get_user_stats
+from database import get_user_stats
 from handlers.flows.flow_helpers import send_screen, store_msg_id
 from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu
 
@@ -82,6 +82,21 @@ async def cb_mp_locked(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     """Пользователь выбрал ещё не доступный маркетплейс."""
     query = update.callback_query
     await query.answer(_LOCKED_TEXT, show_alert=True)
+    return _MP_SELECT
+
+
+async def cb_back_to_mp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Кнопка «← К маркетплейсам» — возврат к выбору маркетплейса."""
+    query = update.callback_query
+    await query.answer()
+
+    await send_screen(
+        context.bot,
+        chat_id=query.from_user.id,
+        message_id=query.message.message_id,
+        text=_MARKETPLACE_TEXT,
+        keyboard=kb_marketplace(),
+    )
     return _MP_SELECT
 
 
@@ -163,7 +178,7 @@ def build_new_article_handler() -> ConversationHandler:
                 CallbackQueryHandler(cb_mp_locked, pattern="^mp_"),
             ],
             _ARTICLE_INPUT: [
-                CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
+                CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, msg_article_input),
             ],
         },
