@@ -251,7 +251,7 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
 
     if query.data == "back_to_mp":
-        await edit_screen(
+        await replace_screen(
             chat_id=chat_id,
             context=context,
             text="Выберите маркетплейс:",
