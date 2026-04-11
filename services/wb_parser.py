@@ -56,15 +56,23 @@ async def get_product_info(articul: str) -> dict:
         logger.info("WB parser: артикул=%s карточка=%s фото=%d", articul, bool(card), len(images))
 
     options = card.get("options", [])
+    logger.debug("WB parser options: %s", options)
 
     colors = [v for opt in options
               if opt.get("name") == "Цвет"
               for v in opt.get("variable_values", [])]
 
-    material_values = [v for opt in options
-                       if opt.get("name") in ("Состав", "Материал")
-                       for v in opt.get("variable_values", [])]
+    # Состав — ищем по нескольким вариантам названия поля
+    material_values = []
+    for opt in options:
+        opt_name = opt.get("name", "")
+        if opt_name in ("Состав", "Материал"):
+            material_values = opt.get("variable_values", [])
+            break
+
     material = ", ".join(material_values) if material_values else ""
+
+    logger.info("WB parser: material=%r from_options=%s", material, bool(material_values))
 
     return {
         "name":        card.get("imt_name"),

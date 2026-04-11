@@ -190,7 +190,7 @@ async def animate_loading(
     message_id: int,
     prefix: str = "⏳ Ищу товар",
     interval: float = 1.0,
-    max_count: int = 30,
+    max_count: int = 15,
 ) -> asyncio.Event:
     """
     Анимированно обновляет caption сообщения: "⏳ Ищу товар...1", "...2", ...

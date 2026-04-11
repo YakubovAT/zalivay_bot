@@ -232,7 +232,7 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         f"📦 {name}\n"
         f"🏷 Бренд: {brand}\n"
         f"🎨 Цвет: {color}\n"
-        f"🧵 Материал: {material}\n\n"
+        f"🧵 Состав: {material}\n\n"
         "Это тот товар?"
     )
 
