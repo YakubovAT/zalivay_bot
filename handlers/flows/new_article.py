@@ -46,6 +46,14 @@ _MARKETPLACE_TEXT = (
 
 _LOCKED_TEXT = "⏳ Этот маркетплейс скоро будет доступен"
 
+_ARTICLE_INPUT_TEXT = (
+    "Введите артикул товара WB.\n\n"
+    "Мы загрузим фото из карточки. Выберите "
+    "3 лучших — где ваш товар виден наиболее "
+    "чётко и детально. Это станет основой "
+    "для генерации фото и видео контента."
+)
+
 
 async def cb_menu_new_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Пользователь нажал «➕ Новый артикул» в главном меню."""
@@ -72,7 +80,7 @@ async def cb_mp_wb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         context.bot,
         chat_id=query.from_user.id,
         message_id=query.message.message_id,
-        text="Введите артикул товара WB:",
+        text=_ARTICLE_INPUT_TEXT,
         keyboard=kb_enter_article(),
     )
     return _ARTICLE_INPUT
