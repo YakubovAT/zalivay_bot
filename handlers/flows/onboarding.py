@@ -142,7 +142,7 @@ async def onboard_select_mp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    mp = "WB" if query.data == "onboard_mp_wb" else "OZON"
+    mp = "WB" if query.data == "mp_wb" else "OZON"
     context.user_data["onboard_marketplace"] = mp
     logger.info("ONBOARD_MP | user=%s mp=%s", query.from_user.id, mp)
 
@@ -535,6 +535,27 @@ async def photo_count_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
     chat_id = query.message.chat.id
 
+    if query.data == "go_photo":
+        context.user_data["_onboard_user_id"] = query.from_user.id
+        # Показать выбор количества фото
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="Сколько фото создать?",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📸 Одно фото", callback_data="photo_one")],
+                [InlineKeyboardButton("📸 Несколько фото", callback_data="photo_multi")],
+            ]),
+        )
+        return PHOTO_COUNT_CHOICE
+
+    if query.data == "go_video":
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="🎬 Генерация видео пока в разработке.",
+            reply_markup=main_menu(),
+        )
+        return ConversationHandler.END
+
     if query.data == "photo_one":
         context.user_data["photo_count"] = 1
         context.user_data["_onboard_user_id"] = query.from_user.id
@@ -650,7 +671,7 @@ def build_onboarding_handler() -> ConversationHandler:
         ],
         states={
             ONBOARD_STEP1: [CallbackQueryHandler(step1_next, pattern="^onboard_step1$")],
-            ONBOARD_SELECT_MP: [CallbackQueryHandler(onboard_select_mp, pattern="^onboard_mp_(wb|ozon)$")],
+            ONBOARD_SELECT_MP: [CallbackQueryHandler(onboard_select_mp, pattern="^mp_(wb|ozon)$")],
             ONBOARD_ARTICLE: [MessageHandler(tg_filters.TEXT & ~any_menu, onboard_article)],
             ONBOARD_REF_CHOICE: [CallbackQueryHandler(onboard_ref_choice, pattern="^(create_ref|redo_ref|new_article|go_menu)$")],
             ONBOARD_REF_FEEDBACK: [CallbackQueryHandler(onboard_ref_feedback, pattern="^(ref_ok|ref_redo|go_photo|go_video)$")],
