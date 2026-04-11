@@ -16,6 +16,7 @@ from config import BOT_TOKEN
 from database import init_db
 from handlers import (
     build_onboarding_handler,
+    build_new_article_handler,
     build_etalon_handler,
     build_photo_handler,
     build_video_handler,
@@ -99,6 +100,9 @@ def main() -> None:
     # --- Глобальное логирование (group=-1) ---
     application.add_handler(MessageHandler(filters.ALL, log_message), group=-1)
     application.add_handler(CallbackQueryHandler(log_callback), group=-1)
+
+    # --- Новый артикул (до онбординга — специфичные callbacks) ---
+    application.add_handler(build_new_article_handler())
 
     # --- Онбординг /start ---
     application.add_handler(build_onboarding_handler())
