@@ -19,7 +19,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from database import log_user_action
-from handlers.menu import BTN_PROFILE, BTN_PHOTO, BTN_VIDEO, BTN_ETALON, BTN_PRICING, BTN_HELP, BTN_RESTART
+from handlers.keyboards import BTN_PROFILE, BTN_PHOTO, BTN_VIDEO, BTN_ETALON, BTN_PRICING, BTN_HELP, BTN_RESTART
 
 MENU_BUTTONS = {BTN_PROFILE, BTN_PHOTO, BTN_VIDEO, BTN_ETALON, BTN_PRICING, BTN_HELP, BTN_RESTART}
 
