@@ -18,7 +18,7 @@ from telegram.ext import (
 )
 
 from database import ensure_user, get_user_stats
-from handlers.flows.flow_helpers import send_screen
+from handlers.flows.flow_helpers import send_screen, clear_previous_screen
 from handlers.keyboards import kb_start, kb_main_menu
 
 # Баннер для первого экрана приветствия
@@ -70,11 +70,14 @@ async def _show_profile(update, context, message_id=None):
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Команда /start — показываем приветствие."""
+    """Команда /start — удаляем предыдущие экраны, показываем приветствие."""
     user = update.effective_user
     logger.info("START | user=%s name=%s", user.id, user.full_name)
 
     await ensure_user(user.id, user.username)
+
+    # Удаляем предыдущий экран (если есть)
+    await clear_previous_screen(context.bot, user.id)
 
     await send_screen(
         context.bot,

@@ -75,14 +75,16 @@ async def send_screen(
             except Exception as e2:
                 logger.warning("edit_screen failed: %s", e2)
     else:
-        # Отправляем новое сообщение
-        await app_or_bot.send_photo(
+        # Отправляем новое сообщение — сохраняем ID как текущий экран
+        new_msg = await app_or_bot.send_photo(
             chat_id=chat_id,
             photo=banner,
             caption=text,
             parse_mode=parse_mode,
             reply_markup=keyboard,
         )
+        # Запоминаем ID экранного сообщения для пользователя
+        store_msg_id(chat_id, new_msg.message_id)
 
 
 async def edit_screen(
@@ -152,6 +154,13 @@ def pop_msg_id(user_id: int) -> int | None:
     return _msg_store.pop(user_id, None)
 
 
+async def clear_previous_screen(bot, user_id: int) -> None:
+    """Удаляет предыдущее экранное сообщение пользователя (при /start)."""
+    msg_id = pop_msg_id(user_id)
+    if msg_id is not None:
+        await safe_delete(bot, user_id, msg_id)
+
+
 async def replace_screen(bot, chat_id: int, old_message_id: int, text: str,
                           keyboard: InlineKeyboardMarkup | None = None) -> int:
     """Удаляет старый экран и отправляет новый. Возвращает новый message_id."""
@@ -166,4 +175,5 @@ async def replace_screen(bot, chat_id: int, old_message_id: int, text: str,
         parse_mode="HTML",
         reply_markup=keyboard,
     )
+    store_msg_id(chat_id, new_msg.message_id)
     return new_msg.message_id
