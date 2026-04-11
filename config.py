@@ -22,3 +22,8 @@ AI_MODEL       = os.getenv("AI_MODEL", "gpt-5-2")
 # I2I (генерация изображений) — реальный API KIE.ai
 I2I_API_KEY    = os.getenv("I2I_API_KEY", AI_API_KEY)  # тот же ключ что и T2T
 I2I_API_BASE   = os.getenv("I2I_API_BASE", "https://api.kie.ai")
+
+# ---------------------------------------------------------------------------
+# Баннер — единая ширина сообщений
+# ---------------------------------------------------------------------------
+BANNER_PATH = os.getenv("BANNER_PATH", "assets/banner_default.png")

@@ -1,3 +1,9 @@
+"""
+bot.py
+
+Точка входа бота. Инициализация Application, регистрация хендлеров, запуск.
+"""
+
 import asyncio
 import logging
 import sys
@@ -8,15 +14,17 @@ from telegram.ext import Application, CallbackQueryHandler, MessageHandler, filt
 from config import BOT_TOKEN
 from database import init_db
 from handlers import (
-    build_registration_handler,
-    build_conversation_handler,
+    build_onboarding_handler,
+    build_etalon_handler,
+    build_photo_handler,
+    build_video_handler,
     profile,
     pricing,
     help_cmd,
+    log_message,
+    log_callback,
 )
-from handlers.menu import BTN_PROFILE, BTN_PRICING, BTN_HELP, BTN_RESTART
-from handlers.action_logger import log_message, log_callback
-from services.task_worker import run_worker
+from handlers.keyboards import BTN_PROFILE, BTN_PRICING, BTN_HELP
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -28,15 +36,17 @@ logging.getLogger("wb_parser").setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Lifecycle
+# ---------------------------------------------------------------------------
+
 async def on_startup(application: Application) -> None:
-    # Валидация обязательных переменных окружения при старте
+    """Инициация при старте: БД, HTTP-сессии, фоновые воркеры."""
     if not BOT_TOKEN:
-        logger.critical("BOT_TOKEN не задан. Установите переменную окружения BOT_TOKEN.")
+        logger.critical("BOT_TOKEN не задан.")
         sys.exit(1)
 
-    # Глобальный HTTP-клиент — один на весь lifecycle бота.
-    # Передаётся в handlers через context.bot_data["http_session"].
-    # Переиспользует TCP-соединения, не создаёт новый Session на каждый запрос.
+    # Глобальная HTTP-сессия (короткие таймауты)
     connector = aiohttp.TCPConnector(limit=20, ttl_dns_cache=300)
     application.bot_data["http_session"] = aiohttp.ClientSession(
         connector=connector,
@@ -47,31 +57,30 @@ async def on_startup(application: Application) -> None:
     await init_db()
     logger.info("БД инициализирована")
 
-    # Отдельная сессия для воркера — длинные таймауты для I2I генерации
-    worker_connector = aiohttp.TCPConnector(limit=10, ttl_dns_cache=300)
+    # Воркер-сессия (длинные таймауты для I2I)
     worker_session = aiohttp.ClientSession(
-        connector=worker_connector,
+        connector=aiohttp.TCPConnector(limit=10, ttl_dns_cache=300),
         timeout=aiohttp.ClientTimeout(connect=10, total=120),
     )
     application.bot_data["worker_session"] = worker_session
 
-    # Запускаем фоновый воркер генерации фото/видео
+    from services.task_worker import run_worker
     asyncio.create_task(run_worker(application.bot, worker_session))
     logger.info("Task worker запущен")
 
 
 async def on_shutdown(application: Application) -> None:
-    # Корректное закрытие HTTP-сессий при остановке бота
-    session: aiohttp.ClientSession | None = application.bot_data.get("http_session")
-    if session and not session.closed:
-        await session.close()
-        logger.info("HTTP-сессия закрыта")
+    """Корректное закрытие ресурсов."""
+    for key in ("http_session", "worker_session"):
+        session: aiohttp.ClientSession | None = application.bot_data.get(key)
+        if session and not session.closed:
+            await session.close()
+            logger.info("%s закрыта", key)
 
-    worker_session: aiohttp.ClientSession | None = application.bot_data.get("worker_session")
-    if worker_session and not worker_session.closed:
-        await worker_session.close()
-        logger.info("Worker HTTP-сессия закрыта")
 
+# ---------------------------------------------------------------------------
+# Запуск
+# ---------------------------------------------------------------------------
 
 def main() -> None:
     application = (
@@ -82,17 +91,23 @@ def main() -> None:
         .build()
     )
 
-    # Логирование всех действий (group=-1 — запускается раньше всех)
+    # --- Глобальное логирование (group=-1) ---
     application.add_handler(MessageHandler(filters.ALL, log_message), group=-1)
     application.add_handler(CallbackQueryHandler(log_callback), group=-1)
 
-    # Регистрация (onboarding) — должна быть первой
-    application.add_handler(build_registration_handler())
+    # --- Онбординг /start ---
+    application.add_handler(build_onboarding_handler())
 
-    # ConversationHandler для Фото и Видео
-    application.add_handler(build_conversation_handler())
+    # --- Эталон товара ---
+    application.add_handler(build_etalon_handler())
 
-    # Простые кнопки меню
+    # --- Фото ---
+    application.add_handler(build_photo_handler())
+
+    # --- Видео ---
+    application.add_handler(build_video_handler())
+
+    # --- Простые кнопки ---
     application.add_handler(MessageHandler(filters.Regex(f"^{BTN_PROFILE}$"), profile))
     application.add_handler(MessageHandler(filters.Regex(f"^{BTN_PRICING}$"), pricing))
     application.add_handler(MessageHandler(filters.Regex(f"^{BTN_HELP}$"), help_cmd))
