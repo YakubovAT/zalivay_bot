@@ -24,7 +24,7 @@ from telegram.ext import (
 
 from database import get_user_stats, save_article
 from handlers.flows.flow_helpers import (
-    send_screen, store_msg_id, safe_delete, animate_loading,
+    send_screen, store_msg_id, get_msg_id, safe_delete, animate_loading,
 )
 from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu, kb_product_confirm
 from services.wb_parser import get_product_info
@@ -182,26 +182,45 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     article_code = digits[-1]  # берём последнее найденное число
     logger.info("ARTICLE_EXTRACTED | user=%s article=%s", user.id, article_code)
 
-    # Отправляем экран загрузки (с баннером)
-    loading_msg = await context.bot.send_photo(
-        chat_id=user.id,
-        photo=open("assets/banner_default.png", "rb"),
-        caption="⏳ Ищу товар...1",
-    )
-
-    # Запускаем анимацию в фоне
-    stop_event = await animate_loading(
-        bot=context.bot,
-        chat_id=user.id,
-        message_id=loading_msg.message_id,
-    )
+    # Получаем ID текущего экрана, чтобы редактировать его
+    current_msg_id = get_msg_id(user.id)
+    
+    if current_msg_id:
+        # Редактируем текущий экран: меняем caption на "Ищу товар..."
+        try:
+            await context.bot.edit_message_caption(
+                chat_id=user.id,
+                message_id=current_msg_id,
+                caption="⏳ Ищу товар...1",
+            )
+        except Exception:
+            pass
+        
+        # Запускаем анимацию на этом же сообщении
+        stop_event = await animate_loading(
+            bot=context.bot,
+            chat_id=user.id,
+            message_id=current_msg_id,
+        )
+    else:
+        # Если ID нет — отправляем новое
+        loading_msg = await context.bot.send_photo(
+            chat_id=user.id,
+            photo=open("assets/banner_default.png", "rb"),
+            caption="⏳ Ищу товар...1",
+        )
+        stop_event = await animate_loading(
+            bot=context.bot,
+            chat_id=user.id,
+            message_id=loading_msg.message_id,
+        )
+        current_msg_id = loading_msg.message_id
 
     # Парсим WB
     product = await get_product_info(article_code)
 
-    # Останавливаем анимацию и удаляем экран загрузки
+    # Останавливаем анимацию
     stop_event.set()
-    await safe_delete(context.bot, user.id, loading_msg.message_id)
 
     if not product or not product.get("name"):
         # Алерт: товар не найден
@@ -212,7 +231,7 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         asyncio.get_event_loop().call_later(5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert.message_id)))
         return _ARTICLE_INPUT
 
-    # Товар найден — скачиваем первое фото, показываем карточку
+    # Товар найден — скачиваем первое фото, показываем карточку (РЕДАКТИРУЕМ текущий экран)
     context.user_data["article_code"] = article_code
     context.user_data["product"] = product
     logger.info("PRODUCT_FOUND | user=%s name=%s", user.id, product.get("name"))
@@ -241,14 +260,29 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         "Это тот товар?"
     )
 
-    # Отправляем карточку: фото товара + описание
-    await context.bot.send_photo(
-        chat_id=user.id,
-        photo=open(local_path, "rb") if local_path and os.path.exists(local_path) else open("assets/banner_default.png", "rb"),
-        caption=text,
-        reply_markup=kb_product_confirm(),
-    )
+    # РЕДАКТИРУЕМ текущий экран: меняем фото и текст
+    photo_to_send = open(local_path, "rb") if local_path and os.path.exists(local_path) else open("assets/banner_default.png", "rb")
+    
+    try:
+        await context.bot.edit_message_media(
+            chat_id=user.id,
+            message_id=current_msg_id,
+            media=InputMediaPhoto(media=photo_to_send, caption=text),
+            reply_markup=kb_product_confirm(),
+        )
+    except Exception:
+        # Fallback: если не вышло заменить медиа, отправим новое и запомним ID
+        new_msg = await context.bot.send_photo(
+            chat_id=user.id,
+            photo=photo_to_send,
+            caption=text,
+            reply_markup=kb_product_confirm(),
+        )
+        store_msg_id(user.id, new_msg.message_id)
+        return _PRODUCT_CONFIRM
 
+    # Успешно отредактировали — обновляем ID экрана
+    store_msg_id(user.id, current_msg_id)
     return _PRODUCT_CONFIRM
 
 
