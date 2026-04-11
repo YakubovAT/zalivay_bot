@@ -18,6 +18,7 @@ from .flow_helpers import (
     send_screen,
     edit_screen,
     replace_screen,
+    animate_loading,
 )
 
 __all__ = [
@@ -34,4 +35,5 @@ __all__ = [
     "send_screen",
     "edit_screen",
     "replace_screen",
+    "animate_loading",
 ]

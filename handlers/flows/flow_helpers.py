@@ -11,6 +11,7 @@ handlers/flows/flow_helpers.py
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 
@@ -177,3 +178,40 @@ async def replace_screen(bot, chat_id: int, old_message_id: int, text: str,
     )
     store_msg_id(chat_id, new_msg.message_id)
     return new_msg.message_id
+
+
+# ---------------------------------------------------------------------------
+# Анимация загрузки
+# ---------------------------------------------------------------------------
+
+async def animate_loading(
+    bot,
+    chat_id: int,
+    message_id: int,
+    prefix: str = "⏳ Ищу товар",
+    interval: float = 1.0,
+    max_count: int = 30,
+) -> asyncio.Event:
+    """
+    Анимированно обновляет caption сообщения: "⏳ Ищу товар...1", "...2", ...
+    Возвращает Event — установите его, чтобы остановить анимацию.
+    """
+    stop_event = asyncio.Event()
+    count = 0
+
+    while not stop_event.is_set() and count < max_count:
+        count += 1
+        try:
+            await bot.edit_message_caption(
+                chat_id=chat_id,
+                message_id=message_id,
+                caption=f"{prefix}...{count}",
+            )
+        except Exception:
+            pass
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval)
+        except asyncio.TimeoutError:
+            pass
+
+    return stop_event

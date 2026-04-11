@@ -3,10 +3,12 @@ handlers/flows/new_article.py
 
 Шаг 3: Выбор маркетплейса
 Шаг 4: Ввод артикула
+Шаг 5: Парсинг WB
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 
@@ -20,8 +22,11 @@ from telegram.ext import (
 )
 
 from database import get_user_stats
-from handlers.flows.flow_helpers import send_screen, store_msg_id
+from handlers.flows.flow_helpers import (
+    send_screen, store_msg_id, safe_delete, animate_loading,
+)
 from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu
+from services.wb_parser import get_product_info
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +52,7 @@ _MARKETPLACE_TEXT = (
 _LOCKED_TEXT = "⏳ Этот маркетплейс скоро будет доступен"
 
 _ARTICLE_INPUT_TEXT = (
-    "Введите артикул товара WB.\n\n"
+    "В строку сообщений введите артикул.\n\n"
     "Мы загрузим фото из карточки. Выберите "
     "3 лучших — где ваш товар виден наиболее "
     "чётко и детально. Это станет основой "
@@ -109,7 +114,7 @@ async def cb_back_to_mp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Кнопка «← Назад» — возврат в главное меню."""
+    """Кнопка «← Назад» — возврат в Меню."""
     query = update.callback_query
     await query.answer()
 
@@ -140,32 +145,75 @@ async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 # ---------------------------------------------------------------------------
-# Шаг 4. Ввод артикула
+# Шаг 4-5. Ввод артикула + Парсинг
 # ---------------------------------------------------------------------------
 
 async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь ввёл артикул — валидируем и переходим к парсингу."""
+    """Пользователь ввёл артикул — валидируем, парсим, показываем карточку."""
     user = update.effective_user
     text = update.message.text.strip()
 
+    # Удаляем сообщение пользователя
+    try:
+        await update.message.delete()
+    except Exception:
+        pass
+
     logger.info("ARTICLE_INPUT | user=%s text=%r", user.id, text)
 
-    # Валидация: только цифры, 6-9 знаков
-    if not ARTICLE_RE.match(text):
-        await update.message.reply_text(
-            "❌ Артикул должен содержать от 6 до 9 цифр.\n"
-            "Попробуйте снова:"
+    # Извлекаем артикул: ищем 7-10 цифр подряд (или 6-9 для строгой валидации)
+    digits = re.findall(r"\d{6,10}", text)
+    if not digits:
+        # Алерт: не распознан
+        alert = await context.bot.send_message(
+            chat_id=user.id,
+            text="❌ Не удалось распознать артикул.\nВведите артикул (6-9 цифр) или ссылку на товар.",
         )
+        asyncio.get_event_loop().call_later(5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert.message_id)))
         return _ARTICLE_INPUT
 
-    # Сохраняем артикул в контекст для следующего шага (парсинг)
-    context.user_data["article_code"] = text
-    logger.info("ARTICLE_VALIDATED | user=%s article=%s", user.id, text)
+    article_code = digits[-1]  # берём последнее найденное число
+    logger.info("ARTICLE_EXTRACTED | user=%s article=%s", user.id, article_code)
 
-    # TODO: Шаг 5 — парсинг WB (будет реализован следующим)
-    await update.message.reply_text(
-        f"✅ Артикул {text} принят.\n"
-        "Следующий шаг: парсинг товара с WB."
+    # Отправляем экран загрузки (с баннером)
+    loading_msg = await context.bot.send_photo(
+        chat_id=user.id,
+        photo=open("assets/banner_default.png", "rb"),
+        caption="⏳ Ищу товар...1",
+    )
+
+    # Запускаем анимацию в фоне
+    stop_event = await animate_loading(
+        bot=context.bot,
+        chat_id=user.id,
+        message_id=loading_msg.message_id,
+    )
+
+    # Парсим WB
+    product = await get_product_info(article_code)
+
+    # Останавливаем анимацию и удаляем экран загрузки
+    stop_event.set()
+    await safe_delete(context.bot, user.id, loading_msg.message_id)
+
+    if not product or not product.get("name"):
+        # Алерт: товар не найден
+        alert = await context.bot.send_message(
+            chat_id=user.id,
+            text=f"❌ Артикул {article_code} не найден. Проверьте и попробуйте снова.",
+        )
+        asyncio.get_event_loop().call_later(5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert.message_id)))
+        return _ARTICLE_INPUT
+
+    # Товар найден — сохраняем в контекст, переходим к показу карточки
+    context.user_data["article_code"] = article_code
+    context.user_data["product"] = product
+    logger.info("PRODUCT_FOUND | user=%s name=%s", user.id, product.get("name"))
+
+    # TODO: Шаг 6 — показ карточки товара (будет реализован следующим)
+    await context.bot.send_message(
+        chat_id=user.id,
+        text=f"✅ Нашёл: {product['name']}\nСледующий шаг: показ карточки.",
     )
     return ConversationHandler.END
 
