@@ -9,6 +9,20 @@ MAX_IMAGES = 30
 WB_DOMAINS = ["wbcontent.net"]
 
 
+def _clean_material(raw: str) -> str:
+    """
+    Удаляет цифры и проценты из строки состава.
+    'полиэстер 90%; вискоза 10%' → 'полиэстер; вискоза'
+    """
+    import re
+    # Убираем цифры с возможными процентами и лишними пробелами
+    cleaned = re.sub(r"\s*\d+%\s*", "", raw)
+    # Чистим лишние пробелы вокруг разделителей
+    cleaned = re.sub(r"\s*;\s*", "; ", cleaned)
+    cleaned = cleaned.strip("; ").strip()
+    return cleaned
+
+
 def _vol_part(nmid: int) -> tuple[int, int]:
     return nmid // 100000, nmid // 1000
 
@@ -76,6 +90,9 @@ async def get_product_info(articul: str) -> dict:
             break
 
     material = ", ".join(material_values) if material_values else ""
+    # Убираем цифры и проценты из состава (для нейросети)
+    if material:
+        material = _clean_material(material)
 
     logger.info("WB parser: material=%r from_options=%s", material, bool(material_values))
 
