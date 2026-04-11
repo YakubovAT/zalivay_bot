@@ -43,12 +43,10 @@ def kb_main_menu() -> InlineKeyboardMarkup:
 
 def kb_marketplace() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Wildberries", callback_data="mp_wb")],
         [
-            InlineKeyboardButton("🔒 Ozon (скоро)", callback_data="mp_ozon_lock"),
-        ],
-        [
-            InlineKeyboardButton("🔒 Яндекс Маркет (скоро)", callback_data="mp_ym_lock"),
+            InlineKeyboardButton("✅ WB", callback_data="mp_wb"),
+            InlineKeyboardButton("🔒 Ozon", callback_data="mp_ozon_lock"),
+            InlineKeyboardButton("🔒 YM", callback_data="mp_ym_lock"),
         ],
         [InlineKeyboardButton("← Назад", callback_data="back_to_menu")],
     ])
