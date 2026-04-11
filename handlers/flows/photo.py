@@ -21,7 +21,7 @@ from database import (
 )
 from handlers.keyboards import (
     BTN_PHOTO, BTN_PROFILE, BTN_VIDEO, BTN_ETALON, BTN_PRICING, BTN_HELP, BTN_RESTART,
-    MENU_BUTTONS, main_menu, mp_select_keyboard, photo_count_keyboard, back_to_menu_button,
+    MENU_BUTTONS, mp_select_keyboard, photo_count_keyboard, back_to_menu_button,
 )
 from handlers.flows import (
     clean_user_message, store_msg_id, pop_msg_id, get_msg_id,
@@ -176,7 +176,6 @@ async def _photo_parse_article(query, context: ContextTypes.DEFAULT_TYPE, raw: s
                 f"✅ Артикул <code>{raw}</code> сохранён для OZON 🔵\n\n"
                 "⚠️ Генерация фото для OZON пока в разработке."
             ),
-            reply_markup=main_menu(),
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -295,7 +294,6 @@ async def _generate_photo_reference(query, context: ContextTypes.DEFAULT_TYPE):
                 f"Баланс: <b>{balance} руб.</b>\n\n"
                 f"Пополните баланс и попробуйте снова."
             ),
-            reply_markup=main_menu(),
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -463,7 +461,7 @@ async def photo_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "photo_back":
         await replace_screen(
             chat_id=chat_id, context=context,
-            text="Выберите действие:", reply_markup=main_menu(),
+            text="Выберите действие:",
         )
         return ConversationHandler.END
 
@@ -514,7 +512,6 @@ async def _generate_photos(chat_id, context: ContextTypes.DEFAULT_TYPE, count: i
         logger.error("PHOTO_GEN | user_id not in context!")
         await context.bot.send_message(
             chat_id=chat_id, text="⚠️ Техническая ошибка. Начните заново.",
-            reply_markup=main_menu(),
         )
         return ConversationHandler.END
 
@@ -532,7 +529,6 @@ async def _generate_photos(chat_id, context: ContextTypes.DEFAULT_TYPE, count: i
                 f"Баланс: <b>{balance} руб.</b>\n\n"
                 f"Пополните баланс и попробуйте снова."
             ),
-            reply_markup=main_menu(),
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -566,7 +562,6 @@ async def _generate_photos(chat_id, context: ContextTypes.DEFAULT_TYPE, count: i
             f"Списано <b>{cost} руб.</b> Баланс: <b>{new_balance} руб.</b>\n\n"
             f"Фото будут отправляться по мере готовности 🔄"
         ),
-        reply_markup=main_menu(),
         parse_mode="HTML",
     )
     return ConversationHandler.END
@@ -578,7 +573,7 @@ async def _generate_photos(chat_id, context: ContextTypes.DEFAULT_TYPE, count: i
 
 async def _menu_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("PHOTO_FALLBACK | user=%s btn=%s", update.effective_user.id, update.message.text)
-    await update.message.reply_text("Выберите действие:", reply_markup=main_menu())
+    await update.message.reply_text("Выберите действие:")
     return ConversationHandler.END
 
 

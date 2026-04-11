@@ -2,11 +2,10 @@
 keyboard_builder.py
 
 Единый источник всех клавиатур бота.
-ReplyKeyboardMarkup — главное меню (внизу экрана).
 InlineKeyboardMarkup — интерактивные кнопки внутри сообщений.
 """
 
-from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # ---------------------------------------------------------------------------
 # Кнопки главного меню (Reply)
@@ -19,32 +18,6 @@ BTN_ETALON = "Эталон товара"
 BTN_PRICING = "Прайс"
 BTN_HELP = "Помощь"
 BTN_RESTART = "Перезапуск"
-
-
-def main_menu() -> ReplyKeyboardMarkup:
-    """Главное меню — 3 колонки + перезапуск."""
-    keyboard = [
-        [KeyboardButton(BTN_ETALON), KeyboardButton(BTN_PHOTO), KeyboardButton(BTN_VIDEO)],
-        [KeyboardButton(BTN_PROFILE), KeyboardButton(BTN_PRICING), KeyboardButton(BTN_HELP)],
-        [KeyboardButton(BTN_RESTART)],
-    ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-
-def main_menu_inline() -> InlineKeyboardMarkup:
-    """Главное меню в inline-формате (для edit_message_reply_markup)."""
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(BTN_ETALON, callback_data=f"menu_{BTN_ETALON}"),
-            InlineKeyboardButton(BTN_PHOTO, callback_data=f"menu_{BTN_PHOTO}"),
-            InlineKeyboardButton(BTN_VIDEO, callback_data=f"menu_{BTN_VIDEO}"),
-        ],
-        [
-            InlineKeyboardButton(BTN_PROFILE, callback_data=f"menu_{BTN_PROFILE}"),
-            InlineKeyboardButton(BTN_PRICING, callback_data=f"menu_{BTN_PRICING}"),
-            InlineKeyboardButton(BTN_HELP, callback_data=f"menu_{BTN_HELP}"),
-        ],
-    ])
 
 
 def back_button(label: str = "↩️ Назад", callback_data: str = "back") -> InlineKeyboardMarkup:
@@ -127,8 +100,6 @@ __all__ = [
     "BTN_HELP",
     "BTN_RESTART",
     "MENU_BUTTONS",
-    "main_menu",
-    "main_menu_inline",
     "back_button",
     "back_to_menu_button",
     "mp_select_keyboard",

@@ -9,6 +9,7 @@ import logging
 import sys
 
 import aiohttp
+from telegram import BotCommand, MenuButtonCommands
 from telegram.ext import Application, CallbackQueryHandler, MessageHandler, filters
 
 from config import BOT_TOKEN
@@ -18,13 +19,9 @@ from handlers import (
     build_etalon_handler,
     build_photo_handler,
     build_video_handler,
-    profile,
-    pricing,
-    help_cmd,
     log_message,
     log_callback,
 )
-from handlers.keyboards import BTN_PROFILE, BTN_PRICING, BTN_HELP
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -56,6 +53,14 @@ async def on_startup(application: Application) -> None:
 
     await init_db()
     logger.info("БД инициализирована")
+
+    # Настраиваем MenuButton — кнопка «≡» слева от поля ввода
+    await application.bot.set_my_commands([
+        BotCommand("start", "Запустить бота"),
+        BotCommand("help", "Помощь"),
+    ])
+    await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+    logger.info("MenuButton настроен")
 
     # Воркер-сессия (длинные таймауты для I2I)
     worker_session = aiohttp.ClientSession(
@@ -106,11 +111,6 @@ def main() -> None:
 
     # --- Видео ---
     application.add_handler(build_video_handler())
-
-    # --- Простые кнопки ---
-    application.add_handler(MessageHandler(filters.Regex(f"^{BTN_PROFILE}$"), profile))
-    application.add_handler(MessageHandler(filters.Regex(f"^{BTN_PRICING}$"), pricing))
-    application.add_handler(MessageHandler(filters.Regex(f"^{BTN_HELP}$"), help_cmd))
 
     logger.info("Бот запущен")
     application.run_polling()

@@ -18,7 +18,7 @@ from telegram.ext import (
 from database import get_user_stats, get_reference, get_user_articles
 from handlers.keyboards import (
     BTN_VIDEO, BTN_PROFILE, BTN_PHOTO, BTN_ETALON, BTN_PRICING, BTN_HELP, BTN_RESTART,
-    MENU_BUTTONS, main_menu, mp_select_keyboard, back_to_menu_button,
+    MENU_BUTTONS, mp_select_keyboard, back_to_menu_button,
 )
 from handlers.flows import (
     clean_user_message, store_msg_id,
@@ -92,7 +92,6 @@ async def video_article_received(update: Update, context: ContextTypes.DEFAULT_T
                 f"🚧 <b>Генерация видео пока в разработке.</b>\n\n"
                 f"Скоро вы сможете создавать видео на основе эталона."
             ),
-            reply_markup=main_menu(),
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -148,7 +147,6 @@ async def _video_parse_article(query, context: ContextTypes.DEFAULT_TYPE, raw: s
                 f"✅ Артикул <code>{raw}</code> сохранён для OZON 🔵\n\n"
                 "⚠️ Генерация видео для OZON пока в разработке."
             ),
-            reply_markup=main_menu(),
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -244,7 +242,7 @@ async def video_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def _menu_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("VIDEO_FALLBACK | user=%s btn=%s", update.effective_user.id, update.message.text)
-    await update.message.reply_text("Выберите действие:", reply_markup=main_menu())
+    await update.message.reply_text("Выберите действие:")
     return ConversationHandler.END
 
 

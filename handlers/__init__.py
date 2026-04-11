@@ -10,7 +10,7 @@ handlers/__init__.py
 from .flows.onboarding import (
     build_onboarding_handler,
     cmd_start,
-    ONBOARD_STEP1, ONBOARD_SELECT_MP, ONBOARD_ARTICLE,
+    ONBOARD_SELECT_MP, ONBOARD_ARTICLE,
     ONBOARD_REF_CHOICE, ONBOARD_REF_FEEDBACK, ONBOARD_REDO_FEEDBACK,
     PHOTO_COUNT_CHOICE, PHOTO_MULTI_COUNT,
 )
@@ -31,7 +31,6 @@ from .flows.help_cmd import help_cmd
 from .keyboards import (
     BTN_PROFILE, BTN_PHOTO, BTN_VIDEO, BTN_ETALON,
     BTN_PRICING, BTN_HELP, BTN_RESTART, MENU_BUTTONS,
-    main_menu, main_menu_inline,
     back_button, back_to_menu_button,
     mp_select_keyboard, etalon_create_keyboard, etalon_feedback_keyboard,
     etalon_feedback_with_continue_keyboard, photo_count_keyboard,
@@ -55,13 +54,12 @@ __all__ = [
     "pricing",
     "help_cmd",
     # States
-    "ONBOARD_STEP1", "ONBOARD_SELECT_MP", "ONBOARD_ARTICLE",
+    "ONBOARD_SELECT_MP", "ONBOARD_ARTICLE",
     "ONBOARD_REF_CHOICE", "ONBOARD_REF_FEEDBACK", "ONBOARD_REDO_FEEDBACK",
     "PHOTO_COUNT_CHOICE", "PHOTO_MULTI_COUNT",
     # Keyboards
     "BTN_PROFILE", "BTN_PHOTO", "BTN_VIDEO", "BTN_ETALON",
     "BTN_PRICING", "BTN_HELP", "BTN_RESTART", "MENU_BUTTONS",
-    "main_menu", "main_menu_inline",
     "back_button", "back_to_menu_button",
     "mp_select_keyboard", "etalon_create_keyboard", "etalon_feedback_keyboard",
     "etalon_feedback_with_continue_keyboard", "photo_count_keyboard",

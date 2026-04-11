@@ -23,7 +23,7 @@ from database import (
 )
 from handlers.keyboards import (
     BTN_PROFILE, BTN_PHOTO, BTN_VIDEO, BTN_ETALON, BTN_PRICING, BTN_HELP, BTN_RESTART,
-    MENU_BUTTONS, main_menu, mp_select_keyboard, etalon_create_keyboard,
+    MENU_BUTTONS, mp_select_keyboard, etalon_create_keyboard,
     etalon_existing_keyboard, etalon_feedback_keyboard, etalon_done_keyboard, back_button,
 )
 from handlers.flows import (
@@ -42,7 +42,6 @@ logger = logging.getLogger(__name__)
 # Состояния
 # ---------------------------------------------------------------------------
 
-ONBOARD_STEP1 = 10
 ONBOARD_SELECT_MP = 14
 ONBOARD_ARTICLE = 15
 ONBOARD_REF_CHOICE = 16
@@ -79,13 +78,10 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     logger.info("START | user_id=%s", user.id)
     await ensure_user(user.id, user.username)
+    await save_registration(user.id, "", "")
     ensure_user_media_dirs(user.id)
 
     stats = await get_user_stats(user.id)
-
-    keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
-    )
 
     text = (
         f"Привет, <b>{user.first_name}</b>! 👋\n\n"
@@ -102,52 +98,17 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"<b>{stats['photos']}</b> фото и "
         f"<b>{stats['videos']}</b> видео в базе, "
         f"баланс: <b>{stats['balance']}</b> руб.\n\n"
-        "🚀 Давайте начнём!"
+        "🚀 Давайте начнём! Выберите маркетплейс:"
     )
 
     await send_screen(
         chat_id=user.id,
         context=context,
         text=text,
-        reply_markup=keyboard,
-        parse_mode="HTML",
-    )
-
-    # Отправляем главное меню отдельным сообщением (оно останется внизу)
-    await context.bot.send_message(
-        chat_id=user.id,
-        text="Используйте меню ниже для навигации:",
-        reply_markup=main_menu(),
-    )
-
-    return ONBOARD_STEP1
-
-
-# ---------------------------------------------------------------------------
-# Шаг 1 → сразу к вводу артикула
-# ---------------------------------------------------------------------------
-
-async def step1_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    logger.info("ONBOARD_STEP1 | user_id=%s", query.from_user.id)
-
-    await save_registration(query.from_user.id, "", "")
-
-    text = (
-        "✅ Отлично! Для создания фото и видео нам нужен <b>эталон</b>.\n\n"
-        "Эталон — это чистое фото товара без фона. "
-        "Создаётся один раз для каждого артикула.\n\n"
-        "Выберите маркетплейс:"
-    )
-
-    await edit_screen(
-        chat_id=query.message.chat.id,
-        context=context,
-        text=text,
         reply_markup=mp_select_keyboard(),
         parse_mode="HTML",
     )
+
     return ONBOARD_SELECT_MP
 
 
@@ -280,8 +241,7 @@ async def onboard_ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ONBOARD_ARTICLE
 
     if query.data == "go_menu":
-        await query.edit_message_text("Отлично! Переходим в меню.")
-        await context.bot.send_message(chat_id=chat_id, text="Выберите:", reply_markup=main_menu())
+        await query.edit_message_text("✅ Готово! Используйте кнопки inline-меню для навигации.")
         return ConversationHandler.END
 
     if query.data in ("create_ref", "redo_ref"):
@@ -313,7 +273,6 @@ async def _generate_onboard_ref(query, context: ContextTypes.DEFAULT_TYPE):
                 f"Стоимость: <b>{REFERENCE_COST} руб.</b>\n"
                 f"Баланс: <b>{balance} руб.</b>"
             ),
-            reply_markup=main_menu(),
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -323,9 +282,6 @@ async def _generate_onboard_ref(query, context: ContextTypes.DEFAULT_TYPE):
         text=f"⏳ <b>Генерация эталона...</b>\n\nАртикул: <code>{articul}</code>",
         parse_mode="HTML",
     )
-
-    # Сразу разблокируем меню
-    await context.bot.send_message(chat_id=chat_id, text="Меню доступно:", reply_markup=main_menu())
 
     async def _background():
         session = context.bot_data.get("http_session")
@@ -569,7 +525,6 @@ async def photo_count_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await context.bot.send_message(
             chat_id=chat_id,
             text="🎬 Генерация видео пока в разработке.",
-            reply_markup=main_menu(),
         )
         return ConversationHandler.END
 
@@ -648,7 +603,6 @@ async def _generate_photos_onboard(chat_id, context: ContextTypes.DEFAULT_TYPE, 
             f"Категория: <b>{category}</b>\n\n"
             f"Списано <b>{cost} руб.</b> Баланс: <b>{new_balance} руб.</b>"
         ),
-        reply_markup=main_menu(),
         parse_mode="HTML",
     )
     return ConversationHandler.END
@@ -670,7 +624,7 @@ async def _menu_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from handlers.flows.help_cmd import help_cmd
         return await help_cmd(update, context)
 
-    await update.message.reply_text("Выберите действие:", reply_markup=main_menu())
+    await update.message.reply_text("Выберите действие:")
     return ConversationHandler.END
 
 
@@ -687,7 +641,6 @@ def build_onboarding_handler() -> ConversationHandler:
             MessageHandler(tg_filters.Regex(f"^{BTN_RESTART}$"), restart),
         ],
         states={
-            ONBOARD_STEP1: [CallbackQueryHandler(step1_next, pattern="^onboard_step1$")],
             ONBOARD_SELECT_MP: [CallbackQueryHandler(onboard_select_mp, pattern="^mp_(wb|ozon)$")],
             ONBOARD_ARTICLE: [MessageHandler(tg_filters.TEXT & ~any_menu, onboard_article)],
             ONBOARD_REF_CHOICE: [CallbackQueryHandler(onboard_ref_choice, pattern="^(create_ref|redo_ref|new_article|go_menu)$")],

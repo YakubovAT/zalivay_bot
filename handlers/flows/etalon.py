@@ -19,7 +19,7 @@ from database import (
 )
 from handlers.keyboards import (
     mp_select_keyboard, etalon_create_keyboard, etalon_feedback_keyboard,
-    etalon_existing_keyboard, etalon_done_keyboard, main_menu
+    etalon_existing_keyboard, etalon_done_keyboard,
 )
 from handlers.flows import (
     clean_user_message, store_msg_id, get_msg_id, pop_msg_id,
@@ -126,7 +126,6 @@ async def article_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "⚠️ Генерация эталонов для OZON пока в разработке. "
                 "Скоро эта функция станет доступна!"
             ),
-            reply_markup=main_menu(),
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -222,8 +221,7 @@ async def ref_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await replace_screen(
             chat_id=chat_id,
             context=context,
-            text="Выберите действие:",
-            reply_markup=main_menu(),
+            text="✅ Готово! Используйте inline-кнопки для навигации.",
         )
         return ConversationHandler.END
 
@@ -268,7 +266,6 @@ async def _generate_etalon(query, context: ContextTypes.DEFAULT_TYPE, charge: bo
                 f"Ваш баланс: <b>{balance} руб.</b>\n\n"
                 f"Пополните баланс и попробуйте снова."
             ),
-            reply_markup=main_menu(),
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -464,7 +461,7 @@ async def ref_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def _menu_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     logger.info("ETALON_FALLBACK | user_id=%s | button=%s", update.effective_user.id, text)
-    await update.message.reply_text("Выберите действие:", reply_markup=main_menu())
+    await update.message.reply_text("Выберите действие:")
     return ConversationHandler.END
 
 
