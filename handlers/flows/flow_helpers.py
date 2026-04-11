@@ -144,3 +144,20 @@ def get_msg_id(user_id: int) -> int | None:
 
 def pop_msg_id(user_id: int) -> int | None:
     return _msg_store.pop(user_id, None)
+
+
+async def replace_screen(bot, chat_id: int, old_message_id: int, text: str,
+                          keyboard: InlineKeyboardMarkup | None = None) -> int:
+    """Удаляет старый экран и отправляет новый. Возвращает новый message_id."""
+    try:
+        await safe_delete(bot, chat_id, old_message_id)
+    except Exception:
+        pass
+    new_msg = await bot.send_photo(
+        chat_id=chat_id,
+        photo=_get_banner(),
+        caption=text,
+        parse_mode="HTML",
+        reply_markup=keyboard,
+    )
+    return new_msg.message_id
