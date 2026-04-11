@@ -17,7 +17,6 @@ from database import init_db
 from handlers import (
     build_onboarding_handler,
     build_new_article_handler,
-    build_smart_input_handlers,
     build_etalon_handler,
     build_photo_handler,
     build_video_handler,
@@ -102,11 +101,7 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.ALL, log_message), group=-1)
     application.add_handler(CallbackQueryHandler(log_callback), group=-1)
 
-    # --- Умный перехват артикулов (group=5, чтобы не мешать активным ConversationHandler) ---
-    for handler in build_smart_input_handlers():
-        application.add_handler(handler, group=5)
-
-    # --- Новый артикул ---
+    # --- Новый артикул (до онбординга — специфичные callbacks) ---
     application.add_handler(build_new_article_handler())
 
     # --- Онбординг /start ---
