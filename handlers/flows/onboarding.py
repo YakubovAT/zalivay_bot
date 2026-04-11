@@ -24,7 +24,7 @@ from database import (
 from handlers.keyboards import (
     BTN_PROFILE, BTN_PHOTO, BTN_VIDEO, BTN_ETALON, BTN_PRICING, BTN_HELP, BTN_RESTART,
     MENU_BUTTONS, main_menu, mp_select_keyboard, etalon_create_keyboard,
-    etalon_existing_keyboard, etalon_feedback_keyboard, etalon_done_keyboard,
+    etalon_existing_keyboard, etalon_feedback_keyboard, etalon_done_keyboard, back_button,
 )
 from handlers.flows import (
     clean_user_message, clean_bot_message, store_msg_id, pop_msg_id,
@@ -83,15 +83,12 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     stats = await get_user_stats(user.id)
 
-    await update.message.reply_text(
-        f"Привет, {user.first_name}!",
-        reply_markup=main_menu(),
-    )
-
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Дальше →", callback_data="onboard_step1")]]
     )
-    await update.message.reply_text(
+
+    text = (
+        f"Привет, <b>{user.first_name}</b>! 👋\n\n"
         "🤖 <b>AI-ассистент для селлеров маркетплейсов</b>\n\n"
         "Автоматизированный бот, который создаёт фото и видео для социальных сетей на основе ваших товаров.\n\n"
         "📌 <b>Какие задачи решает:</b>\n"
@@ -105,10 +102,24 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"<b>{stats['photos']}</b> фото и "
         f"<b>{stats['videos']}</b> видео в базе, "
         f"баланс: <b>{stats['balance']}</b> руб.\n\n"
-        "🚀 Давайте начнём!",
+        "🚀 Давайте начнём!"
+    )
+
+    await send_screen(
+        chat_id=user.id,
+        context=context,
+        text=text,
         reply_markup=keyboard,
         parse_mode="HTML",
     )
+
+    # Отправляем главное меню отдельным сообщением (оно останется внизу)
+    await context.bot.send_message(
+        chat_id=user.id,
+        text="Используйте меню ниже для навигации:",
+        reply_markup=main_menu(),
+    )
+
     return ONBOARD_STEP1
 
 
@@ -123,13 +134,19 @@ async def step1_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await save_registration(query.from_user.id, "", "")
 
-    await query.edit_message_text(
+    text = (
         "✅ Отлично! Для создания фото и видео нам нужен <b>эталон</b>.\n\n"
         "Эталон — это чистое фото товара без фона. "
         "Создаётся один раз для каждого артикула.\n\n"
-        "Выберите маркетплейс:",
-        parse_mode="HTML",
+        "Выберите маркетплейс:"
+    )
+
+    await edit_screen(
+        chat_id=query.message.chat.id,
+        context=context,
+        text=text,
         reply_markup=mp_select_keyboard(),
+        parse_mode="HTML",
     )
     return ONBOARD_SELECT_MP
 
