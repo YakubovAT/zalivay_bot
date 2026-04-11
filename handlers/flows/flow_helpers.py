@@ -88,3 +88,59 @@ async def edit_screen(
 ) -> None:
     """Редактирует текущий экран (баннер + caption)."""
     await send_screen(app_or_bot, chat_id, message_id=message_id, text=text, keyboard=keyboard)
+
+
+# ---------------------------------------------------------------------------
+# Утилиты (stub — будут доработаны)
+# ---------------------------------------------------------------------------
+
+async def safe_delete(bot, chat_id: int, message_id: int) -> None:
+    """Безопасное удаление сообщения (без raise при ошибке)."""
+    try:
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+    except Exception:
+        pass
+
+
+async def edit_text(bot, chat_id: int, message_id: int, text: str, **kwargs) -> None:
+    try:
+        await bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=text, **kwargs)
+    except Exception:
+        pass
+
+
+async def edit_caption(bot, chat_id: int, message_id: int, caption: str, **kwargs) -> None:
+    try:
+        await bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=caption, **kwargs)
+    except Exception:
+        pass
+
+
+async def edit_reply_markup(bot, chat_id: int, message_id: int, reply_markup=None, **kwargs) -> None:
+    try:
+        await bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=reply_markup, **kwargs)
+    except Exception:
+        pass
+
+
+async def clean_user_message(bot, chat_id: int, message_id: int) -> None:
+    await safe_delete(bot, chat_id, message_id)
+
+
+async def clean_bot_message(bot, chat_id: int, message_id: int) -> None:
+    await safe_delete(bot, chat_id, message_id)
+
+
+_msg_store: dict[int, int] = {}
+
+
+def store_msg_id(user_id: int, message_id: int) -> None:
+    _msg_store[user_id] = message_id
+
+
+def get_msg_id(user_id: int) -> int | None:
+    return _msg_store.get(user_id)
+
+
+def pop_msg_id(user_id: int) -> int | None:
+    return _msg_store.pop(user_id, None)
