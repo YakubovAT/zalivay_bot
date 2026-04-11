@@ -59,6 +59,7 @@ def kb_marketplace() -> InlineKeyboardMarkup:
 def kb_enter_article() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("← К маркетплейсам", callback_data="back_to_mp"),
+            InlineKeyboardButton("← Назад", callback_data="back_to_mp"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
         ],
     ])

@@ -86,7 +86,7 @@ async def cb_mp_locked(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def cb_back_to_mp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Кнопка «← К маркетплейсам» — возврат к выбору маркетплейса."""
+    """Кнопка «← Назад» — возврат к выбору маркетплейса."""
     query = update.callback_query
     await query.answer()
 
@@ -179,6 +179,7 @@ def build_new_article_handler() -> ConversationHandler:
             ],
             _ARTICLE_INPUT: [
                 CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
+                CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, msg_article_input),
             ],
         },
