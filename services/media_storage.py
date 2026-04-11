@@ -33,6 +33,17 @@ def ensure_user_media_dirs(user_id: int) -> str:
     return user_dir
 
 
+def ensure_article_media_dir(user_id: int, marketplace: str, article_code: str) -> str:
+    """
+    Создаёт папку для артикула: media/{user_id}/{marketplace}/{article_code}/
+    Возвращает путь к папке.
+    """
+    article_dir = os.path.join(MEDIA_ROOT, str(user_id), marketplace.upper(), article_code)
+    os.makedirs(article_dir, exist_ok=True)
+    logger.info("Article media dir created: %s", article_dir)
+    return article_dir
+
+
 async def download_image(url: str, dest_path: str) -> bool:
     """Скачивает изображение с URL в локальный файл. Возвращает True при успехе."""
     try:
@@ -49,3 +60,18 @@ async def download_image(url: str, dest_path: str) -> bool:
     except Exception as e:
         logger.error("Download error: %s → %s", url, e)
         return False
+
+
+async def download_all_images(urls: list[str], dest_dir: str) -> list[str]:
+    """
+    Скачивает все изображения в папку.
+    Возвращает список локальных путей скачанных файлов.
+    """
+    local_paths = []
+    for i, url in enumerate(urls, 1):
+        ext = url.rsplit(".", 1)[-1] if "." in url else "webp"
+        dest_path = os.path.join(dest_dir, f"{i}.{ext}")
+        ok = await download_image(url, dest_path)
+        if ok:
+            local_paths.append(dest_path)
+    return local_paths

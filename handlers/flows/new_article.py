@@ -13,7 +13,7 @@ import logging
 import os
 import re
 
-from telegram import Update, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import (
     CallbackQueryHandler,
     ConversationHandler,
@@ -22,18 +22,21 @@ from telegram.ext import (
     filters,
 )
 
-from database import get_user_stats
+from database import get_user_stats, save_article
 from handlers.flows.flow_helpers import (
     send_screen, store_msg_id, safe_delete, animate_loading,
 )
 from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu, kb_product_confirm
 from services.wb_parser import get_product_info
-from services.media_storage import download_image
+from services.media_storage import download_image, ensure_article_media_dir, download_all_images
 
 logger = logging.getLogger(__name__)
 
 # Состояния
-_MP_SELECT, _ARTICLE_INPUT, _PRODUCT_CONFIRM = range(3)
+_MP_SELECT, _ARTICLE_INPUT, _PRODUCT_CONFIRM, _PHOTO_SELECT, _PHOTO_CONFIRM = range(5)
+
+# Максимум фото для выбора
+MAX_PHOTOS = 15
 
 # Валидация артикула WB: только цифры, 6-9 знаков
 ARTICLE_RE = re.compile(r"^\d{6,9}$")
@@ -252,20 +255,220 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 # ---------------------------------------------------------------------------
 
 async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь подтвердил: «Да, это он»."""
+    """Пользователь подтвердил: «Да, это он» → скачиваем фото."""
     query = update.callback_query
     await query.answer()
-    
-    article = context.user_data.get("article_code", "?")
-    product = context.user_data.get("product", {})
-    
-    logger.info("PRODUCT_CONFIRMED | user=%s article=%s", query.from_user.id, article)
 
-    # TODO: Шаг 7 — проверка баланса + предложение создать эталон
-    await context.bot.edit_message_caption(
-        chat_id=query.message.chat_id,
-        message_id=query.message.message_id,
-        caption=f"✅ Отлично! Товар подтверждён.\n\n📦 {product.get('name', article)}\n\nСледующий шаг: создание эталона.",
+    user = query.from_user
+    article = context.user_data.get("article_code", "")
+    product = context.user_data.get("product", {})
+    images = product.get("images", [])
+    name = product.get("name", "Товар")
+    composition = product.get("material", "—")
+
+    logger.info("PRODUCT_CONFIRMED | user=%s article=%s", user.id, article)
+
+    if not article or not images:
+        await context.bot.edit_message_caption(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            caption="❌ Не удалось найти фото товара.",
+        )
+        return ConversationHandler.END
+
+    # Сохраняем артикул в БД
+    await save_article(
+        user_id=user.id,
+        article_code=article,
+        marketplace="WB",
+        name=name,
+        color=product.get("colors", ["—"])[0] if product.get("colors") else "—",
+        material=composition,
+        wb_images=images,
+    )
+
+    # Создаём папку и скачиваем все фото (до MAX_PHOTOS)
+    media_dir = ensure_article_media_dir(user.id, "WB", article)
+    
+    # Показываем загрузку
+    loading_text = f"📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото..."
+    loading_msg = await context.bot.send_photo(
+        chat_id=user.id,
+        photo=open("assets/banner_default.png", "rb"),
+        caption=loading_text,
+    )
+
+    # Скачиваем фото
+    to_download = images[:MAX_PHOTOS]
+    local_paths = await download_all_images(to_download, media_dir)
+    
+    # Удаляем загрузочное
+    await safe_delete(context.bot, user.id, loading_msg.message_id)
+
+    if not local_paths:
+        await context.bot.send_message(
+            chat_id=user.id,
+            text="❌ Не удалось загрузить фото. Попробуйте снова.",
+        )
+        return ConversationHandler.END
+
+    logger.info("PHOTOS_DOWNLOADED | user=%s article=%s count=%d", user.id, article, len(local_paths))
+
+    # Сохраняем список фото в контекст
+    context.user_data["photo_paths"] = local_paths
+    context.user_data["photo_selected"] = []  # [(slot, idx), ...]
+    context.user_data["photo_idx"] = 0
+
+    # Показываем первое фото
+    await _show_photo(context, user.id, query.message.message_id, 0, local_paths, [])
+    return _PHOTO_SELECT
+
+
+# ---------------------------------------------------------------------------
+# Шаг 7: Выбор 3 лучших фото
+# ---------------------------------------------------------------------------
+
+def _kb_photo_select(selected: list, current_idx: int, total: int, done: bool = False):
+    """Клавиатура для выбора фото."""
+    row1 = []
+    for i in range(1, 4):
+        if i in [s for s, _ in selected]:
+            row1.append(InlineKeyboardButton(f"✅ {i}", callback_data=f"sel_{i}"))
+        else:
+            row1.append(InlineKeyboardButton("①②③"[i-1], callback_data=f"sel_{i}"))
+
+    row2 = []
+    if current_idx > 0:
+        row2.append(InlineKeyboardButton("← Пред.", callback_data=f"photo_{current_idx - 1}"))
+    else:
+        row2.append(InlineKeyboardButton(" ", callback_data="noop"))
+    
+    row2.append(InlineKeyboardButton(f"{current_idx + 1}/{total}", callback_data="noop"))
+    
+    if current_idx < total - 1:
+        row2.append(InlineKeyboardButton("След. →", callback_data=f"photo_{current_idx + 1}"))
+    else:
+        row2.append(InlineKeyboardButton(" ", callback_data="noop"))
+
+    rows = [row1, row2]
+    if done:
+        rows.append([InlineKeyboardButton("✅ Утвердить выбор", callback_data="photos_confirm")])
+    
+    return InlineKeyboardMarkup(rows)
+
+
+def _selection_text(selected_count: int) -> str:
+    if selected_count == 0:
+        return "Выберите фото №1 — где товар виден лучше всего."
+    elif selected_count == 1:
+        return "Отлично! Теперь выберите фото №2."
+    elif selected_count == 2:
+        return "Осталось одно! Выберите фото №3."
+    return ""
+
+
+async def _show_photo(context, chat_id, message_id, idx, paths, selected):
+    """Показывает фото по индексу."""
+    photo_path = paths[idx]
+    total = len(paths)
+    selected_count = len(selected)
+    done = selected_count >= 3
+    
+    caption = f"📸 Фото {idx + 1} из {total}\n\n{_selection_text(selected_count)}"
+    keyboard = _kb_photo_select(selected, idx, total, done)
+
+    if message_id is not None:
+        try:
+            await context.bot.edit_message_media(
+                chat_id=chat_id,
+                message_id=message_id,
+                media=InputMediaPhoto(media=open(photo_path, "rb"), caption=caption),
+                reply_markup=keyboard,
+            )
+        except Exception:
+            await context.bot.edit_message_caption(
+                chat_id=chat_id,
+                message_id=message_id,
+                caption=caption,
+                reply_markup=keyboard,
+            )
+    else:
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=open(photo_path, "rb"),
+            caption=caption,
+            reply_markup=keyboard,
+        )
+
+
+async def cb_photo_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Листание фото."""
+    query = update.callback_query
+    await query.answer()
+
+    idx = int(query.data.split("_")[1])
+    paths = context.user_data.get("photo_paths", [])
+    selected = context.user_data.get("photo_selected", [])
+    
+    context.user_data["photo_idx"] = idx
+    await _show_photo(context, query.from_user.id, query.message.message_id, idx, paths, selected)
+    return _PHOTO_SELECT
+
+
+async def cb_select_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Выбор фото как №1/2/3."""
+    query = update.callback_query
+    await query.answer()
+
+    slot = int(query.data.split("_")[1])
+    paths = context.user_data.get("photo_paths", [])
+    selected = context.user_data.get("photo_selected", [])
+    idx = context.user_data.get("photo_idx", 0)
+    
+    # Убираем старый выбор этого слота
+    selected = [(s, i) for s, i in selected if s != slot]
+    selected.append((slot, idx))
+    selected.sort()
+    context.user_data["photo_selected"] = selected
+
+    done = len(selected) >= 3
+    next_idx = idx + 1 if idx < len(paths) - 1 and not done else idx
+    
+    await _show_photo(context, query.from_user.id, query.message.message_id, next_idx if not done else idx, paths, selected)
+    return _PHOTO_CONFIRM if done else _PHOTO_SELECT
+
+
+async def cb_photos_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Утверждение выбора 3 фото."""
+    query = update.callback_query
+    await query.answer()
+
+    selected = context.user_data.get("photo_selected", [])
+    paths = context.user_data.get("photo_paths", [])
+    article = context.user_data.get("article_code", "")
+    composition = context.user_data.get("product", {}).get("material", "—")
+    
+    chosen_paths = [paths[idx] for _, idx in sorted(selected) if idx < len(paths)]
+    context.user_data["chosen_photo_paths"] = chosen_paths
+    
+    logger.info("PHOTOS_CONFIRMED | user=%s article=%s chosen=%d", 
+                query.from_user.id, article, len(chosen_paths))
+
+    caption = (
+        f"✅ Выбрано 3 фото для артикула {article}\n"
+        f"🧵 Состав: {composition}\n\n"
+        "Следующий шаг: создание эталона."
+    )
+    
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_menu")]
+    ])
+    
+    await context.bot.send_photo(
+        chat_id=query.from_user.id,
+        photo=open(chosen_paths[0], "rb") if chosen_paths else open("assets/banner_default.png", "rb"),
+        caption=caption,
+        reply_markup=keyboard,
     )
     return ConversationHandler.END
 
@@ -313,6 +516,15 @@ def build_new_article_handler() -> ConversationHandler:
                 CallbackQueryHandler(cb_product_no, pattern="^product_no$"),
                 CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
+            ],
+            _PHOTO_SELECT: [
+                CallbackQueryHandler(cb_photo_nav, pattern="^photo_\d+$"),
+                CallbackQueryHandler(cb_select_photo, pattern="^sel_\d$"),
+            ],
+            _PHOTO_CONFIRM: [
+                CallbackQueryHandler(cb_photos_confirm, pattern="^photos_confirm$"),
+                CallbackQueryHandler(cb_photo_nav, pattern="^photo_\d+$"),
+                CallbackQueryHandler(cb_select_photo, pattern="^sel_\d$"),
             ],
         },
         fallbacks=[],
