@@ -19,8 +19,9 @@ from telegram.ext import (
     filters,
 )
 
+from database import ensure_user, get_user_stats
 from handlers.flows.flow_helpers import send_screen, store_msg_id
-from handlers.keyboards import kb_marketplace, kb_enter_article
+from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,37 @@ async def cb_mp_locked(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     return _MP_SELECT
 
 
+async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Кнопка «← Назад» — возврат в главное меню."""
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user
+    stats = await get_user_stats(user.id)
+
+    text = (
+        f"👤 *Профиль:*\n"
+        f"> • ID: `{user.id}`\n"
+        f"> • Имя: {user.full_name}\n\n"
+        f"📊 *Статистика:*\n"
+        f"> • Товаров: {stats['articles']}\n"
+        f"> • Эталонов: {stats['references']}\n"
+        f"> • Фото: {stats['photos']}\n"
+        f"> • Видео: {stats['videos']}\n"
+        f"> • Баланс: {stats['balance']}₽"
+    )
+
+    await send_screen(
+        context.bot,
+        chat_id=user.id,
+        message_id=query.message.message_id,
+        text=text,
+        keyboard=kb_main_menu(),
+        parse_mode="MarkdownV2",
+    )
+    return ConversationHandler.END
+
+
 # ---------------------------------------------------------------------------
 # Шаг 4. Ввод артикула
 # ---------------------------------------------------------------------------
@@ -125,10 +157,12 @@ def build_new_article_handler() -> ConversationHandler:
         ],
         states={
             _MP_SELECT: [
+                CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
                 CallbackQueryHandler(cb_mp_wb, pattern="^mp_wb$"),
                 CallbackQueryHandler(cb_mp_locked, pattern="^mp_"),
             ],
             _ARTICLE_INPUT: [
+                CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, msg_article_input),
             ],
         },
