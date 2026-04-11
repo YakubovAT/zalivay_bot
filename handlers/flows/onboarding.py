@@ -39,6 +39,33 @@ _WELCOME_TEXT = (
 )
 
 
+async def _show_profile(update, context, message_id=None):
+    """Показывает профиль пользователя в формате «окошек»."""
+    user = update.effective_user if hasattr(update, 'effective_user') else update.from_user
+    stats = await get_user_stats(user.id)
+
+    text = (
+        f"👤 *Профиль:*\n"
+        f"> • ID: `{user.id}`\n"
+        f"> • Имя: {user.full_name}\n\n"
+        f"📊 *Статистика:*\n"
+        f"> • Товаров: {stats['articles']}\n"
+        f"> • Эталонов: {stats['references']}\n"
+        f"> • Фото: {stats['photos']}\n"
+        f"> • Видео: {stats['videos']}\n"
+        f"> • Баланс: {stats['balance']}₽"
+    )
+
+    await send_screen(
+        context.bot,
+        chat_id=user.id,
+        message_id=message_id,
+        text=text,
+        keyboard=kb_main_menu(),
+        parse_mode="MarkdownV2",
+    )
+
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Команда /start — показываем приветствие."""
     user = update.effective_user
@@ -59,27 +86,7 @@ async def cb_start_begin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """Пользователь нажал «Начать ➜» — показываем профиль."""
     query = update.callback_query
     await query.answer()
-
-    user = query.from_user
-    stats = await get_user_stats(user.id)
-
-    text = (
-        f"👤 {user.first_name} (ID: {user.id})\n\n"
-        f"📊 Ваша статистика:\n"
-        f"📦 Товаров: {stats['articles']}\n"
-        f"📸 Эталонов: {stats['references']}\n"
-        f"🖼 Сгенерировано фото: {stats['photos']}\n"
-        f"🎬 Сгенерировано видео: {stats['videos']}\n"
-        f"💰 Баланс: {stats['balance']}₽"
-    )
-
-    await send_screen(
-        context.bot,
-        chat_id=user.id,
-        message_id=query.message.message_id,
-        text=text,
-        keyboard=kb_main_menu(),
-    )
+    await _show_profile(update, context, message_id=query.message.message_id)
     return _MAIN_MENU
 
 
@@ -91,27 +98,7 @@ async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """Кнопка «🏠 Меню» из любого экрана."""
     query = update.callback_query
     await query.answer()
-
-    user = query.from_user
-    stats = await get_user_stats(user.id)
-
-    text = (
-        f"👤 {user.first_name} (ID: {user.id})\n\n"
-        f"📊 Ваша статистика:\n"
-        f"📦 Товаров: {stats['articles']}\n"
-        f"📸 Эталонов: {stats['references']}\n"
-        f"🖼 Сгенерировано фото: {stats['photos']}\n"
-        f"🎬 Сгенерировано видео: {stats['videos']}\n"
-        f"💰 Баланс: {stats['balance']}₽"
-    )
-
-    await send_screen(
-        context.bot,
-        chat_id=user.id,
-        message_id=query.message.message_id,
-        text=text,
-        keyboard=kb_main_menu(),
-    )
+    await _show_profile(update, context, message_id=query.message.message_id)
     return _MAIN_MENU
 
 

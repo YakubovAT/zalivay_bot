@@ -38,12 +38,14 @@ async def send_screen(
     message_id: int | None = None,
     text: str = "",
     keyboard: InlineKeyboardMarkup | None = None,
+    parse_mode: str = "HTML",
 ) -> None:
     """
     Отправляет экран: баннер + caption + inline-кнопки.
 
     Если message_id указан — редактирует существующее сообщение.
     Если message_id = None — отправляет новое.
+    parse_mode: "HTML" (по умолчанию) или "MarkdownV2" (для цитат).
     """
     banner = _get_banner()
 
@@ -53,17 +55,16 @@ async def send_screen(
             await app_or_bot.edit_message_media(
                 chat_id=chat_id,
                 message_id=message_id,
-                media=InputMediaPhoto(media=banner, caption=text, parse_mode="HTML"),
+                media=InputMediaPhoto(media=banner, caption=text, parse_mode=parse_mode),
                 reply_markup=keyboard,
             )
         except Exception as e:
-            # Если ошибка — попробуем просто edit_caption
             try:
                 await app_or_bot.edit_message_caption(
                     chat_id=chat_id,
                     message_id=message_id,
                     caption=text,
-                    parse_mode="HTML",
+                    parse_mode=parse_mode,
                     reply_markup=keyboard,
                 )
             except Exception as e2:
@@ -74,7 +75,7 @@ async def send_screen(
             chat_id=chat_id,
             photo=banner,
             caption=text,
-            parse_mode="HTML",
+            parse_mode=parse_mode,
             reply_markup=keyboard,
         )
 
