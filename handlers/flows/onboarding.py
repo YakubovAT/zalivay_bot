@@ -31,7 +31,7 @@ from handlers.flows import (
     send_screen, edit_screen, replace_screen, safe_delete,
 )
 from config import REFERENCE_COST, AI_API_KEY, AI_API_BASE, AI_MODEL, I2I_API_KEY, I2I_API_BASE
-from wb_parser import get_product_info
+from services.wb_parser import get_product_info
 from services.reference_t2t import generate_reference_prompt
 from services.reference_i2i import generate_reference_image
 from services.media_storage import ensure_user_media_dirs, MEDIA_ROOT

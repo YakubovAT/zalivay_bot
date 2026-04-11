@@ -25,7 +25,7 @@ from handlers.flows import (
     send_screen, edit_screen, replace_screen, safe_delete,
 )
 from config import REFERENCE_COST
-from wb_parser import get_product_info
+from services.wb_parser import get_product_info
 
 logger = logging.getLogger(__name__)
 
