@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS users (
     user_id         BIGINT PRIMARY KEY,
     username        TEXT,
-    balance         INTEGER NOT NULL DEFAULT 1000,
+    balance         INTEGER NOT NULL DEFAULT 0,
     ad_budget       TEXT,
     articles_count  TEXT,
     is_registered   BOOLEAN NOT NULL DEFAULT FALSE,
@@ -12,16 +12,18 @@ CREATE TABLE IF NOT EXISTS article_references (
     id                SERIAL PRIMARY KEY,
     user_id           BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     articul           TEXT NOT NULL,
+    reference_number  INTEGER NOT NULL DEFAULT 1,
     file_id           TEXT NOT NULL,
     file_path         TEXT,
     reference_image_url TEXT,
     category          TEXT,
     reference_prompt  TEXT,
+    is_active         BOOLEAN NOT NULL DEFAULT TRUE,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_article_references_unique
-    ON article_references (user_id, articul);
+CREATE INDEX IF NOT EXISTS idx_article_references_user_articul
+    ON article_references (user_id, articul, is_active);
 
 CREATE TABLE IF NOT EXISTS user_actions (
     id          SERIAL PRIMARY KEY,
@@ -43,6 +45,7 @@ CREATE TABLE IF NOT EXISTS articles (
     name         TEXT,
     color        TEXT,
     material     TEXT,
+    wb_images    JSONB DEFAULT '[]',
     parsed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

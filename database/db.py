@@ -50,8 +50,12 @@ async def get_user_references(user_id: int) -> list[asyncpg.Record]:
 async def get_user_stats(user_id: int) -> dict:
     """Возвращает статистику пользователя: эталоны, фото, видео, баланс."""
     pool = await get_pool()
+    article_count = await pool.fetchval(
+        "SELECT COUNT(DISTINCT article_code) FROM articles WHERE user_id = $1",
+        user_id,
+    )
     ref_count = await pool.fetchval(
-        "SELECT COUNT(*) FROM article_references WHERE user_id = $1",
+        "SELECT COUNT(*) FROM article_references WHERE user_id = $1 AND is_active = TRUE",
         user_id,
     )
     # TODO: фото и видео — пока нет таблицы content
@@ -65,6 +69,7 @@ async def get_user_stats(user_id: int) -> dict:
     balance = row["balance"] if row else 0
 
     return {
+        "articles": article_count or 0,
         "references": ref_count or 0,
         "photos": photo_count,
         "videos": video_count,
@@ -180,46 +185,86 @@ async def save_reference(
     reference_image_url: str = "",
     category: str = "",
     reference_prompt: str = "",
+    reference_number: int = 1,
 ) -> int:
-    """Сохраняет эталон в БД. Один эталон на артикул.
+    """Сохраняет эталон в БД. Много эталонов на один артикул.
 
     reference_image_url: публичный URL эталона для I2I API
     category: классификация товара (верх/низ/обувь/головной убор)
     reference_prompt: промпт на английском для I2I генерации
+    reference_number: порядковый номер эталона для артикула
     """
     pool = await get_pool()
     row = await pool.fetchrow(
         """
-        INSERT INTO article_references (user_id, articul, file_id, file_path, reference_image_url, category, reference_prompt)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (user_id, articul)
-        DO UPDATE SET
-            file_id             = EXCLUDED.file_id,
-            file_path           = EXCLUDED.file_path,
-            reference_image_url = EXCLUDED.reference_image_url,
-            category            = EXCLUDED.category,
-            reference_prompt    = EXCLUDED.reference_prompt,
-            created_at          = NOW()
+        INSERT INTO article_references (user_id, articul, reference_number, file_id, file_path, reference_image_url, category, reference_prompt)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id
         """,
-        user_id, articul, file_id, file_path, reference_image_url, category, reference_prompt,
+        user_id, articul, reference_number, file_id, file_path, reference_image_url, category, reference_prompt,
     )
     return row["id"] if row else -1
 
 
-async def get_reference(user_id: int, articul: str) -> asyncpg.Record | None:
-    """Возвращает эталон для артикула. Один эталон — общий для фото и видео."""
+async def get_reference(user_id: int, articul: str, ref_number: int | None = None) -> asyncpg.Record | None:
+    """Возвращает эталон для артикула.
+    Если ref_number указан — конкретный, иначе — последний активный."""
     pool = await get_pool()
+    if ref_number is not None:
+        return await pool.fetchrow(
+            """
+            SELECT * FROM article_references
+            WHERE user_id = $1 AND articul = $2 AND reference_number = $3 AND is_active = TRUE
+            """,
+            user_id, articul, ref_number,
+        )
     return await pool.fetchrow(
         """
         SELECT * FROM article_references
-        WHERE user_id = $1 AND articul = $2
-        ORDER BY created_at DESC
+        WHERE user_id = $1 AND articul = $2 AND is_active = TRUE
+        ORDER BY reference_number DESC
         LIMIT 1
         """,
         user_id,
         articul,
     )
+
+
+async def get_active_references(user_id: int, articul: str) -> list[asyncpg.Record]:
+    """Возвращает все активные эталоны для артикула."""
+    pool = await get_pool()
+    return await pool.fetch(
+        """
+        SELECT * FROM article_references
+        WHERE user_id = $1 AND articul = $2 AND is_active = TRUE
+        ORDER BY reference_number
+        """,
+        user_id, articul,
+    )
+
+
+async def get_reference_count(user_id: int, articul: str) -> int:
+    """Возвращает количество активных эталонов для артикула."""
+    pool = await get_pool()
+    count = await pool.fetchval(
+        "SELECT COUNT(*) FROM article_references WHERE user_id = $1 AND articul = $2 AND is_active = TRUE",
+        user_id, articul,
+    )
+    return count or 0
+
+
+async def soft_delete_reference(user_id: int, articul: str, ref_number: int) -> bool:
+    """Мягкое удаление эталона (is_active = FALSE)."""
+    pool = await get_pool()
+    result = await pool.execute(
+        """
+        UPDATE article_references
+        SET is_active = FALSE
+        WHERE user_id = $1 AND articul = $2 AND reference_number = $3 AND is_active = TRUE
+        """,
+        user_id, articul, ref_number,
+    )
+    return "UPDATE 1" in result
 
 
 async def deduct_balance(user_id: int, amount: int) -> int:
