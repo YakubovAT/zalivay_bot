@@ -1,69 +1,21 @@
-"""
-handlers/__init__.py
+# TODO: переписать с нуля
+import logging
+from telegram import Update
+from telegram.ext import ContextTypes
+from handlers.flows.onboarding import build_onboarding_handler  # noqa
+from handlers.flows.etalon import build_etalon_handler  # noqa
+from handlers.flows.photo import build_photo_handler  # noqa
+from handlers.flows.video import build_video_handler  # noqa
 
-Центральный экспорт всех обработчиков бота.
-"""
+logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Flows (ConversationHandler'ы)
-# ---------------------------------------------------------------------------
-from .flows.onboarding import (
-    build_onboarding_handler,
-    cmd_start,
-    ONBOARD_SELECT_MP, ONBOARD_ARTICLE,
-    ONBOARD_REF_CHOICE, ONBOARD_REF_FEEDBACK, ONBOARD_REDO_FEEDBACK,
-    PHOTO_COUNT_CHOICE, PHOTO_MULTI_COUNT,
-)
-from .flows.etalon import build_etalon_handler
-from .flows.photo import build_photo_handler
-from .flows.video import build_video_handler
 
-# ---------------------------------------------------------------------------
-# Простые обработчики (без ConversationHandler)
-# ---------------------------------------------------------------------------
-from .flows.profile import profile
-from .flows.pricing import pricing
-from .flows.help_cmd import help_cmd
+async def log_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message:
+        logger.info("MSG | user=%s type=%s text=%s", update.effective_user.id, update.message.content_type, update.message.text)
 
-# ---------------------------------------------------------------------------
-# Клавиатуры
-# ---------------------------------------------------------------------------
-from .keyboards import (
-    BTN_PROFILE, BTN_PHOTO, BTN_VIDEO, BTN_ETALON,
-    BTN_PRICING, BTN_HELP, BTN_RESTART, MENU_BUTTONS,
-    back_button, back_to_menu_button,
-    mp_select_keyboard, etalon_create_keyboard, etalon_feedback_keyboard,
-    etalon_feedback_with_continue_keyboard, photo_count_keyboard,
-    etalon_existing_keyboard, etalon_done_keyboard,
-)
 
-# ---------------------------------------------------------------------------
-# Логирование
-# ---------------------------------------------------------------------------
-from .action_logger import log_message, log_callback
-
-__all__ = [
-    # Handlers (factories)
-    "build_onboarding_handler",
-    "build_etalon_handler",
-    "build_photo_handler",
-    "build_video_handler",
-    # Handlers (simple)
-    "cmd_start",
-    "profile",
-    "pricing",
-    "help_cmd",
-    # States
-    "ONBOARD_SELECT_MP", "ONBOARD_ARTICLE",
-    "ONBOARD_REF_CHOICE", "ONBOARD_REF_FEEDBACK", "ONBOARD_REDO_FEEDBACK",
-    "PHOTO_COUNT_CHOICE", "PHOTO_MULTI_COUNT",
-    # Keyboards
-    "BTN_PROFILE", "BTN_PHOTO", "BTN_VIDEO", "BTN_ETALON",
-    "BTN_PRICING", "BTN_HELP", "BTN_RESTART", "MENU_BUTTONS",
-    "back_button", "back_to_menu_button",
-    "mp_select_keyboard", "etalon_create_keyboard", "etalon_feedback_keyboard",
-    "etalon_feedback_with_continue_keyboard", "photo_count_keyboard",
-    "etalon_existing_keyboard", "etalon_done_keyboard",
-    # Logging
-    "log_message", "log_callback",
-]
+async def log_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if query:
+        logger.info("CB | user=%s data=%s", query.from_user.id, query.data)
