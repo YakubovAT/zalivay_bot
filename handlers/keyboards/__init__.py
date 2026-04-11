@@ -34,9 +34,6 @@ def kb_main_menu() -> InlineKeyboardMarkup:
             InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
             InlineKeyboardButton("💰 Пополнить баланс", callback_data="menu_topup"),
         ],
-        [
-            InlineKeyboardButton("❓ Помощь", callback_data="menu_help"),
-        ],
     ])
 
 
