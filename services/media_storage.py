@@ -7,6 +7,9 @@ services/media_storage.py
 
 import os
 import logging
+from pathlib import Path
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
@@ -28,3 +31,21 @@ def ensure_user_media_dirs(user_id: int) -> str:
 
     logger.info("Media dirs created/verified: %s", user_dir)
     return user_dir
+
+
+async def download_image(url: str, dest_path: str) -> bool:
+    """Скачивает изображение с URL в локальный файл. Возвращает True при успехе."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                if resp.status == 200:
+                    data = await resp.read()
+                    Path(dest_path).parent.mkdir(parents=True, exist_ok=True)
+                    Path(dest_path).write_bytes(data)
+                    logger.info("Downloaded image: %s → %s (%d bytes)", url, dest_path, len(data))
+                    return True
+                logger.warning("Download failed: %s → status %d", url, resp.status)
+                return False
+    except Exception as e:
+        logger.error("Download error: %s → %s", url, e)
+        return False

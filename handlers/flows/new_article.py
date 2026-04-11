@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 
 from telegram import Update, InlineKeyboardMarkup
@@ -25,13 +26,14 @@ from database import get_user_stats
 from handlers.flows.flow_helpers import (
     send_screen, store_msg_id, safe_delete, animate_loading,
 )
-from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu
+from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu, kb_product_confirm
 from services.wb_parser import get_product_info
+from services.media_storage import download_image
 
 logger = logging.getLogger(__name__)
 
 # Состояния
-_MP_SELECT, _ARTICLE_INPUT = range(2)
+_MP_SELECT, _ARTICLE_INPUT, _PRODUCT_CONFIRM = range(3)
 
 # Валидация артикула WB: только цифры, 6-9 знаков
 ARTICLE_RE = re.compile(r"^\d{6,9}$")
@@ -205,17 +207,85 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         asyncio.get_event_loop().call_later(5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert.message_id)))
         return _ARTICLE_INPUT
 
-    # Товар найден — сохраняем в контекст, переходим к показу карточки
+    # Товар найден — скачиваем первое фото, показываем карточку
     context.user_data["article_code"] = article_code
     context.user_data["product"] = product
     logger.info("PRODUCT_FOUND | user=%s name=%s", user.id, product.get("name"))
 
-    # TODO: Шаг 6 — показ карточки товара (будет реализован следующим)
-    await context.bot.send_message(
+    # Скачиваем первое фото товара
+    images = product.get("images", [])
+    first_image_url = images[0] if images else ""
+    local_path = ""
+
+    if first_image_url:
+        local_path = f"media/{user.id}/temp/{article_code}_first.webp"
+        await download_image(first_image_url, local_path)
+
+    # Формируем описание
+    name = product.get("name", "—")
+    brand = product.get("brand", "—")
+    color = product.get("colors", ["—"])[0] if product.get("colors") else "—"
+    material = product.get("material", "—")
+
+    text = (
+        f"Нашёл товар:\n\n"
+        f"📦 {name}\n"
+        f"🏷 Бренд: {brand}\n"
+        f"🎨 Цвет: {color}\n"
+        f"🧵 Материал: {material}\n\n"
+        "Это тот товар?"
+    )
+
+    # Отправляем карточку: фото товара + описание
+    await context.bot.send_photo(
         chat_id=user.id,
-        text=f"✅ Нашёл: {product['name']}\nСледующий шаг: показ карточки.",
+        photo=open(local_path, "rb") if local_path and os.path.exists(local_path) else open("assets/banner_default.png", "rb"),
+        caption=text,
+        reply_markup=kb_product_confirm(),
+    )
+
+    return _PRODUCT_CONFIRM
+
+
+# ---------------------------------------------------------------------------
+# Шаг 6: Подтверждение товара
+# ---------------------------------------------------------------------------
+
+async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Пользователь подтвердил: «Да, это он»."""
+    query = update.callback_query
+    await query.answer()
+    
+    article = context.user_data.get("article_code", "?")
+    product = context.user_data.get("product", {})
+    
+    logger.info("PRODUCT_CONFIRMED | user=%s article=%s", query.from_user.id, article)
+
+    # TODO: Шаг 7 — проверка баланса + предложение создать эталон
+    await context.bot.edit_message_caption(
+        chat_id=query.message.chat_id,
+        message_id=query.message.message_id,
+        caption=f"✅ Отлично! Товар подтверждён.\n\n📦 {product.get('name', article)}\n\nСледующий шаг: создание эталона.",
     )
     return ConversationHandler.END
+
+
+async def cb_product_no(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Пользователь отказался: «Нет, другой»."""
+    query = update.callback_query
+    await query.answer()
+    
+    logger.info("PRODUCT_REJECTED | user=%s", query.from_user.id)
+
+    # Возврат к вводу артикула
+    await send_screen(
+        context.bot,
+        chat_id=query.from_user.id,
+        message_id=query.message.message_id,
+        text=_ARTICLE_INPUT_TEXT,
+        keyboard=kb_enter_article(),
+    )
+    return _ARTICLE_INPUT
 
 
 # ---------------------------------------------------------------------------
@@ -237,6 +307,12 @@ def build_new_article_handler() -> ConversationHandler:
                 CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, msg_article_input),
+            ],
+            _PRODUCT_CONFIRM: [
+                CallbackQueryHandler(cb_product_yes, pattern="^product_yes$"),
+                CallbackQueryHandler(cb_product_no, pattern="^product_no$"),
+                CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
+                CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],
         },
         fallbacks=[],

@@ -63,3 +63,20 @@ def kb_enter_article() -> InlineKeyboardMarkup:
             InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
         ],
     ])
+
+
+# ---------------------------------------------------------------------------
+# Шаг 6: Подтверждение товара
+# ---------------------------------------------------------------------------
+
+def kb_product_confirm() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Да, это он", callback_data="product_yes"),
+            InlineKeyboardButton("❌ Нет, другой", callback_data="product_no"),
+        ],
+        [
+            InlineKeyboardButton("← Назад", callback_data="back_to_mp"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
