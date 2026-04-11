@@ -67,7 +67,12 @@ async def get_product_info(articul: str) -> dict:
     for opt in options:
         opt_name = opt.get("name", "")
         if opt_name in ("Состав", "Материал"):
-            material_values = opt.get("variable_values", [])
+            # Может быть в 'value' (строка) или 'variable_values' (массив)
+            val = opt.get("value", "")
+            if val:
+                material_values = [val]
+            else:
+                material_values = opt.get("variable_values", [])
             break
 
     material = ", ".join(material_values) if material_values else ""
