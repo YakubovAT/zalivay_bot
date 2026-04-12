@@ -285,7 +285,7 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 # ---------------------------------------------------------------------------
 
 async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь подтвердил: «Да, это он» → РЕДАКТИРУЕМ экран в Шаг 6."""
+    """Пользователь подтвердил: «Да, это он» → скачиваем фото."""
     query = update.callback_query
     await query.answer()
 
@@ -320,23 +320,13 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Создаём папку
     media_dir = ensure_article_media_dir(user.id, "WB", article)
 
-    # РЕДАКТИРУЕМ текущий экран (Шаг 5) → "Загружаю фото..."
-    loading_text = f"Шаг 6 из N: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото..."
-    try:
-        await context.bot.edit_message_media(
-            chat_id=user.id,
-            message_id=query.message.message_id,
-            media=InputMediaPhoto(media=open("assets/banner_default.png", "rb"), caption=loading_text),
-            reply_markup=None,
-        )
-        loading_msg_id = query.message.message_id
-    except:
-        msg = await context.bot.send_photo(
-            chat_id=user.id,
-            photo=open("assets/banner_default.png", "rb"),
-            caption=loading_text,
-        )
-        loading_msg_id = msg.message_id
+    # Отправляем НОВОЕ временное окно загрузки (отдельное сообщение, как при вводе артикула)
+    loading_text = f"⏳ Загружаю фото..."
+    loading_msg = await context.bot.send_photo(
+        chat_id=user.id,
+        photo=open("assets/banner_default.png", "rb"),
+        caption=loading_text,
+    )
 
     start_time = time.monotonic()
 
@@ -355,8 +345,8 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             try:
                 await context.bot.edit_message_caption(
                     chat_id=user.id,
-                    message_id=loading_msg_id,
-                    caption=f"Шаг 6 из N: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото...{count}",
+                    message_id=loading_msg.message_id,
+                    caption=f"⏳ Загружаю фото...{count}",
                 )
             except:
                 pass
@@ -375,13 +365,14 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if elapsed < 5:
         await asyncio.sleep(5 - elapsed)
 
-    # Останавливаем анимацию
+    # Останавливаем анимацию и УДАЛЯЕМ временное окно
     context.user_data["_loading_stop"].set()
+    await safe_delete(context.bot, user.id, loading_msg.message_id)
 
     if not local_paths:
         await context.bot.edit_message_caption(
-            chat_id=user.id,
-            message_id=loading_msg_id,
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
             caption="❌ Не удалось загрузить фото.",
         )
         return ConversationHandler.END
@@ -393,8 +384,8 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data["photo_selected"] = []
     context.user_data["photo_idx"] = 0
 
-    # РЕДАКТИРУЕМ экран загрузки → экран выбора фото (Шаг 6)
-    await _show_photo(context, user.id, loading_msg_id, 0, local_paths, [])
+    # РЕДАКТИРУЕМ Шаг 5 → Шаг 6 (выбор фото)
+    await _show_photo(context, user.id, query.message.message_id, 0, local_paths, [])
     return _PHOTO_SELECT
 
 
@@ -427,7 +418,11 @@ def _kb_photo_select(selected: list, current_idx: int, total: int, done: bool = 
     rows = [row1, row2]
     if done:
         rows.append([InlineKeyboardButton("✅ Утвердить выбор", callback_data="photos_confirm")])
-    
+    rows.append([
+        InlineKeyboardButton("← Назад", callback_data="back_to_mp"),
+        InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+    ])
+
     return InlineKeyboardMarkup(rows)
 
 
@@ -595,11 +590,15 @@ def build_new_article_handler() -> ConversationHandler:
             _PHOTO_SELECT: [
                 CallbackQueryHandler(cb_photo_nav, pattern="^photo_\d+$"),
                 CallbackQueryHandler(cb_select_photo, pattern="^sel_\d$"),
+                CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
+                CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],
             _PHOTO_CONFIRM: [
                 CallbackQueryHandler(cb_photos_confirm, pattern="^photos_confirm$"),
                 CallbackQueryHandler(cb_photo_nav, pattern="^photo_\d+$"),
                 CallbackQueryHandler(cb_select_photo, pattern="^sel_\d$"),
+                CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
+                CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],
         },
         fallbacks=[],
