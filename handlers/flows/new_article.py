@@ -394,30 +394,32 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # ---------------------------------------------------------------------------
 
 def _kb_photo_select(selected: list, current_idx: int, total: int, done: bool = False):
-    """Клавиатура для выбора фото."""
+    """Клавиатура для выбора фото (Эмодзи-круги, без пустых кнопок)."""
     row1 = []
+    selected_slots = [s for s, _ in selected]
     for i in range(1, 4):
-        if i in [s for s, _ in selected]:
-            row1.append(InlineKeyboardButton(f"✅ {i}", callback_data=f"sel_{i}"))
+        if i in selected_slots:
+            row1.append(InlineKeyboardButton(f"🔘 {i}", callback_data=f"sel_{i}"))
         else:
-            row1.append(InlineKeyboardButton("①②③"[i-1], callback_data=f"sel_{i}"))
+            row1.append(InlineKeyboardButton(f"⚪ {i}", callback_data=f"sel_{i}"))
 
+    # Динамический второй ряд (2-3 кнопки)
     row2 = []
-    if current_idx > 0:
+    has_prev = current_idx > 0
+    has_next = current_idx < total - 1
+
+    if has_prev:
         row2.append(InlineKeyboardButton("← Пред.", callback_data=f"photo_{current_idx - 1}"))
-    else:
-        row2.append(InlineKeyboardButton(" ", callback_data="noop"))
     
     row2.append(InlineKeyboardButton(f"{current_idx + 1}/{total}", callback_data="noop"))
-    
-    if current_idx < total - 1:
+
+    if has_next:
         row2.append(InlineKeyboardButton("След. →", callback_data=f"photo_{current_idx + 1}"))
-    else:
-        row2.append(InlineKeyboardButton(" ", callback_data="noop"))
 
     rows = [row1, row2]
     if done:
         rows.append([InlineKeyboardButton("✅ Утвердить выбор", callback_data="photos_confirm")])
+    
     rows.append([
         InlineKeyboardButton("← Назад", callback_data="back_to_mp"),
         InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
@@ -471,21 +473,37 @@ async def _show_photo(context, chat_id, message_id, idx, paths, selected):
 
 
 async def cb_photo_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Листание фото."""
+    """Листание фото (пропускает уже выбранные)."""
     query = update.callback_query
     await query.answer()
 
-    idx = int(query.data.split("_")[1])
     paths = context.user_data.get("photo_paths", [])
     selected = context.user_data.get("photo_selected", [])
-    
-    context.user_data["photo_idx"] = idx
-    await _show_photo(context, query.from_user.id, query.message.message_id, idx, paths, selected)
+    selected_indices = {idx for _, idx in selected}
+    current = context.user_data.get("photo_idx", 0)
+
+    # Определяем направление
+    step = -1 if "prev" in query.data else 1
+
+    # Ищем ближайший невыбранный
+    new_idx = current + step
+    while 0 <= new_idx < len(paths):
+        if new_idx not in selected_indices:
+            break
+        new_idx += step
+
+    if new_idx < 0 or new_idx >= len(paths):
+        # Нет доступных фото в этом направлении
+        await query.answer("Нет доступных фото", show_alert=True)
+        return _PHOTO_SELECT
+
+    context.user_data["photo_idx"] = new_idx
+    await _show_photo(context, query.from_user.id, query.message.message_id, new_idx, paths, selected)
     return _PHOTO_SELECT
 
 
 async def cb_select_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Выбор фото как №1/2/3."""
+    """Выбор или отмена выбора фото."""
     query = update.callback_query
     await query.answer()
 
@@ -493,17 +511,35 @@ async def cb_select_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     paths = context.user_data.get("photo_paths", [])
     selected = context.user_data.get("photo_selected", [])
     idx = context.user_data.get("photo_idx", 0)
-    
-    # Убираем старый выбор этого слота
+
+    # Проверяем: этот слот уже выбран ТЕКУЩИМ фото? → ОТМЕНА
+    existing = next((s for s, i in selected if s == slot), None)
+    if existing == idx:
+        # Отменяем выбор: убираем этот слот
+        selected = [(s, i) for s, i in selected if s != slot]
+        context.user_data["photo_selected"] = selected
+        await _show_photo(context, query.from_user.id, query.message.message_id, idx, paths, selected)
+        return _PHOTO_SELECT
+
+    # Иначе: записываем фото в слот (заменяем если слот был занят)
     selected = [(s, i) for s, i in selected if s != slot]
     selected.append((slot, idx))
     selected.sort()
     context.user_data["photo_selected"] = selected
 
     done = len(selected) >= 3
-    next_idx = idx + 1 if idx < len(paths) - 1 and not done else idx
-    
-    await _show_photo(context, query.from_user.id, query.message.message_id, next_idx if not done else idx, paths, selected)
+    # Если выбрано — ищем следующее невыбранное
+    if not done:
+        selected_indices = {i for _, i in selected}
+        next_idx = idx + 1
+        while next_idx < len(paths) and next_idx in selected_indices:
+            next_idx += 1
+        if next_idx >= len(paths):
+            next_idx = idx
+    else:
+        next_idx = idx
+
+    await _show_photo(context, query.from_user.id, query.message.message_id, next_idx, paths, selected)
     return _PHOTO_CONFIRM if done else _PHOTO_SELECT
 
 
