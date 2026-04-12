@@ -12,6 +12,7 @@ import asyncio
 import logging
 import os
 import re
+import time
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import (
@@ -315,28 +316,65 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         wb_images=images,
     )
 
-    # Создаём папку и скачиваем все фото (до MAX_PHOTOS)
+    # Создаём папку
     media_dir = ensure_article_media_dir(user.id, "WB", article)
     
-    # Показываем загрузку
+    # Отправляем ВРЕМЕННОЕ окно загрузки
     loading_text = f"Шаг 6 из N: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото..."
     loading_msg = await context.bot.send_photo(
         chat_id=user.id,
         photo=open("assets/banner_default.png", "rb"),
         caption=loading_text,
     )
-
-    # Скачиваем фото
-    to_download = images[:MAX_PHOTOS]
-    local_paths = await download_all_images(to_download, media_dir)
     
-    # Удаляем загрузочное
+    start_time = time.monotonic()
+    
+    # Скачиваем фото в фоне
+    to_download = images[:MAX_PHOTOS]
+    download_task = asyncio.create_task(download_all_images(to_download, media_dir))
+    
+    # Запускаем анимацию в фоне
+    context.user_data["_loading_stop"] = asyncio.Event()
+    
+    async def _run_animation():
+        """Анимация в фоне."""
+        count = 0
+        stop = context.user_data.get("_loading_stop")
+        while not stop.is_set() and count < 10:
+            count += 1
+            try:
+                await context.bot.edit_message_caption(
+                    chat_id=user.id,
+                    message_id=loading_msg.message_id,
+                    caption=f"Шаг 6 из N: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото...{count}",
+                )
+            except:
+                pass
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=1.0)
+            except asyncio.TimeoutError:
+                pass
+    
+    anim_task = asyncio.create_task(_run_animation())
+    
+    # Ждём скачивание
+    local_paths = await download_task
+    
+    # Ждём минимум 10 сек от начала
+    elapsed = time.monotonic() - start_time
+    if elapsed < 10:
+        await asyncio.sleep(10 - elapsed)
+    
+    # Останавливаем анимацию
+    context.user_data["_loading_stop"].set()
+    
+    # Удаляем временное окно загрузки
     await safe_delete(context.bot, user.id, loading_msg.message_id)
 
     if not local_paths:
         await context.bot.send_message(
             chat_id=user.id,
-            text="❌ Не удалось загрузить фото. Попробуйте снова.",
+            text="❌ Не удалось загрузить фото.",
         )
         return ConversationHandler.END
 
@@ -344,11 +382,11 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Сохраняем список фото в контекст
     context.user_data["photo_paths"] = local_paths
-    context.user_data["photo_selected"] = []  # [(slot, idx), ...]
+    context.user_data["photo_selected"] = []
     context.user_data["photo_idx"] = 0
 
-    # Показываем первое фото
-    await _show_photo(context, user.id, query.message.message_id, 0, local_paths, [])
+    # Отправляем НОВОЕ сообщение с выбором фото (Шаг 6)
+    await _show_photo(context, user.id, None, 0, local_paths, [])
     return _PHOTO_SELECT
 
 
