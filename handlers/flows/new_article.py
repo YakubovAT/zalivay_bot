@@ -36,8 +36,8 @@ logger = logging.getLogger(__name__)
 # Состояния
 _MP_SELECT, _ARTICLE_INPUT, _PRODUCT_CONFIRM, _PHOTO_SELECT, _PHOTO_CONFIRM = range(5)
 
-# Максимум фото для выбора
-MAX_PHOTOS = 15
+# Максимум фото для выбора (как в парсере WB)
+MAX_PHOTOS = 30
 
 # Валидация артикула WB: только цифры, 6-9 знаков
 ARTICLE_RE = re.compile(r"^\d{6,9}$")
