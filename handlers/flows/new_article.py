@@ -48,7 +48,7 @@ ARTICLE_RE = re.compile(r"^\d{6,9}$")
 # ---------------------------------------------------------------------------
 
 _MARKETPLACE_TEXT = (
-    "Шаг 3 из N: Выбор маркетплейса\n\n"
+    "Шаг 3: Выбор маркетплейса\n\n"
     "Выберите маркетплейс, на котором продаётся ваш товар. "
     "После мы с вами создадим фото и видео контент "
     "для последующего размещения в социальных сетях. "
@@ -59,7 +59,7 @@ _MARKETPLACE_TEXT = (
 _LOCKED_TEXT = "⏳ Этот маркетплейс скоро будет доступен"
 
 _ARTICLE_INPUT_TEXT = (
-    "Шаг 4 из N: Ввод артикула\n\n"
+    "Шаг 4: Ввод артикула\n\n"
     "В строку сообщений введите артикул.\n\n"
     "Мы загрузим фото из карточки. Выберите "
     "3 лучших — где ваш товар виден наиболее "
@@ -192,11 +192,12 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         caption="⏳ Ищу товар...1",
     )
 
-    # Анимация на временном окне
+    # Анимация на временном окне (максимум 5 сек)
     stop_event = await animate_loading(
         bot=context.bot,
         chat_id=user.id,
         message_id=loading_msg.message_id,
+        max_count=5,
     )
 
     # Парсим WB
@@ -236,7 +237,7 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     material = product.get("material", "—")
 
     text = (
-        f"Шаг 5 из N: Найден товар\n\n"
+        f"Шаг 5: Найден товар\n\n"
         f"📦 {name}\n"
         f"🏷 Бренд: {brand}\n"
         f"🎨 Цвет: {color}\n"
@@ -320,7 +321,7 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     media_dir = ensure_article_media_dir(user.id, "WB", article)
     
     # Отправляем ВРЕМЕННОЕ окно загрузки
-    loading_text = f"Шаг 6 из N: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото..."
+    loading_text = f"Шаг 6: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото..."
     loading_msg = await context.bot.send_photo(
         chat_id=user.id,
         photo=open("assets/banner_default.png", "rb"),
@@ -340,13 +341,13 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         """Анимация в фоне."""
         count = 0
         stop = context.user_data.get("_loading_stop")
-        while not stop.is_set() and count < 10:
+        while not stop.is_set() and count < 5:
             count += 1
             try:
                 await context.bot.edit_message_caption(
                     chat_id=user.id,
                     message_id=loading_msg.message_id,
-                    caption=f"Шаг 6 из N: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото...{count}",
+                    caption=f"Шаг 6: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото...{count}",
                 )
             except:
                 pass
@@ -360,10 +361,10 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Ждём скачивание
     local_paths = await download_task
     
-    # Ждём минимум 10 сек от начала
+    # Ждём минимум 5 сек от начала
     elapsed = time.monotonic() - start_time
-    if elapsed < 10:
-        await asyncio.sleep(10 - elapsed)
+    if elapsed < 5:
+        await asyncio.sleep(5 - elapsed)
     
     # Останавливаем анимацию
     context.user_data["_loading_stop"].set()
@@ -440,7 +441,7 @@ async def _show_photo(context, chat_id, message_id, idx, paths, selected):
     selected_count = len(selected)
     done = selected_count >= 3
     
-    caption = f"Шаг 6 из N: Выбор фото — {idx + 1} из {total}\n\n{_selection_text(selected_count)}"
+    caption = f"Шаг 6: Выбор фото — {idx + 1} из {total}\n\n{_selection_text(selected_count)}"
     keyboard = _kb_photo_select(selected, idx, total, done)
 
     if message_id is not None:
@@ -521,7 +522,7 @@ async def cb_photos_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 query.from_user.id, article, len(chosen_paths))
 
     caption = (
-        f"Шаг 7 из N: Подтверждение\n\n"
+        f"Шаг 7: Подтверждение\n\n"
         f"✅ Выбрано 3 фото для артикула {article}\n"
         f"🧵 Состав: {composition}\n\n"
         "Следующий шаг: создание эталона."
