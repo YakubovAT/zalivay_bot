@@ -285,7 +285,7 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 # ---------------------------------------------------------------------------
 
 async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь подтвердил: «Да, это он» → скачиваем фото."""
+    """Пользователь подтвердил: «Да, это он» → РЕДАКТИРУЕМ экран в Шаг 6."""
     query = update.callback_query
     await query.answer()
 
@@ -319,26 +319,35 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Создаём папку
     media_dir = ensure_article_media_dir(user.id, "WB", article)
-    
-    # Отправляем ВРЕМЕННОЕ окно загрузки
-    loading_text = f"Шаг 6: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото..."
-    loading_msg = await context.bot.send_photo(
-        chat_id=user.id,
-        photo=open("assets/banner_default.png", "rb"),
-        caption=loading_text,
-    )
-    
+
+    # РЕДАКТИРУЕМ текущий экран (Шаг 5) → "Загружаю фото..."
+    loading_text = f"Шаг 6 из N: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото..."
+    try:
+        await context.bot.edit_message_media(
+            chat_id=user.id,
+            message_id=query.message.message_id,
+            media=InputMediaPhoto(media=open("assets/banner_default.png", "rb"), caption=loading_text),
+            reply_markup=None,
+        )
+        loading_msg_id = query.message.message_id
+    except:
+        msg = await context.bot.send_photo(
+            chat_id=user.id,
+            photo=open("assets/banner_default.png", "rb"),
+            caption=loading_text,
+        )
+        loading_msg_id = msg.message_id
+
     start_time = time.monotonic()
-    
+
     # Скачиваем фото в фоне
     to_download = images[:MAX_PHOTOS]
     download_task = asyncio.create_task(download_all_images(to_download, media_dir))
-    
-    # Запускаем анимацию в фоне
+
+    # Анимация в фоне
     context.user_data["_loading_stop"] = asyncio.Event()
-    
+
     async def _run_animation():
-        """Анимация в фоне."""
         count = 0
         stop = context.user_data.get("_loading_stop")
         while not stop.is_set() and count < 5:
@@ -346,8 +355,8 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             try:
                 await context.bot.edit_message_caption(
                     chat_id=user.id,
-                    message_id=loading_msg.message_id,
-                    caption=f"Шаг 6: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото...{count}",
+                    message_id=loading_msg_id,
+                    caption=f"Шаг 6 из N: Загрузка фото\n\n📦 {name}\n🧵 Состав: {composition}\n\n⏳ Загружаю фото...{count}",
                 )
             except:
                 pass
@@ -355,27 +364,25 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 await asyncio.wait_for(stop.wait(), timeout=1.0)
             except asyncio.TimeoutError:
                 pass
-    
-    anim_task = asyncio.create_task(_run_animation())
-    
+
+    asyncio.create_task(_run_animation())
+
     # Ждём скачивание
     local_paths = await download_task
-    
+
     # Ждём минимум 5 сек от начала
     elapsed = time.monotonic() - start_time
     if elapsed < 5:
         await asyncio.sleep(5 - elapsed)
-    
+
     # Останавливаем анимацию
     context.user_data["_loading_stop"].set()
-    
-    # Удаляем временное окно загрузки
-    await safe_delete(context.bot, user.id, loading_msg.message_id)
 
     if not local_paths:
-        await context.bot.send_message(
+        await context.bot.edit_message_caption(
             chat_id=user.id,
-            text="❌ Не удалось загрузить фото.",
+            message_id=loading_msg_id,
+            caption="❌ Не удалось загрузить фото.",
         )
         return ConversationHandler.END
 
@@ -386,8 +393,8 @@ async def cb_product_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data["photo_selected"] = []
     context.user_data["photo_idx"] = 0
 
-    # Отправляем НОВОЕ сообщение с выбором фото (Шаг 6)
-    await _show_photo(context, user.id, None, 0, local_paths, [])
+    # РЕДАКТИРУЕМ экран загрузки → экран выбора фото (Шаг 6)
+    await _show_photo(context, user.id, loading_msg_id, 0, local_paths, [])
     return _PHOTO_SELECT
 
 
