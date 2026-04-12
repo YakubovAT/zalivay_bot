@@ -409,12 +409,12 @@ def _kb_photo_select(selected: list, current_idx: int, total: int, done: bool = 
     has_next = current_idx < total - 1
 
     if has_prev:
-        row2.append(InlineKeyboardButton("← Пред.", callback_data=f"photo_{current_idx - 1}"))
+        row2.append(InlineKeyboardButton("← Пред.", callback_data=f"photo_prev_{current_idx - 1}"))
     
     row2.append(InlineKeyboardButton(f"{current_idx + 1}/{total}", callback_data="noop"))
 
     if has_next:
-        row2.append(InlineKeyboardButton("След. →", callback_data=f"photo_{current_idx + 1}"))
+        row2.append(InlineKeyboardButton("След. →", callback_data=f"photo_next_{current_idx + 1}"))
 
     rows = [row1, row2]
     if done:
@@ -477,28 +477,32 @@ async def cb_photo_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     query = update.callback_query
     await query.answer()
 
+    # Парсим: photo_prev_3 или photo_next_5
+    parts = query.data.split("_")
+    target_idx = int(parts[-1])
+    
+    context.user_data["photo_idx"] = target_idx
     paths = context.user_data.get("photo_paths", [])
     selected = context.user_data.get("photo_selected", [])
     selected_indices = {idx for _, idx in selected}
-    current = context.user_data.get("photo_idx", 0)
 
-    # Определяем направление
-    step = -1 if "prev" in query.data else 1
+    # Проверяем, не выбрано ли это фото
+    if target_idx in selected_indices:
+        # Ищем ближайший невыбранный
+        step = -1 if "prev" in query.data else 1
+        new_idx = target_idx + step
+        while 0 <= new_idx < len(paths):
+            if new_idx not in selected_indices:
+                break
+            new_idx += step
+        
+        if new_idx < 0 or new_idx >= len(paths):
+            await query.answer("Нет доступных фото", show_alert=True)
+            return _PHOTO_SELECT
+        context.user_data["photo_idx"] = new_idx
+        target_idx = new_idx
 
-    # Ищем ближайший невыбранный
-    new_idx = current + step
-    while 0 <= new_idx < len(paths):
-        if new_idx not in selected_indices:
-            break
-        new_idx += step
-
-    if new_idx < 0 or new_idx >= len(paths):
-        # Нет доступных фото в этом направлении
-        await query.answer("Нет доступных фото", show_alert=True)
-        return _PHOTO_SELECT
-
-    context.user_data["photo_idx"] = new_idx
-    await _show_photo(context, query.from_user.id, query.message.message_id, new_idx, paths, selected)
+    await _show_photo(context, query.from_user.id, query.message.message_id, target_idx, paths, selected)
     return _PHOTO_SELECT
 
 
@@ -624,14 +628,14 @@ def build_new_article_handler() -> ConversationHandler:
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],
             _PHOTO_SELECT: [
-                CallbackQueryHandler(cb_photo_nav, pattern="^photo_\d+$"),
+                CallbackQueryHandler(cb_photo_nav, pattern="^photo_(prev|next)_\d+$"),
                 CallbackQueryHandler(cb_select_photo, pattern="^sel_\d$"),
                 CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],
             _PHOTO_CONFIRM: [
                 CallbackQueryHandler(cb_photos_confirm, pattern="^photos_confirm$"),
-                CallbackQueryHandler(cb_photo_nav, pattern="^photo_\d+$"),
+                CallbackQueryHandler(cb_photo_nav, pattern="^photo_(prev|next)_\d+$"),
                 CallbackQueryHandler(cb_select_photo, pattern="^sel_\d$"),
                 CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
