@@ -89,7 +89,8 @@ async def cb_ref_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     article = data.replace("ref_article_", "")
 
     # Сбрасываем индекс при первом открытии артикула
-    if data != getattr(context.user_data.get("_last_ref_data"), None):
+    last_ref = context.user_data.get("_last_ref_data")
+    if data != last_ref:
         _ref_index[user_id] = 0
     context.user_data["_last_ref_data"] = data
 
@@ -169,6 +170,8 @@ async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     data = query.data  # ref_prev_{code} / ref_next_{code}
 
     parts = data.split("_", 2)  # ref, prev/next, code
+    if len(parts) < 3:
+        return
     direction = parts[1]
     article = parts[2]
 
