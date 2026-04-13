@@ -121,14 +121,30 @@ def main() -> None:
         logger.error("Unhandled error: %s", context.error, exc_info=context.error)
         if update and update.effective_user:
             try:
+                from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Закрыть", callback_data="close_error")]
+                ])
                 await context.bot.send_message(
                     chat_id=update.effective_user.id,
                     text="❌ Произошла ошибка. Попробуйте снова или нажмите /start.",
+                    reply_markup=keyboard,
                 )
             except Exception:
                 pass
 
     application.add_error_handler(error_handler)
+    
+    # Обработчик закрытия ошибок
+    async def cb_close_error(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        query = update.callback_query
+        await query.answer()
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+
+    application.add_handler(CallbackQueryHandler(cb_close_error, pattern="^close_error$"))
 
     logger.info("Бот запущен")
     application.run_polling()
