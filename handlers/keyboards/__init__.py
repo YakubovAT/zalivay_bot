@@ -134,3 +134,57 @@ def kb_photo_select(selected: list, current_idx: int, total: int, done: bool = F
     ])
 
     return InlineKeyboardMarkup(rows)
+
+
+# ---------------------------------------------------------------------------
+# Flow: Генерация фото — Шаг P1 (сколько фото?)
+# ---------------------------------------------------------------------------
+
+def kb_gen_photo_count() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("← Назад", callback_data="back_to_ref_card"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Генерация фото — Шаг P2 (пожелания)
+# ---------------------------------------------------------------------------
+
+def kb_gen_photo_wish() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("← Назад", callback_data="back_to_p_count"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Генерация фото — Шаг P3 (подтверждение)
+# ---------------------------------------------------------------------------
+
+def kb_gen_photo_confirm() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Сгенерировать", callback_data="gen_photo_yes")],
+        [
+            InlineKeyboardButton("← Назад", callback_data="back_to_p_wish"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Генерация фото — Результат
+# ---------------------------------------------------------------------------
+
+def kb_gen_photo_result() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("📸 Генерировать ещё", callback_data="menu_gen_photo"),
+            InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
+        ],
+        [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
+    ])

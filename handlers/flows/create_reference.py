@@ -220,6 +220,9 @@ async def start_reference_generation(
         reference_image_url=result_url,
         category=category,
         reference_prompt=prompt,
+        product_name=name,
+        product_color=color,
+        product_material=composition,
     )
 
     logger.info("REFERENCE SAVED | user=%s article=%s ref=%d file_id=%s",

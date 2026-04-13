@@ -209,6 +209,9 @@ async def save_reference(
     category: str = "",
     reference_prompt: str = "",
     reference_number: int = 1,
+    product_name: str = "",
+    product_color: str = "",
+    product_material: str = "",
 ) -> int:
     """Сохраняет эталон в БД. Много эталонов на один артикул.
 
@@ -216,15 +219,18 @@ async def save_reference(
     category: классификация товара (верх/низ/обувь/головной убор)
     reference_prompt: промпт на английском для I2I генерации
     reference_number: порядковый номер эталона для артикула
+    product_name: название товара
+    product_color: цвет товара
+    product_material: материал товара
     """
     pool = await get_pool()
     row = await pool.fetchrow(
         """
-        INSERT INTO article_references (user_id, articul, reference_number, file_id, file_path, reference_image_url, category, reference_prompt)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO article_references (user_id, articul, reference_number, file_id, file_path, reference_image_url, category, reference_prompt, product_name, product_color, product_material)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING id
         """,
-        user_id, articul, reference_number, file_id, file_path, reference_image_url, category, reference_prompt,
+        user_id, articul, reference_number, file_id, file_path, reference_image_url, category, reference_prompt, product_name, product_color, product_material,
     )
     return row["id"] if row else -1
 
