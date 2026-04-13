@@ -378,6 +378,7 @@ def build_new_article_handler() -> ConversationHandler:
                 CallbackQueryHandler(cb_photos_confirm, pattern="^photos_confirm$"),
                 CallbackQueryHandler(cb_photo_nav, pattern=r"^photo_(prev|next)_\d+$"),
                 CallbackQueryHandler(cb_select_photo, pattern=r"^sel_\d$"),
+                CallbackQueryHandler(cb_back_to_product_confirm, pattern="^back_to_product_confirm$"),
                 CallbackQueryHandler(cb_back_to_menu_from_photo, pattern="^back_to_menu$"),
             ],
             _REFERENCE_CONFIRM: [
