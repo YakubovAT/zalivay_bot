@@ -144,8 +144,8 @@ def build_onboarding_handler() -> ConversationHandler:
             ],
             _MAIN_MENU: [
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
-                # menu_my_refs обрабатывается в etalon.py — не перехватываем
-                CallbackQueryHandler(cb_menu_not_impl, pattern="^menu_(?!my_refs)"),
+                # menu_my_refs, menu_gen_photo, menu_gen_video обрабатываются в других flow
+                CallbackQueryHandler(cb_menu_not_impl, pattern="^menu_(?!my_refs|gen_photo|gen_video|topup)"),
             ],
         },
         fallbacks=[],

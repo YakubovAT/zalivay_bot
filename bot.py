@@ -107,6 +107,12 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.ALL, log_message), group=-1)
     application.add_handler(CallbackQueryHandler(log_callback), group=-1)
 
+    # --- Генерация фото ---
+    application.add_handler(build_gen_photo_handler())
+
+    # --- Генерация видео ---
+    application.add_handler(build_gen_video_handler())
+
     # --- Онбординг /start ---
     application.add_handler(build_onboarding_handler())
 
@@ -117,12 +123,6 @@ def main() -> None:
     application.add_handler(build_noop_handler())
     application.add_handler(build_ref_article_handler())
     application.add_handler(build_ref_nav_handler())
-
-    # --- Генерация фото ---
-    application.add_handler(build_gen_photo_handler())
-
-    # --- Генерация видео ---
-    application.add_handler(build_gen_video_handler())
 
     # --- Новый артикул (включает выбор фото и создание эталона) ---
     application.add_handler(build_new_article_handler())
