@@ -3,6 +3,7 @@ handlers/flows/etalon.py
 
 Шаг 15: Список товаров пользователя (Мои эталоны).
 Показывает артикулы пользователя в виде inline-кнопок с количеством эталонов.
+Без ConversationHandler — чтобы другие кнопки меню работали из любого экрана.
 """
 
 from __future__ import annotations
@@ -10,18 +11,15 @@ from __future__ import annotations
 import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CallbackQueryHandler, ConversationHandler, ContextTypes
+from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from database import get_user_articles_with_refs
-from handlers.flows.flow_helpers import send_screen
+from handlers.flows.flow_helpers import send_screen, get_msg_id
 
 logger = logging.getLogger(__name__)
 
-# Состояние
-_MY_REFS_LIST = 20
 
-
-async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список товаров пользователя с количеством эталонов."""
     query = update.callback_query
     await query.answer()
@@ -75,24 +73,7 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         text=text,
         keyboard=keyboard,
     )
-    return _MY_REFS_LIST
 
 
-# ---------------------------------------------------------------------------
-# Сборка ConversationHandler
-# ---------------------------------------------------------------------------
-
-def build_etalon_handler() -> ConversationHandler:
-    return ConversationHandler(
-        entry_points=[
-            CallbackQueryHandler(cb_menu_my_refs, pattern="^menu_my_refs$"),
-        ],
-        states={
-            _MY_REFS_LIST: [
-                CallbackQueryHandler(cb_menu_my_refs, pattern="^menu_my_refs$"),
-            ],
-        },
-        fallbacks=[],
-        name="etalon_list",
-        persistent=False,
-    )
+def build_etalon_handler() -> CallbackQueryHandler:
+    return CallbackQueryHandler(cb_menu_my_refs, pattern="^menu_my_refs$")
