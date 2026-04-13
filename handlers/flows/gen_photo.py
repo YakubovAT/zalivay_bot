@@ -288,15 +288,24 @@ async def _generate_photos(
     count: int, wish: str | None, total_cost: int,
 ) -> None:
     """Генерирует N фото и отправляет пользователю."""
+    # Формируем публичный URL из file_path (файл на нашем сервере)
+    # Приоритет: reference_image_url (если есть), иначе формируем через nginx
     ref_image_url = ref.get("reference_image_url", "")
-
     if not ref_image_url:
-        logger.error("GEN_PHOTO | no_ref_image_url | user=%s", user_id)
-        await bot.send_message(
-            chat_id=user_id,
-            text="❌ Эталон не содержит изображения. Создайте эталон заново.",
-        )
-        return
+        file_path = ref.get("file_path", "")
+        if file_path:
+            # file_path = media/171470918/references/400015193_ref_final.png
+            # → https://zaliv.ai/media/171470918/references/400015193_ref_final.png
+            rel = file_path.lstrip("/").replace("media/", "", 1)
+            ref_image_url = f"https://zaliv.ai/media/{user_id}/{rel}"
+            logger.info("GEN_PHOTO | url from file_path | user=%s url=%s", user_id, ref_image_url)
+        else:
+            logger.error("GEN_PHOTO | no file_path | user=%s", user_id)
+            await bot.send_message(
+                chat_id=user_id,
+                text="❌ Эталон не содержит изображения. Создайте эталон заново.",
+            )
+            return
 
     # Генерируем N уникальных промптов
     product_name = ref.get("product_name", "товар")

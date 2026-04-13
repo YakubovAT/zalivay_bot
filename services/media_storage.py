@@ -20,6 +20,7 @@ MEDIA_ROOT = os.path.join(os.path.dirname(__file__), "..", "media")
 def ensure_user_media_dirs(user_id: int) -> str:
     """
     Создаёт папку пользователя и подпапки для медиа.
+    Создаёт симлинк для nginx раздачи: /var/www/media/{user_id} → ...
     Возвращает путь к папке пользователя.
     """
     user_dir = os.path.join(MEDIA_ROOT, str(user_id))
@@ -29,8 +30,29 @@ def ensure_user_media_dirs(user_id: int) -> str:
         path = os.path.join(user_dir, subdir)
         os.makedirs(path, exist_ok=True)
 
+    # Создаём симлинк для nginx: /var/www/media/{user_id} → media/{user_id}/
+    nginx_media_root = "/var/www/media"
+    os.makedirs(nginx_media_root, exist_ok=True)
+    symlink_path = os.path.join(nginx_media_root, str(user_id))
+    abs_user_dir = os.path.abspath(user_dir)
+    if not os.path.exists(symlink_path) and not os.path.islink(symlink_path):
+        try:
+            os.symlink(abs_user_dir, symlink_path)
+            logger.info("Symlink created: %s → %s", symlink_path, abs_user_dir)
+        except OSError as e:
+            logger.warning("Symlink creation failed: %s", e)
+
     logger.info("Media dirs created/verified: %s", user_dir)
     return user_dir
+
+
+def get_public_media_url(user_id: int, relative_path: str) -> str:
+    """
+    Возвращает публичный URL для медиафайла на нашем сервере.
+    Пример: get_public_media_url(171470918, 'references/400015193_ref_final.png')
+      → https://zaliv.ai/media/171470918/references/400015193_ref_final.png
+    """
+    return f"https://zaliv.ai/media/{user_id}/{relative_path.lstrip('/')}"
 
 
 def ensure_article_media_dir(user_id: int, marketplace: str, article_code: str) -> str:
