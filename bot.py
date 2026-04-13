@@ -17,6 +17,7 @@ from database import init_db
 from handlers import (
     build_onboarding_handler,
     build_new_article_handler,
+    build_photo_selection_handler,
     build_etalon_handler,
     build_photo_handler,
     build_video_handler,
@@ -103,6 +104,9 @@ def main() -> None:
 
     # --- Новый артикул (до онбординга — специфичные callbacks) ---
     application.add_handler(build_new_article_handler())
+
+    # --- Выбор фото и создание эталона ---
+    application.add_handler(build_photo_selection_handler())
 
     # --- Онбординг /start ---
     application.add_handler(build_onboarding_handler())
