@@ -58,10 +58,12 @@ async def get_user_articles_with_refs(user_id: int) -> list[asyncpg.Record]:
             a.marketplace,
             COUNT(DISTINCT CASE WHEN ar.is_active = TRUE THEN ar.id END) as ref_count
         FROM articles a
-        LEFT JOIN article_references ar
+        INNER JOIN article_references ar
             ON ar.user_id = a.user_id AND ar.articul = a.article_code
         WHERE a.user_id = $1
+          AND ar.is_active = TRUE
         GROUP BY a.article_code, a.name, a.marketplace
+        HAVING COUNT(DISTINCT ar.id) > 0
         ORDER BY MAX(a.parsed_at) DESC
         """,
         user_id,
