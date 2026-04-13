@@ -9,8 +9,8 @@ import logging
 import sys
 
 import aiohttp
-from telegram import BotCommand, MenuButtonCommands
-from telegram.ext import Application, CallbackQueryHandler, MessageHandler, filters
+from telegram import BotCommand, MenuButtonCommands, Update
+from telegram.ext import Application, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 from config import BOT_TOKEN
 from database import init_db
