@@ -237,7 +237,7 @@ async def start_reference_generation(
         await context.bot.edit_message_media(
             chat_id=user_id,
             message_id=message_id,
-            media=InputMediaPhoto(media=open(result_local, "rb"), caption=final_caption, parse_mode="HTML"),
+            media=InputMediaPhoto(media=file_id, caption=final_caption, parse_mode="HTML"),
             reply_markup=_kb_reference_result(),
         )
     except Exception:
