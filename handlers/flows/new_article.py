@@ -28,7 +28,7 @@ from database import get_user_stats, save_article
 from handlers.flows.flow_helpers import (
     send_screen, store_msg_id, get_msg_id, safe_delete, animate_loading,
 )
-from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu, kb_product_confirm
+from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu, kb_product_confirm, kb_confirm_reference
 from services.wb_parser import get_product_info
 from services.media_storage import download_image, ensure_article_media_dir, download_all_images
 from services.image_merger import merge_photos_horizontal
