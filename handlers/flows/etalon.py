@@ -198,6 +198,15 @@ def build_etalon_handler() -> CallbackQueryHandler:
     return CallbackQueryHandler(cb_menu_my_refs, pattern="^menu_my_refs$")
 
 
+async def cb_noop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик noop-кнопок — только подтверждение клика."""
+    await update.callback_query.answer()
+
+
+def build_noop_handler() -> CallbackQueryHandler:
+    return CallbackQueryHandler(cb_noop, pattern="^noop$")
+
+
 def build_ref_article_handler() -> CallbackQueryHandler:
     """Обработчик просмотра эталона (Шаг 16)."""
     return CallbackQueryHandler(cb_ref_article, pattern="^ref_article_")

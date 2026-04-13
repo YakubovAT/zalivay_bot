@@ -21,6 +21,7 @@ from handlers import (
     build_etalon_handler,
     build_ref_article_handler,
     build_ref_nav_handler,
+    build_noop_handler,
     build_photo_handler,
     build_video_handler,
     log_message,
@@ -111,6 +112,7 @@ def main() -> None:
     application.add_handler(build_etalon_handler())
 
     # --- Шаг 16: Просмотр эталона (фото + навигация) ---
+    application.add_handler(build_noop_handler())
     application.add_handler(build_ref_article_handler())
     application.add_handler(build_ref_nav_handler())
 
