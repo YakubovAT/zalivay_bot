@@ -26,7 +26,13 @@ from database import get_user_stats, save_article
 from handlers.flows.flow_helpers import (
     send_screen, store_msg_id, get_msg_id, safe_delete, animate_loading,
 )
-from handlers.flows.photo_selection import start_photo_selection
+from handlers.flows.photo_selection import (
+    start_photo_selection,
+    _PHOTO_SELECT, _PHOTO_CONFIRM, _REFERENCE_CONFIRM,
+    cb_photo_nav, cb_select_photo, cb_photos_confirm,
+    cb_back_to_photo_select, cb_back_to_product_confirm,
+    cb_create_reference, cb_back_to_menu_from_photo,
+)
 from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu, kb_product_confirm
 from services.wb_parser import get_product_info
 from services.media_storage import download_image
@@ -360,6 +366,24 @@ def build_new_article_handler() -> ConversationHandler:
                 CallbackQueryHandler(cb_product_no, pattern="^product_no$"),
                 CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
+            ],
+            # Состояния из photo_selection.py
+            _PHOTO_SELECT: [
+                CallbackQueryHandler(cb_photo_nav, pattern=r"^photo_(prev|next)_\d+$"),
+                CallbackQueryHandler(cb_select_photo, pattern=r"^sel_\d$"),
+                CallbackQueryHandler(cb_back_to_product_confirm, pattern="^back_to_product_confirm$"),
+                CallbackQueryHandler(cb_back_to_menu_from_photo, pattern="^back_to_menu$"),
+            ],
+            _PHOTO_CONFIRM: [
+                CallbackQueryHandler(cb_photos_confirm, pattern="^photos_confirm$"),
+                CallbackQueryHandler(cb_photo_nav, pattern=r"^photo_(prev|next)_\d+$"),
+                CallbackQueryHandler(cb_select_photo, pattern=r"^sel_\d$"),
+                CallbackQueryHandler(cb_back_to_menu_from_photo, pattern="^back_to_menu$"),
+            ],
+            _REFERENCE_CONFIRM: [
+                CallbackQueryHandler(cb_create_reference, pattern="^ref_create_yes$"),
+                CallbackQueryHandler(cb_back_to_photo_select, pattern="^back_to_photo_select$"),
+                CallbackQueryHandler(cb_back_to_menu_from_photo, pattern="^back_to_menu$"),
             ],
         },
         fallbacks=[],

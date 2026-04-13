@@ -28,8 +28,8 @@ from services.image_merger import merge_photos_horizontal
 
 logger = logging.getLogger(__name__)
 
-# Состояния
-_PHOTO_SELECT, _PHOTO_CONFIRM, _REFERENCE_CONFIRM = range(3)
+# Состояния (10-12, чтобы не пересекаться с new_article 0-2)
+_PHOTO_SELECT, _PHOTO_CONFIRM, _REFERENCE_CONFIRM = range(10, 13)
 
 
 # ---------------------------------------------------------------------------
