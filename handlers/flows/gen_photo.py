@@ -37,7 +37,7 @@ from handlers.keyboards import (
     kb_gen_photo_result,
 )
 from services.prompt_generator_cloth import generate_photo_prompts
-from services.reference_i2i import generate_reference_image
+from services.lifestyle_photo_generator import generate_lifestyle_photo
 
 logger = logging.getLogger(__name__)
 
@@ -279,37 +279,42 @@ async def _generate_photos(
 ) -> None:
     """Генерирует N фото и отправляет пользователю."""
     ref_prompt = ref.get("reference_prompt", "")
-    file_id = ref.get("file_id", "")
-    file_path = ref.get("file_path", "")
+    ref_image_url = ref.get("reference_image_url", "")
 
-    # Если нет file_path — пробуем скачать по file_id
-    if not file_path or not os.path.exists(file_path):
-        try:
-            file_obj = await bot.get_file(file_id)
-            file_path_local = f"media/{user_id}/temp/{article}_ref_for_gen.png"
-            await file_obj.download_to_drive(file_path_local)
-            file_path = file_path_local
-        except Exception as e:
-            logger.error("GEN_PHOTO | download_ref_failed | user=%s error=%s", user_id, e)
-            await bot.send_message(
-                chat_id=user_id,
-                text="❌ Не удалось загрузить эталон. Попробуйте снова.",
-            )
-            return
+    if not ref_image_url:
+        logger.error("GEN_PHOTO | no_ref_image_url | user=%s", user_id)
+        await bot.send_message(
+            chat_id=user_id,
+            text="❌ Эталон не содержит изображения. Создайте эталон заново.",
+        )
+        return
 
-    # Генерируем N уникальных промптов (сервис prompt_generator_cloth)
+    # Генерируем N уникальных промптов
     product_name = ref.get("product_name", "товар")
     product_color = ref.get("product_color", "neutral")
     product_material = ref.get("product_material", "")
     category = ref.get("category", "верх")
+    ref_prompt = ref.get("reference_prompt", "")  # Базовый промпт из эталона
 
-    prompts = generate_photo_prompts(
+    base_prompts = generate_photo_prompts(
         name=product_name,
         color=product_color,
         material=product_material,
         category=category,
         count=count,
     )
+
+    # Добавляем reference_prompt к каждому промпту
+    # Если есть пожелания — тоже встраиваем
+    prompts = []
+    for base in base_prompts:
+        parts = []
+        if ref_prompt:
+            parts.append(ref_prompt)
+        if wish:
+            parts.append(wish)
+        parts.append(base)
+        prompts.append(", ".join(parts))
 
     # Папка для сохранения
     save_dir = f"media/{user_id}/generated/{article}"
@@ -322,12 +327,14 @@ async def _generate_photos(
         for i, prompt in enumerate(prompts):
             logger.info("GEN_PHOTO | i2i_call | user=%s i=%d/%d", user_id, i + 1, count)
 
-            # TODO: загрузить коллаж и получить URL для I2I
-            result_url = await generate_reference_image(
+            # Используем reference_image_url эталона как входное изображение
+            ref_image_url = ref.get("reference_image_url", "")
+
+            result_url = await generate_lifestyle_photo(
                 session=session,
                 api_base=I2I_API_BASE,
                 api_key=I2I_API_KEY,
-                image_urls=[],
+                ref_image_url=ref_image_url,
                 prompt=prompt,
             )
 
