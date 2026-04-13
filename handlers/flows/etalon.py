@@ -43,21 +43,27 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
         ])
     else:
-        text = "📂 Мои эталоны\n\nВыберите товар для просмотра:"
+        text = (
+            "📂 Мои эталоны\n\n"
+            "Ниже ваши артикулы с эталонами.\n"
+            "Нажмите на артикул — откроется меню работы с эталонами."
+        )
 
         buttons = []
+        row = []
         for article in articles:
             code = article["article_code"]
-            name = article["name"] or "Товар"
             ref_count = article["ref_count"] or 0
-            mp = article["marketplace"] or ""
 
-            # Обрезаем длинное название
-            if len(name) > 30:
-                name = name[:28] + "…"
+            btn_text = f"📦 {code} ({ref_count})"
+            row.append(InlineKeyboardButton(btn_text, callback_data=f"ref_article_{code}"))
 
-            btn_text = f"📦 {code} — {name} ({ref_count} эт.)"
-            buttons.append([InlineKeyboardButton(btn_text, callback_data=f"ref_article_{code}")])
+            if len(row) == 2:
+                buttons.append(row)
+                row = []
+
+        if row:
+            buttons.append(row)
 
         buttons.append([InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")])
         keyboard = InlineKeyboardMarkup(buttons)
