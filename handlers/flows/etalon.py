@@ -111,6 +111,10 @@ async def cb_ref_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     category = ref["category"] or "—"
     total = len(refs)
 
+    # Запоминаем для flow генерации фото/видео
+    context.user_data["article_code"] = article
+    context.user_data["ref_number_for_gen"] = ref_number
+
     caption = (
         f"📸 Эталон #{ref_number} из {total}\n"
         f"📦 Артикул: <code>{article}</code>\n"
@@ -194,6 +198,10 @@ async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     ref_number = ref["reference_number"]
     category = ref["category"] or "—"
     total = len(refs)
+
+    # Запоминаем для flow генерации фото/видео
+    context.user_data["article_code"] = article
+    context.user_data["ref_number_for_gen"] = ref_number
 
     caption = (
         f"📸 Эталон #{ref_number} из {total}\n"
