@@ -33,6 +33,7 @@ from handlers.flows.photo_selection import (
     cb_back_to_photo_select, cb_back_to_product_confirm,
     cb_create_reference, cb_back_to_menu_from_photo,
 )
+from handlers.flows.create_reference import _REFERENCE_GENERATING
 from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu, kb_product_confirm
 from services.wb_parser import get_product_info
 from services.media_storage import download_image
@@ -384,6 +385,9 @@ def build_new_article_handler() -> ConversationHandler:
             _REFERENCE_CONFIRM: [
                 CallbackQueryHandler(cb_create_reference, pattern="^ref_create_yes$"),
                 CallbackQueryHandler(cb_back_to_photo_select, pattern="^back_to_photo_select$"),
+                CallbackQueryHandler(cb_back_to_menu_from_photo, pattern="^back_to_menu$"),
+            ],
+            _REFERENCE_GENERATING: [
                 CallbackQueryHandler(cb_back_to_menu_from_photo, pattern="^back_to_menu$"),
             ],
         },

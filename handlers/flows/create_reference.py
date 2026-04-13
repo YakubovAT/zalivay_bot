@@ -1,0 +1,245 @@
+"""
+handlers/flows/create_reference.py
+
+Шаг 8-11: Создание эталона товара.
+  8. Проверка баланса
+  9. T2T API → промпт + категория
+  10. I2I API → генерация эталона
+  11. Показ результата пользователю
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+
+import aiohttp
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CallbackQueryHandler, ConversationHandler, ContextTypes
+
+from config import REFERENCE_COST, AI_API_KEY, AI_API_BASE, AI_MODEL, I2I_API_KEY, I2I_API_BASE
+from database import get_user_stats, deduct_balance, save_reference, get_reference_count
+from services.reference_t2t import generate_reference_prompt
+from services.reference_i2i import generate_reference_image
+from services.image_merger import merge_photos_horizontal
+
+logger = logging.getLogger(__name__)
+
+# Состояние (13, чтобы не пересекаться с new_article 0-2 и photo_selection 10-12)
+_REFERENCE_GENERATING = 13
+
+
+def _kb_reference_result() -> InlineKeyboardMarkup:
+    """Клавиатура после создания эталона."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
+            InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
+        ],
+        [
+            InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
+
+
+async def start_reference_generation(
+    context: ContextTypes.DEFAULT_TYPE,
+    user_id: int,
+    message_id: int,
+) -> int:
+    """Запускает процесс создания эталона. Вызывается из photo_selection после подтверждения."""
+    article = context.user_data.get("article_code", "")
+    product = context.user_data.get("product", {})
+    name = product.get("name", "товар")
+    color = product.get("colors", ["—"])[0] if product.get("colors") else "—"
+    composition = product.get("material", "—")
+    chosen_paths = context.user_data.get("chosen_photo_paths", [])
+
+    logger.info("START_REFERENCE | user=%s article=%s", user_id, article)
+
+    # 1. Проверяем баланс
+    stats = await get_user_stats(user_id)
+    balance = stats["balance"]
+
+    if balance < REFERENCE_COST:
+        await context.bot.edit_message_caption(
+            chat_id=user_id,
+            message_id=message_id,
+            caption=f"❌ Недостаточно средств.\n\n"
+                    f"💰 Стоимость создания эталона: {REFERENCE_COST}₽\n"
+                    f"💳 Ваш баланс: {balance}₽\n\n"
+                    f"Пополните баланс и попробуйте снова.",
+        )
+        return ConversationHandler.END
+
+    # 2. Показываем экран генерации
+    await context.bot.edit_message_caption(
+        chat_id=user_id,
+        message_id=message_id,
+        caption=f"Шаг 10 из N: Генерация эталона\n\n"
+                f"⏳ Генерирую эталон для артикула <code>{article}</code>...\n"
+                f"Это может занять 1-2 минуты.",
+        parse_mode="HTML",
+    )
+
+    # 3. T2T → промпт + категория
+    async with aiohttp.ClientSession() as session:
+        prompt_result = await generate_reference_prompt(
+            session=session,
+            name=name,
+            color=color,
+            material=composition,
+            api_key=AI_API_KEY,
+            api_base_url=AI_API_BASE,
+            model=AI_MODEL,
+        )
+
+    if not prompt_result:
+        await context.bot.edit_message_caption(
+            chat_id=user_id,
+            message_id=message_id,
+            caption="❌ Не удалось сгенерировать промпт. Попробуйте снова или обратитесь в поддержку.",
+        )
+        return ConversationHandler.END
+
+    category = prompt_result["category"]
+    prompt = prompt_result["prompt"]
+    logger.info("T2T DONE | category=%s prompt_len=%d", category, len(prompt))
+
+    # 4. Обновляем caption
+    await context.bot.edit_message_caption(
+        chat_id=user_id,
+        message_id=message_id,
+        caption=f"Шаг 10 из N: Генерация эталона\n\n"
+                f"⏳ Промпт готов! Генерирую фото эталона...\n"
+                f"Категория: {category}",
+    )
+
+    # 5. Создаём коллаж из 3 фото для I2I
+    if not chosen_paths:
+        await context.bot.edit_message_caption(
+            chat_id=user_id,
+            message_id=message_id,
+            caption="❌ Не найдены выбранные фото. Начните заново.",
+        )
+        return ConversationHandler.END
+
+    merged_path = f"media/{user_id}/temp/{article}_reference_input.png"
+    merge_ok = merge_photos_horizontal(chosen_paths, merged_path, target_height=350, spacing=8)
+
+    if not merge_ok or not os.path.exists(merged_path):
+        await context.bot.edit_message_caption(
+            chat_id=user_id,
+            message_id=message_id,
+            caption="❌ Ошибка создания коллажа. Попробуйте выбрать фото заново.",
+        )
+        return ConversationHandler.END
+
+    # 6. Загружаем коллаж в Telegram для получения URL
+    sent_msg = await context.bot.send_photo(
+        chat_id=user_id,
+        photo=open(merged_path, "rb"),
+    )
+    file_obj = await context.bot.get_file(sent_msg.photo[-1].file_id)
+    file_url = file_obj.file_path  # https://api.telegram.org/file/bot<token>/...
+
+    # 7. I2I → генерация эталона
+    async with aiohttp.ClientSession() as session:
+        result_url = await generate_reference_image(
+            session=session,
+            api_base=I2I_API_BASE,
+            api_key=I2I_API_KEY,
+            image_urls=[file_url],
+            prompt=prompt,
+        )
+
+    if not result_url:
+        await context.bot.edit_message_caption(
+            chat_id=user_id,
+            message_id=message_id,
+            caption="❌ Не удалось сгенерировать эталон. Средства не списаны. Попробуйте снова.",
+        )
+        return ConversationHandler.END
+
+    logger.info("I2I DONE | result_url=%s", result_url)
+
+    # 8. Скачиваем результат
+    result_local = f"media/{user_id}/references/{article}_ref_final.png"
+    os.makedirs(os.path.dirname(result_local), exist_ok=True)
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(result_url) as resp:
+            if resp.status == 200:
+                with open(result_local, "wb") as f:
+                    f.write(await resp.read())
+
+    # 9. Списываем баланс
+    new_balance = await deduct_balance(user_id, REFERENCE_COST)
+
+    # 10. Определяем reference_number
+    ref_count = await get_reference_count(user_id, article)
+    reference_number = ref_count + 1
+
+    # 11. Отправляем фото эталона и получаем file_id
+    ref_msg = await context.bot.send_photo(
+        chat_id=user_id,
+        photo=open(result_local, "rb"),
+    )
+    file_id = ref_msg.photo[-1].file_id
+
+    # 12. Сохраняем в БД
+    await save_reference(
+        user_id=user_id,
+        articul=article,
+        reference_number=reference_number,
+        file_id=file_id,
+        file_path=result_local,
+        reference_image_url=result_url,
+        category=category,
+        reference_prompt=prompt,
+    )
+
+    logger.info("REFERENCE SAVED | user=%s article=%s ref=%d file_id=%s",
+                user_id, article, reference_number, file_id)
+
+    # 13. Редактируем сообщение с финальным результатом
+    await context.bot.edit_message_caption(
+        chat_id=user_id,
+        message_id=message_id,
+        caption=f"🎉 Эталон готов!\n\n"
+                f"📦 Артикул: <code>{article}</code>\n"
+                f"📸 Это ваш {reference_number}-й эталон для этого товара\n"
+                f"🏷 Категория: {category}\n\n"
+                f"💰 Списано: {REFERENCE_COST}₽\n"
+                f"💳 Остаток: {new_balance}₽\n\n"
+                f"Теперь вы можете генерировать фото и видео!",
+        parse_mode="HTML",
+        reply_markup=_kb_reference_result(),
+    )
+
+    return ConversationHandler.END
+
+
+async def cb_back_to_menu_from_reference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Возврат в главное меню из flow создания эталона."""
+    from handlers.flows.onboarding import cb_back_to_menu
+    return await cb_back_to_menu(update, context)
+
+
+# ---------------------------------------------------------------------------
+# Сборка ConversationHandler
+# ---------------------------------------------------------------------------
+
+def build_reference_handler() -> ConversationHandler:
+    return ConversationHandler(
+        entry_points=[],  # Вызывается программно через start_reference_generation
+        states={
+            _REFERENCE_GENERATING: [
+                CallbackQueryHandler(cb_back_to_menu_from_reference, pattern="^back_to_menu$"),
+            ],
+        },
+        fallbacks=[],
+        name="create_reference",
+        persistent=False,
+    )

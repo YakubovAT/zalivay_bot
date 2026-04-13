@@ -349,23 +349,16 @@ async def cb_back_to_product_confirm(update: Update, context: ContextTypes.DEFAU
 
 
 async def cb_create_reference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь нажал «✅ Создать эталон»."""
+    """Пользователь нажал «✅ Создать эталон» → передаём управление create_reference."""
     query = update.callback_query
     await query.answer()
 
-    article = context.user_data.get("article_code", "")
-    user = query.from_user
-
-    logger.info("CREATE_REFERENCE | user=%s article=%s", user.id, article)
-
-    # TODO: Здесь будет проверка баланса и генерация
-    await context.bot.edit_message_caption(
-        chat_id=user.id,
+    from handlers.flows.create_reference import start_reference_generation
+    return await start_reference_generation(
+        context=context,
+        user_id=query.from_user.id,
         message_id=query.message.message_id,
-        caption=f"Шаг 8 из N: Создание эталона\n\n⏳ Генерирую эталон для артикула <code>{article}</code>...\n\n(Функция генерации будет добавлена позже)",
-        parse_mode="HTML",
     )
-    return ConversationHandler.END
 
 
 async def cb_back_to_menu_from_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
