@@ -22,7 +22,7 @@ from telegram.ext import (
 
 from database import save_article
 from handlers.flows.flow_helpers import safe_delete, animate_loading
-from handlers.keyboards import kb_confirm_reference
+from handlers.keyboards import kb_confirm_reference, kb_photo_select
 from services.media_storage import ensure_article_media_dir, download_all_images
 from services.image_merger import merge_photos_horizontal
 
@@ -33,42 +33,8 @@ _PHOTO_SELECT, _PHOTO_CONFIRM, _REFERENCE_CONFIRM = range(3)
 
 
 # ---------------------------------------------------------------------------
-# Клавиатуры
+# Утилиты
 # ---------------------------------------------------------------------------
-
-def _kb_photo_select(selected: list, current_idx: int, total: int, done: bool = False):
-    """Клавиатура для выбора фото (Эмодзи-круги, без пустых кнопок)."""
-    row1 = []
-    selected_slots = [s for s, _ in selected]
-    for i in range(1, 4):
-        if i in selected_slots:
-            row1.append(InlineKeyboardButton(f"🔘 {i}", callback_data=f"sel_{i}"))
-        else:
-            row1.append(InlineKeyboardButton(f"⚪ {i}", callback_data=f"sel_{i}"))
-
-    # Динамический второй ряд (2-3 кнопки)
-    row2 = []
-    has_prev = current_idx > 0
-    has_next = current_idx < total - 1
-
-    if has_prev:
-        row2.append(InlineKeyboardButton("← Пред.", callback_data=f"photo_prev_{current_idx - 1}"))
-    
-    row2.append(InlineKeyboardButton(f"{current_idx + 1}/{total}", callback_data="noop"))
-
-    if has_next:
-        row2.append(InlineKeyboardButton("След. →", callback_data=f"photo_next_{current_idx + 1}"))
-
-    rows = [row1, row2]
-    if done:
-        rows.append([InlineKeyboardButton("✅ Утвердить выбор", callback_data="photos_confirm")])
-    rows.append([
-        InlineKeyboardButton("← Назад (к карточке)", callback_data="back_to_product_confirm"),
-        InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
-    ])
-
-    return InlineKeyboardMarkup(rows)
-
 
 def _selection_text(selected_count: int) -> str:
     if selected_count == 0:
@@ -88,7 +54,7 @@ async def _show_photo(context, chat_id, message_id, idx, paths, selected):
     done = selected_count >= 3
 
     caption = f"Шаг 6 из N: Выбор фото — {idx + 1} из {total}\n\n{_selection_text(selected_count)}"
-    keyboard = _kb_photo_select(selected, idx, total, done)
+    keyboard = kb_photo_select(selected, idx, total, done)
 
     if message_id is not None:
         try:
