@@ -114,7 +114,7 @@ async def start_reference_generation(
         chat_id=user_id,
         message_id=message_id,
         caption=f"⏳ Генерирую фото эталона...\n"
-                f"Категория: {category}\n\n"
+                f"Тип товара: {category}\n\n"
                 f"Созданный эталон позволит вам массово генерировать "
                 f"фото и видео для любых площадок: Telegram, VK, "
                 f"Instagram, YouTube и других социальных сетей.\n\n"
@@ -230,7 +230,7 @@ async def start_reference_generation(
         f"Шаг 11 из N: Эталон готов!\n\n"
         f"📦 Артикул: <code>{article}</code>\n"
         f"📸 Это ваш {reference_number}-й эталон для этого товара\n"
-        f"🏷 Категория: {category}\n\n"
+        f"🏷 Тип товара: {category}\n\n"
         f"💰 Списано: {REFERENCE_COST}₽\n"
         f"💳 Ваш баланс: {new_balance}₽\n\n"
         f"Эталон может немного отличаться от оригинала.\n"

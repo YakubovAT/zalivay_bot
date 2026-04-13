@@ -47,6 +47,27 @@ async def get_user_references(user_id: int) -> list[asyncpg.Record]:
     )
 
 
+async def get_user_articles_with_refs(user_id: int) -> list[asyncpg.Record]:
+    """Возвращает уникальные артикулы пользователя с количеством эталонов и названием."""
+    pool = await get_pool()
+    return await pool.fetch(
+        """
+        SELECT
+            a.article_code,
+            a.name,
+            a.marketplace,
+            COUNT(DISTINCT CASE WHEN ar.is_active = TRUE THEN ar.id END) as ref_count
+        FROM articles a
+        LEFT JOIN article_references ar
+            ON ar.user_id = a.user_id AND ar.articul = a.article_code
+        WHERE a.user_id = $1
+        GROUP BY a.article_code, a.name, a.marketplace
+        ORDER BY MAX(a.parsed_at) DESC
+        """,
+        user_id,
+    )
+
+
 async def get_user_stats(user_id: int) -> dict:
     """Возвращает статистику пользователя: эталоны, фото, видео, баланс."""
     pool = await get_pool()

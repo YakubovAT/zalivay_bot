@@ -102,17 +102,17 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.ALL, log_message), group=-1)
     application.add_handler(CallbackQueryHandler(log_callback), group=-1)
 
+    # --- Онбординг /start ---
+    application.add_handler(build_onboarding_handler())
+
+    # --- Эталон товара (список) ---
+    application.add_handler(build_etalon_handler())
+
     # --- Новый артикул (включает выбор фото и создание эталона) ---
     application.add_handler(build_new_article_handler())
 
     # --- Создание эталона (T2T + I2I) ---
     application.add_handler(build_reference_handler())
-
-    # --- Онбординг /start ---
-    application.add_handler(build_onboarding_handler())
-
-    # --- Эталон товара ---
-    application.add_handler(build_etalon_handler())
 
     # --- Фото ---
     application.add_handler(build_photo_handler())
