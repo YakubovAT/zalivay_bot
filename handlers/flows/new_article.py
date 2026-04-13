@@ -458,13 +458,20 @@ async def _show_photo(context, chat_id, message_id, idx, paths, selected):
                 media=InputMediaPhoto(media=open(photo_path, "rb"), caption=caption),
                 reply_markup=keyboard,
             )
-        except Exception:
-            await context.bot.edit_message_caption(
-                chat_id=chat_id,
-                message_id=message_id,
-                caption=caption,
-                reply_markup=keyboard,
-            )
+        except Exception as e:
+            if "Message is not modified" in str(e):
+                pass
+            else:
+                try:
+                    await context.bot.edit_message_caption(
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        caption=caption,
+                        reply_markup=keyboard,
+                    )
+                except Exception as e2:
+                    if "Message is not modified" not in str(e2):
+                        logger.warning("edit_caption failed: %s", e2)
     else:
         await context.bot.send_photo(
             chat_id=chat_id,
