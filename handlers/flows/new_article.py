@@ -525,16 +525,20 @@ async def cb_select_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     selected = context.user_data.get("photo_selected", [])
     idx = context.user_data.get("photo_idx", 0)
 
-    # Проверяем: этот слот уже выбран ТЕКУЩИМ фото? → ОТМЕНА
-    existing = next((s for s, i in selected if s == slot), None)
-    if existing == idx:
+    # Проверяем: этот слот уже занят ТЕКУЩЕЙ фотографией? → ОТМЕНА
+    # selected хранится как [(слот, индекс_фото), ...]
+    idx_in_slot = next((i for s, i in selected if s == slot), None)
+    
+    if idx_in_slot == idx:
         # Отменяем выбор: убираем этот слот
         selected = [(s, i) for s, i in selected if s != slot]
         context.user_data["photo_selected"] = selected
+        
+        # Обновляем экран (фото остается тем же, меняется только кнопка и текст)
         await _show_photo(context, query.from_user.id, query.message.message_id, idx, paths, selected)
         return _PHOTO_SELECT
 
-    # Иначе: записываем фото в слот (заменяем если слот был занят)
+    # Иначе: записываем текущее фото в этот слот (заменяя старое, если было)
     selected = [(s, i) for s, i in selected if s != slot]
     selected.append((slot, idx))
     selected.sort()
