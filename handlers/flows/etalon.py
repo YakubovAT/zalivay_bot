@@ -167,6 +167,7 @@ async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await query.answer()
 
     user_id = update.effective_user.id
+    message_id = query.message.message_id
     data = query.data  # ref_prev_{code} / ref_next_{code}
 
     parts = data.split("_", 2)  # ref, prev/next, code
@@ -187,11 +188,63 @@ async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     _ref_index[user_id] = idx
 
-    # Перерисовываем экран
-    context.user_data["_last_ref_data"] = f"ref_article_{article}"
-    # Подменяем callback_data чтобы cb_ref_article понял что это тот же артикул
-    query.data = f"ref_article_{article}"
-    await cb_ref_article(update, context)
+    # Перерисовываем экран напрямую, без вызова cb_ref_article
+    ref = refs[idx]
+    file_id = ref["file_id"]
+    ref_number = ref["reference_number"]
+    category = ref["category"] or "—"
+    total = len(refs)
+
+    caption = (
+        f"📸 Эталон #{ref_number} из {total}\n"
+        f"📦 Артикул: <code>{article}</code>\n"
+        f"🏷 Тип товара: {category}"
+    )
+
+    # Кнопки навигации
+    nav_row = []
+    if total > 1:
+        if idx > 0:
+            nav_row.append(InlineKeyboardButton("← Пред.", callback_data=f"ref_prev_{article}"))
+        nav_row.append(InlineKeyboardButton(f"{idx + 1}/{total}", callback_data="noop"))
+        if idx < total - 1:
+            nav_row.append(InlineKeyboardButton("След. →", callback_data=f"ref_next_{article}"))
+
+    # Кнопки действий
+    action_row = [
+        InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
+        InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
+    ]
+    bottom_row = [
+        InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
+        InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+    ]
+
+    buttons = []
+    if nav_row:
+        buttons.append(nav_row)
+    buttons.append(action_row)
+    buttons.append(bottom_row)
+    keyboard = InlineKeyboardMarkup(buttons)
+
+    try:
+        await context.bot.edit_message_media(
+            chat_id=user_id,
+            message_id=message_id,
+            media=InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"),
+            reply_markup=keyboard,
+        )
+    except Exception:
+        try:
+            await context.bot.send_photo(
+                chat_id=user_id,
+                photo=file_id,
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=keyboard,
+            )
+        except Exception:
+            pass
 
 
 def build_etalon_handler() -> CallbackQueryHandler:
