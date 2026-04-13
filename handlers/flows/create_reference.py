@@ -116,7 +116,7 @@ async def start_reference_generation(
                 f"Категория: {category}",
     )
 
-    # 5. Создаём коллаж из 3 фото для I2I
+    # 6. Создаём коллаж для I2I (не показываем пользователю)
     if not chosen_paths:
         await context.bot.edit_message_caption(
             chat_id=user_id,
@@ -136,13 +136,20 @@ async def start_reference_generation(
         )
         return ConversationHandler.END
 
-    # 6. Загружаем коллаж в Telegram для получения URL
-    sent_msg = await context.bot.send_photo(
+    # Отправляем коллаж ТОЛЬКО чтобы получить Telegram file_id и URL
+    # Сразу удаляем после получения URL — пользователь не должен это видеть
+    sent_collage_msg = await context.bot.send_photo(
         chat_id=user_id,
         photo=open(merged_path, "rb"),
     )
-    file_obj = await context.bot.get_file(sent_msg.photo[-1].file_id)
-    file_url = file_obj.file_path  # https://api.telegram.org/file/bot<token>/...
+    file_obj = await context.bot.get_file(sent_collage_msg.photo[-1].file_id)
+    file_url = file_obj.file_path
+
+    # Удаляем сообщение с коллажем
+    try:
+        await context.bot.delete_message(chat_id=user_id, message_id=sent_collage_msg.message_id)
+    except Exception:
+        pass  # Игнорируем ошибки удаления
 
     # 7. I2I → генерация эталона
     async with aiohttp.ClientSession() as session:
@@ -181,14 +188,24 @@ async def start_reference_generation(
     ref_count = await get_reference_count(user_id, article)
     reference_number = ref_count + 1
 
-    # 11. Отправляем фото эталона и получаем file_id
-    ref_msg = await context.bot.send_photo(
+    # 11. Редактируем исходное сообщение с результатом
+    from telegram import InputMediaPhoto
+    
+    # Сначала сохраняем в БД (file_id получим после отправки/редактирования)
+    # Отправляем фото для получения file_id (но не показываем пользователю)
+    temp_msg = await context.bot.send_photo(
         chat_id=user_id,
         photo=open(result_local, "rb"),
     )
-    file_id = ref_msg.photo[-1].file_id
+    file_id = temp_msg.photo[-1].file_id
+    
+    # Удаляем временное сообщение
+    try:
+        await context.bot.delete_message(chat_id=user_id, message_id=temp_msg.message_id)
+    except Exception:
+        pass
 
-    # 12. Сохраняем в БД
+    # Сохраняем в БД
     await save_reference(
         user_id=user_id,
         articul=article,
@@ -203,20 +220,36 @@ async def start_reference_generation(
     logger.info("REFERENCE SAVED | user=%s article=%s ref=%d file_id=%s",
                 user_id, article, reference_number, file_id)
 
-    # 13. Редактируем сообщение с финальным результатом
-    await context.bot.edit_message_caption(
-        chat_id=user_id,
-        message_id=message_id,
-        caption=f"🎉 Эталон готов!\n\n"
+    # Редактируем исходное сообщение с финальным результатом
+    try:
+        await context.bot.edit_message_media(
+            chat_id=user_id,
+            message_id=message_id,
+            media=InputMediaPhoto(media=open(result_local, "rb"), caption=f"🎉 Эталон готов!\n\n"
                 f"📦 Артикул: <code>{article}</code>\n"
                 f"📸 Это ваш {reference_number}-й эталон для этого товара\n"
                 f"🏷 Категория: {category}\n\n"
                 f"💰 Списано: {REFERENCE_COST}₽\n"
                 f"💳 Остаток: {new_balance}₽\n\n"
                 f"Теперь вы можете генерировать фото и видео!",
-        parse_mode="HTML",
-        reply_markup=_kb_reference_result(),
-    )
+            parse_mode="HTML",
+            reply_markup=_kb_reference_result()),
+        )
+    except Exception:
+        # Если редактирование media не сработало — отправляем новое
+        await context.bot.send_photo(
+            chat_id=user_id,
+            photo=open(result_local, "rb"),
+            caption=f"🎉 Эталон готов!\n\n"
+                    f"📦 Артикул: <code>{article}</code>\n"
+                    f"📸 Это ваш {reference_number}-й эталон для этого товара\n"
+                    f"🏷 Категория: {category}\n\n"
+                    f"💰 Списано: {REFERENCE_COST}₽\n"
+                    f"💳 Остаток: {new_balance}₽\n\n"
+                    f"Теперь вы можете генерировать фото и видео!",
+            parse_mode="HTML",
+            reply_markup=_kb_reference_result(),
+        )
 
     return ConversationHandler.END
 
