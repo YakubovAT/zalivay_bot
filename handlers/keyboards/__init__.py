@@ -80,3 +80,19 @@ def kb_product_confirm() -> InlineKeyboardMarkup:
             InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
         ],
     ])
+
+
+# ---------------------------------------------------------------------------
+# Шаг 7: Подтверждение создания эталона
+# ---------------------------------------------------------------------------
+
+def kb_confirm_reference() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Создать эталон", callback_data="ref_create_yes"),
+        ],
+        [
+            InlineKeyboardButton("← Назад", callback_data="back_to_mp"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])

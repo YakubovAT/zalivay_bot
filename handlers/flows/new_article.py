@@ -13,6 +13,7 @@ import logging
 import os
 import re
 import time
+from pathlib import Path
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import (
@@ -30,11 +31,12 @@ from handlers.flows.flow_helpers import (
 from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu, kb_product_confirm
 from services.wb_parser import get_product_info
 from services.media_storage import download_image, ensure_article_media_dir, download_all_images
+from services.image_merger import merge_photos_horizontal
 
 logger = logging.getLogger(__name__)
 
 # Состояния
-_MP_SELECT, _ARTICLE_INPUT, _PRODUCT_CONFIRM, _PHOTO_SELECT, _PHOTO_CONFIRM = range(5)
+_MP_SELECT, _ARTICLE_INPUT, _PRODUCT_CONFIRM, _PHOTO_SELECT, _PHOTO_CONFIRM, _REFERENCE_CONFIRM = range(6)
 
 # Максимум фото для выбора (как в парсере WB)
 MAX_PHOTOS = 30
@@ -548,37 +550,80 @@ async def cb_select_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def cb_photos_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Утверждение выбора 3 фото."""
+    """Утверждение выбора 3 фото → показ Шага 7 (коллаж + подтверждение создания эталона)."""
     query = update.callback_query
     await query.answer()
 
     selected = context.user_data.get("photo_selected", [])
     paths = context.user_data.get("photo_paths", [])
     article = context.user_data.get("article_code", "")
-    composition = context.user_data.get("product", {}).get("material", "—")
-    
+
+    # Собираем пути выбранных фото по порядку слотов
     chosen_paths = [paths[idx] for _, idx in sorted(selected) if idx < len(paths)]
     context.user_data["chosen_photo_paths"] = chosen_paths
-    
-    logger.info("PHOTOS_CONFIRMED | user=%s article=%s chosen=%d", 
+
+    logger.info("PHOTOS_CONFIRMED | user=%s article=%s chosen=%d",
                 query.from_user.id, article, len(chosen_paths))
 
+    # Склеиваем 3 фото в коллаж
+    merged_path = f"media/{query.from_user.id}/temp/{article}_collage.png"
+    merge_ok = merge_photos_horizontal(chosen_paths, merged_path, target_height=350, spacing=8)
+
+    if not merge_ok or not Path(merged_path).exists():
+        merged_path = chosen_paths[0] if chosen_paths else "assets/banner_default.png"
+
     caption = (
-        f"Шаг 7: Подтверждение\n\n"
-        f"✅ Выбрано 3 фото для артикула {article}\n"
-        f"🧵 Состав: {composition}\n\n"
-        "Следующий шаг: создание эталона."
+        f"Шаг 7 из N: Создание эталона\n\n"
+        f"Вы выбрали 3 фото для артикула <code>{article}</code>.\n\n"
+        f"Убедитесь, что на этих фото товар виден лучше всего — "
+        f"по ним будет создан эталон для генерации контента."
     )
+
+    # Редактируем текущий экран
+    try:
+        await context.bot.edit_message_media(
+            chat_id=query.from_user.id,
+            message_id=query.message.message_id,
+            media=InputMediaPhoto(media=open(merged_path, "rb"), caption=caption, parse_mode="HTML"),
+            reply_markup=kb_confirm_reference(),
+        )
+    except Exception:
+        await context.bot.edit_message_caption(
+            chat_id=query.from_user.id,
+            message_id=query.message.message_id,
+            caption=caption,
+            parse_mode="HTML",
+            reply_markup=kb_confirm_reference(),
+        )
+
+    return _REFERENCE_CONFIRM
+
+
+# ---------------------------------------------------------------------------
+# Шаг 8: Создание эталона (TODO)
+# ---------------------------------------------------------------------------
+
+async def cb_create_reference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Пользователь нажал «✅ Создать эталон»."""
+    query = update.callback_query
+    await query.answer()
+
+    article = context.user_data.get("article_code", "")
+    chosen_paths = context.user_data.get("chosen_photo_paths", [])
+    user = query.from_user
+
+    logger.info("CREATE_REFERENCE | user=%s article=%s photos=%d", user.id, article, len(chosen_paths))
+
+    # TODO: Здесь будет:
+    # 1. Проверка баланса (get_price('create_reference'))
+    # 2. Если баланс OK → списание + T2I генерация
+    # 3. Если баланс < нужного → алерт "Недостаточно средств"
     
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_menu")]
-    ])
-    
-    await context.bot.send_photo(
-        chat_id=query.from_user.id,
-        photo=open(chosen_paths[0], "rb") if chosen_paths else open("assets/banner_default.png", "rb"),
-        caption=caption,
-        reply_markup=keyboard,
+    await context.bot.edit_message_caption(
+        chat_id=user.id,
+        message_id=query.message.message_id,
+        caption=f"Шаг 8 из N: Создание эталона\n\n⏳ Генерирую эталон для артикула <code>{article}</code>...\n\n(Функция генерации будет добавлена позже)",
+        parse_mode="HTML",
     )
     return ConversationHandler.END
 
@@ -637,6 +682,11 @@ def build_new_article_handler() -> ConversationHandler:
                 CallbackQueryHandler(cb_photos_confirm, pattern="^photos_confirm$"),
                 CallbackQueryHandler(cb_photo_nav, pattern="^photo_(prev|next)_\d+$"),
                 CallbackQueryHandler(cb_select_photo, pattern="^sel_\d$"),
+                CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
+                CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
+            ],
+            _REFERENCE_CONFIRM: [
+                CallbackQueryHandler(cb_create_reference, pattern="^ref_create_yes$"),
                 CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],
