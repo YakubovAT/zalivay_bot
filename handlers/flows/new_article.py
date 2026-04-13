@@ -545,16 +545,36 @@ async def cb_select_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     context.user_data["photo_selected"] = selected
 
     done = len(selected) >= 3
-    # Если выбрано — ищем следующее невыбранное
+    
+    # Ищем следующее свободное фото
+    next_idx = idx
     if not done:
         selected_indices = {i for _, i in selected}
-        next_idx = idx + 1
-        while next_idx < len(paths) and next_idx in selected_indices:
-            next_idx += 1
-        if next_idx >= len(paths):
-            next_idx = idx
-    else:
-        next_idx = idx
+        
+        # 1. Ищем вперед
+        found = False
+        curr = idx + 1
+        while curr < len(paths):
+            if curr not in selected_indices:
+                next_idx = curr
+                found = True
+                break
+            curr += 1
+            
+        # 2. Если не нашли, ищем с начала (циклически)
+        if not found:
+            curr = 0
+            while curr < idx:
+                if curr not in selected_indices:
+                    next_idx = curr
+                    found = True
+                    break
+                curr += 1
+        
+        # Если вообще ничего нет (все выбраны), остаемся на idx
+        
+    # Важно: обновляем индекс в контексте, чтобы навигация знала, где мы
+    context.user_data["photo_idx"] = next_idx
 
     await _show_photo(context, query.from_user.id, query.message.message_id, next_idx, paths, selected)
     return _PHOTO_CONFIRM if done else _PHOTO_SELECT
