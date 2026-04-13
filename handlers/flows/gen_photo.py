@@ -288,7 +288,6 @@ async def _generate_photos(
     count: int, wish: str | None, total_cost: int,
 ) -> None:
     """Генерирует N фото и отправляет пользователю."""
-    ref_prompt = ref.get("reference_prompt", "")
     ref_image_url = ref.get("reference_image_url", "")
 
     if not ref_image_url:
@@ -314,16 +313,14 @@ async def _generate_photos(
         count=count,
     )
 
-    # Добавляем reference_prompt к каждому промпту
-    # Если есть пожелания — тоже встраиваем
+    # Формируем финальные промпты: lifestyle-шаблон + пожелания (если есть)
+    # reference_prompt НЕ используем — он создан для создания эталона (удалить фон,
+    # удалить тело модели), что противоречит задаче lifestyle-фотосессии
     prompts = []
     for base in base_prompts:
-        parts = []
-        if ref_prompt:
-            parts.append(ref_prompt)
+        parts = [base]
         if wish:
             parts.append(wish)
-        parts.append(base)
         prompts.append(", ".join(parts))
 
     # Папка для сохранения
