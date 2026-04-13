@@ -383,15 +383,15 @@ def build_photo_selection_handler() -> ConversationHandler:
         entry_points=[],  # Вызывается программно через start_photo_selection
         states={
             _PHOTO_SELECT: [
-                CallbackQueryHandler(cb_photo_nav, pattern="^photo_(prev|next)_\d+$"),
-                CallbackQueryHandler(cb_select_photo, pattern="^sel_\d$"),
+                CallbackQueryHandler(cb_photo_nav, pattern=r"^photo_(prev|next)_\d+$"),
+                CallbackQueryHandler(cb_select_photo, pattern=r"^sel_\d$"),
                 CallbackQueryHandler(cb_back_to_product_confirm, pattern="^back_to_product_confirm$"),
                 CallbackQueryHandler(cb_back_to_menu_from_photo, pattern="^back_to_menu$"),
             ],
             _PHOTO_CONFIRM: [
                 CallbackQueryHandler(cb_photos_confirm, pattern="^photos_confirm$"),
-                CallbackQueryHandler(cb_photo_nav, pattern="^photo_(prev|next)_\d+$"),
-                CallbackQueryHandler(cb_select_photo, pattern="^sel_\d$"),
+                CallbackQueryHandler(cb_photo_nav, pattern=r"^photo_(prev|next)_\d+$"),
+                CallbackQueryHandler(cb_select_photo, pattern=r"^sel_\d$"),
                 CallbackQueryHandler(cb_back_to_menu_from_photo, pattern="^back_to_menu$"),
             ],
             _REFERENCE_CONFIRM: [
