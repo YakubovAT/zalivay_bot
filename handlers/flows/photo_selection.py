@@ -324,7 +324,7 @@ async def cb_back_to_product_confirm(update: Update, context: ContextTypes.DEFAU
     # Возвращаем клавиатуру подтверждения товара
     from handlers.keyboards import kb_product_confirm
     first_photo_path = f"media/{query.from_user.id}/temp/{article}_first.webp"
-    
+
     try:
         media = InputMediaPhoto(
             media=open(first_photo_path, "rb") if Path(first_photo_path).exists() else open("assets/banner_default.png", "rb"),
@@ -343,9 +343,9 @@ async def cb_back_to_product_confirm(update: Update, context: ContextTypes.DEFAU
             caption=caption,
             reply_markup=kb_product_confirm(),
         )
-    
-    # Завершаем этот ConversationHandler, управление вернется в new_article
-    return ConversationHandler.END
+
+    # Возвращаем состояние _PRODUCT_CONFIRM (2, как в new_article.py)
+    return 2
 
 
 async def cb_create_reference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
