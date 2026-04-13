@@ -2,7 +2,7 @@
 handlers/flows/etalon.py
 
 Шаг 15: Список товаров пользователя (Мои эталоны).
-Показывает артикулы пользователя в виде inline-кнопок с количеством эталонов.
+Шаг 16: Просмотр эталона (фото артикула с навигацией).
 Без ConversationHandler — чтобы другие кнопки меню работали из любого экрана.
 """
 
@@ -10,13 +10,16 @@ from __future__ import annotations
 
 import logging
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
-from database import get_user_articles_with_refs
-from handlers.flows.flow_helpers import send_screen, get_msg_id
+from database import get_user_articles_with_refs, get_active_references
+from handlers.flows.flow_helpers import send_screen, safe_delete
 
 logger = logging.getLogger(__name__)
+
+# Храним текущий индекс эталона для каждого пользователя
+_ref_index: dict[int, int] = {}
 
 
 async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -75,5 +78,128 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
 
 
+async def cb_ref_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает фото эталона для выбранного артикула (Шаг 16)."""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    message_id = query.message.message_id
+    data = query.data  # ref_article_{code}
+    article = data.replace("ref_article_", "")
+
+    # Сбрасываем индекс при первом открытии артикула
+    if data != getattr(context.user_data.get("_last_ref_data"), None):
+        _ref_index[user_id] = 0
+    context.user_data["_last_ref_data"] = data
+
+    refs = await get_active_references(user_id, article)
+
+    if not refs:
+        await query.edit_message_text("❌ Эталоны для этого артикула не найдены.")
+        return
+
+    idx = _ref_index.get(user_id, 0)
+    if idx >= len(refs):
+        idx = 0
+    _ref_index[user_id] = idx
+
+    ref = refs[idx]
+    file_id = ref["file_id"]
+    ref_number = ref["reference_number"]
+    category = ref["category"] or "—"
+    total = len(refs)
+
+    caption = (
+        f"📸 Эталон #{ref_number} из {total}\n"
+        f"📦 Артикул: <code>{article}</code>\n"
+        f"🏷 Тип товара: {category}"
+    )
+
+    # Кнопки навигации (если эталонов > 1)
+    nav_row = []
+    if total > 1:
+        if idx > 0:
+            nav_row.append(InlineKeyboardButton("← Пред.", callback_data=f"ref_prev_{article}"))
+        nav_row.append(InlineKeyboardButton(f"{idx + 1}/{total}", callback_data="noop"))
+        if idx < total - 1:
+            nav_row.append(InlineKeyboardButton("След. →", callback_data=f"ref_next_{article}"))
+
+    # Кнопки действий
+    action_row = [
+        InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
+        InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
+    ]
+    bottom_row = [
+        InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
+        InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+    ]
+
+    buttons = []
+    if nav_row:
+        buttons.append(nav_row)
+    buttons.append(action_row)
+    buttons.append(bottom_row)
+    keyboard = InlineKeyboardMarkup(buttons)
+
+    try:
+        await context.bot.edit_message_media(
+            chat_id=user_id,
+            message_id=message_id,
+            media=InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"),
+            reply_markup=keyboard,
+        )
+    except Exception:
+        # Если edit_message_media не сработал — отправляем новое
+        await context.bot.send_photo(
+            chat_id=user_id,
+            photo=file_id,
+            caption=caption,
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
+
+
+async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Навигация между эталонами (← Пред. / След. →)."""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    data = query.data  # ref_prev_{code} / ref_next_{code}
+
+    parts = data.split("_", 2)  # ref, prev/next, code
+    direction = parts[1]
+    article = parts[2]
+
+    refs = await get_active_references(user_id, article)
+    if not refs:
+        return
+
+    idx = _ref_index.get(user_id, 0)
+    if direction == "prev":
+        idx = max(0, idx - 1)
+    elif direction == "next":
+        idx = min(len(refs) - 1, idx + 1)
+
+    _ref_index[user_id] = idx
+
+    # Перерисовываем экран
+    context.user_data["_last_ref_data"] = f"ref_article_{article}"
+    # Подменяем callback_data чтобы cb_ref_article понял что это тот же артикул
+    query.data = f"ref_article_{article}"
+    await cb_ref_article(update, context)
+
+
 def build_etalon_handler() -> CallbackQueryHandler:
     return CallbackQueryHandler(cb_menu_my_refs, pattern="^menu_my_refs$")
+
+
+def build_ref_article_handler() -> CallbackQueryHandler:
+    """Обработчик просмотра эталона (Шаг 16)."""
+    return CallbackQueryHandler(cb_ref_article, pattern="^ref_article_")
+
+
+def build_ref_nav_handler() -> CallbackQueryHandler:
+    """Обработчик навигации ← Пред. / След. →"""
+    return CallbackQueryHandler(cb_ref_nav, pattern="^(ref_prev_|ref_next_)")
