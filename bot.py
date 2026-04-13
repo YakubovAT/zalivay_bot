@@ -21,6 +21,8 @@ from handlers import (
     build_etalon_handler,
     build_ref_article_handler,
     build_ref_nav_handler,
+    build_gen_photo_handler,
+    build_gen_video_handler,
     build_noop_handler,
     build_photo_handler,
     build_video_handler,
@@ -115,6 +117,12 @@ def main() -> None:
     application.add_handler(build_noop_handler())
     application.add_handler(build_ref_article_handler())
     application.add_handler(build_ref_nav_handler())
+
+    # --- Генерация фото ---
+    application.add_handler(build_gen_photo_handler())
+
+    # --- Генерация видео ---
+    application.add_handler(build_gen_video_handler())
 
     # --- Новый артикул (включает выбор фото и создание эталона) ---
     application.add_handler(build_new_article_handler())

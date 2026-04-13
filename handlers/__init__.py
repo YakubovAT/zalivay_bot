@@ -1,4 +1,3 @@
-# TODO: переписать с нуля
 import logging
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -6,6 +5,8 @@ from handlers.flows.onboarding import build_onboarding_handler  # noqa
 from handlers.flows.new_article import build_new_article_handler  # noqa
 from handlers.flows.create_reference import build_reference_handler  # noqa
 from handlers.flows.etalon import build_etalon_handler, build_ref_article_handler, build_ref_nav_handler, build_noop_handler  # noqa
+from handlers.flows.gen_photo import build_gen_photo_handler  # noqa
+from handlers.flows.gen_video import build_gen_video_handler  # noqa
 from handlers.flows.photo import build_photo_handler  # noqa
 from handlers.flows.video import build_video_handler  # noqa
 
