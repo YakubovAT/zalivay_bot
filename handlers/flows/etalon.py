@@ -78,6 +78,79 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
 
 
+async def show_ref_card(user, article: str, ref_index: int, bot, query) -> None:
+    """Показывает фото эталона по индексу (переиспользуемая функция)."""
+    user_id = user.id
+    refs = await get_active_references(user_id, article)
+
+    if not refs:
+        await query.edit_message_text("❌ Эталоны для этого артикула не найдены.")
+        return
+
+    idx = ref_index
+    if idx >= len(refs):
+        idx = 0
+
+    ref = refs[idx]
+    file_id = ref["file_id"]
+    ref_number = ref["reference_number"]
+    category = ref["category"] or "—"
+    total = len(refs)
+
+    caption = (
+        f"📸 Эталон #{ref_number} из {total}\n"
+        f"📦 Артикул: <code>{article}</code>\n"
+        f"🏷 Тип товара: {category}"
+    )
+
+    # Кнопки навигации (если эталонов > 1)
+    nav_row = []
+    if total > 1:
+        if idx > 0:
+            nav_row.append(InlineKeyboardButton("← Пред.", callback_data=f"ref_prev_{article}"))
+        nav_row.append(InlineKeyboardButton(f"{idx + 1}/{total}", callback_data="noop"))
+        if idx < total - 1:
+            nav_row.append(InlineKeyboardButton("След. →", callback_data=f"ref_next_{article}"))
+
+    # Кнопки действий
+    action_row = [
+        InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
+        InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
+    ]
+    bottom_row = [
+        InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
+        InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+    ]
+
+    buttons = []
+    if nav_row:
+        buttons.append(nav_row)
+    buttons.append(action_row)
+    buttons.append(bottom_row)
+    keyboard = InlineKeyboardMarkup(buttons)
+
+    message_id = query.message.message_id
+
+    try:
+        await bot.edit_message_media(
+            chat_id=user_id,
+            message_id=message_id,
+            media=InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"),
+            reply_markup=keyboard,
+        )
+    except Exception:
+        try:
+            await bot.send_photo(
+                chat_id=user_id,
+                photo=file_id,
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=keyboard,
+            )
+        except Exception:
+            pass
+
+
 async def cb_ref_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает фото эталона для выбранного артикула (Шаг 16)."""
     query = update.callback_query

@@ -74,8 +74,18 @@ async def cb_menu_gen_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await query.edit_message_text("❌ Эталон не найден.")
         return ConversationHandler.END
 
+    # Считаем индекс эталона для навигации
+    refs = await get_active_references(update.effective_user.id, article)
+    ref_index = 0
+    if refs:
+        for i, r in enumerate(refs):
+            if r["reference_number"] == ref_number:
+                ref_index = i
+                break
+
     context.user_data["gen_article"] = article
     context.user_data["gen_ref_number"] = ref_number
+    context.user_data["gen_ref_index"] = ref_index
     context.user_data["gen_ref"] = dict(ref)
     context.user_data["_screen_msg"] = query.message.message_id
 
@@ -412,13 +422,17 @@ async def _generate_photos(
 
 async def cb_back_to_ref_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Назад к карточке эталона."""
-    from handlers.flows.etalon import cb_ref_article
+    from handlers.flows.etalon import show_ref_card
     user_id = update.effective_user.id
     article = context.user_data.get("gen_article")
-    if article:
-        # Возвращаемся к карточке эталона
-        update.callback_query.data = f"ref_article_{article}"
-        return await cb_ref_article(update, context)
+    ref_number = context.user_data.get("gen_ref_number")
+    ref_index = context.user_data.get("gen_ref_index", 0)
+    if article and ref_number:
+        # Сохраняем article_code и ref_number_for_gen как в etalon.py
+        context.user_data["article_code"] = article
+        context.user_data["ref_number_for_gen"] = ref_number
+        # Возвращаемся к карточке эталона напрямую
+        return await show_ref_card(update.effective_user, article, ref_index, context.bot, update.callback_query)
     from handlers.flows.onboarding import cb_back_to_menu
     return await cb_back_to_menu(update, context)
 
