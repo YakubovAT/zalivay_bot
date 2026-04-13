@@ -184,6 +184,7 @@ async def cb_select_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.answer()
 
     slot = int(query.data.split("_")[1])
+    paths = context.user_data.get("photo_paths", [])
     selected = context.user_data.get("photo_selected", [])
     idx = context.user_data.get("photo_idx", 0)
 
@@ -210,7 +211,6 @@ async def cb_select_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # 1. Ищем вперед
         found = False
         curr = idx + 1
-        paths = context.user_data.get("photo_paths", [])
         while curr < len(paths):
             if curr not in selected_indices:
                 next_idx = curr
