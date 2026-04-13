@@ -516,45 +516,41 @@ async def cb_photo_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def cb_select_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Выбор или отмена выбора фото."""
+    """Логика переключателя (Toggle) для слотов 1, 2, 3."""
     query = update.callback_query
     await query.answer()
 
     slot = int(query.data.split("_")[1])
-    paths = context.user_data.get("photo_paths", [])
     selected = context.user_data.get("photo_selected", [])
     idx = context.user_data.get("photo_idx", 0)
 
-    # Проверяем: этот слот уже занят ТЕКУЩЕЙ фотографией? → ОТМЕНА
-    # selected хранится как [(слот, индекс_фото), ...]
+    # Проверяем, занят ли этот слот
     idx_in_slot = next((i for s, i in selected if s == slot), None)
-    
-    if idx_in_slot == idx:
-        # Отменяем выбор: убираем этот слот
-        selected = [(s, i) for s, i in selected if s != slot]
-        context.user_data["photo_selected"] = selected
-        
-        # Обновляем экран (фото остается тем же, меняется только кнопка и текст)
-        await _show_photo(context, query.from_user.id, query.message.message_id, idx, paths, selected)
-        return _PHOTO_SELECT
 
-    # Иначе: записываем текущее фото в этот слот (заменяя старое, если было)
-    selected = [(s, i) for s, i in selected if s != slot]
-    selected.append((slot, idx))
+    if idx_in_slot is not None:
+        # Слот ЗАНЯТ -> ОТМЕНЯЕМ выбор (освобождаем слот)
+        selected = [(s, i) for s, i in selected if s != slot]
+    else:
+        # Слот ПУСТ -> ЗАНИМАЕМ его текущим фото
+        # Если текущее фото уже в другом слоте — освобождаем тот слот
+        selected = [(s, i) for s, i in selected if i != idx]
+        selected.append((slot, idx))
+    
     selected.sort()
     context.user_data["photo_selected"] = selected
 
+    # Логика переключения после выбора/отмены
     done = len(selected) >= 3
-    
-    # Ищем следующее свободное фото
     next_idx = idx
-    if not done:
+
+    if not done and idx_in_slot is None:
+        # Если мы только что выбрали фото (и не отменили), ищем следующее свободное
         selected_indices = {i for _, i in selected}
         
         # 1. Ищем вперед
         found = False
         curr = idx + 1
-        while curr < len(paths):
+        while curr < len(context.user_data.get("photo_paths", [])):
             if curr not in selected_indices:
                 next_idx = curr
                 found = True
@@ -570,13 +566,12 @@ async def cb_select_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     found = True
                     break
                 curr += 1
-        
-        # Если вообще ничего нет (все выбраны), остаемся на idx
-        
-    # Важно: обновляем индекс в контексте, чтобы навигация знала, где мы
+    
+    # Обновляем индекс
     context.user_data["photo_idx"] = next_idx
 
-    await _show_photo(context, query.from_user.id, query.message.message_id, next_idx, paths, selected)
+    await _show_photo(context, query.from_user.id, query.message.message_id, next_idx, context.user_data.get("photo_paths", []), selected)
+    
     return _PHOTO_CONFIRM if done else _PHOTO_SELECT
 
 
