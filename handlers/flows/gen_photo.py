@@ -28,7 +28,7 @@ from telegram.ext import (
 )
 
 from config import PHOTO_COST, I2I_API_BASE, I2I_API_KEY
-from database import get_user_stats, deduct_balance, get_reference
+from database import get_user_stats, deduct_balance, get_reference, get_active_references
 from handlers.flows.flow_helpers import safe_delete
 from handlers.keyboards import (
     kb_gen_photo_count,
