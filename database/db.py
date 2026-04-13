@@ -150,6 +150,15 @@ async def get_user_articles(user_id: int, article_code: str = None) -> list[asyn
     )
 
 
+async def get_article_info(user_id: int, article_code: str) -> asyncpg.Record | None:
+    """Возвращает информацию об одном артикуле (name, color, material и т.д.)."""
+    pool = await get_pool()
+    return await pool.fetchrow(
+        "SELECT * FROM articles WHERE user_id = $1 AND article_code = $2 LIMIT 1",
+        user_id, article_code,
+    )
+
+
 async def delete_user(user_id: int):
     """Полностью удаляет пользователя и все его данные из БД (CASCADE)."""
     pool = await get_pool()

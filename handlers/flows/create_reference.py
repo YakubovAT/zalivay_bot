@@ -49,14 +49,19 @@ async def start_reference_generation(
     message_id: int,
 ) -> int:
     """Запускает процесс создания эталона. Вызывается из photo_selection после подтверждения."""
+    from database import get_article_info
+
     article = context.user_data.get("article_code", "")
-    product = context.user_data.get("product", {})
-    name = product.get("name", "товар")
-    color = product.get("colors", ["—"])[0] if product.get("colors") else "—"
-    composition = product.get("material", "—")
     chosen_paths = context.user_data.get("chosen_photo_paths", [])
 
-    logger.info("START_REFERENCE | user=%s article=%s", user_id, article)
+    # Берём данные товара из БД (table articles), а не из user_data
+    article_info = await get_article_info(user_id, article)
+    name = article_info["name"] if article_info and article_info["name"] else "товар"
+    color = article_info["color"] if article_info and article_info["color"] else "—"
+    composition = article_info["material"] if article_info and article_info["material"] else ""
+
+    logger.info("START_REFERENCE | user=%s article=%s name=%s color=%s material=%s",
+                user_id, article, name, color, composition)
 
     # 1. Проверяем баланс
     stats = await get_user_stats(user_id)
