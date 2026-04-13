@@ -77,9 +77,11 @@ async def start_reference_generation(
     await context.bot.edit_message_caption(
         chat_id=user_id,
         message_id=message_id,
-        caption=f"Шаг 10 из N: Генерация эталона\n\n"
-                f"⏳ Генерирую эталон для артикула <code>{article}</code>...\n"
-                f"Это может занять 1-2 минуты.",
+        caption=f"⏳ Создаю эталон для артикула <code>{article}</code>...\n\n"
+                f"<a href=\"https://zaliv.ai/\">Zaliv.AI</a> — сервис массовой автоматизированной генерации "
+                f"профессионального фото и видео контента для товаров "
+                f"с последующим размещением в социальных сетях.\n\n"
+                f"Это займёт 1-3 минуты...",
         parse_mode="HTML",
     )
 
@@ -111,9 +113,12 @@ async def start_reference_generation(
     await context.bot.edit_message_caption(
         chat_id=user_id,
         message_id=message_id,
-        caption=f"Шаг 10 из N: Генерация эталона\n\n"
-                f"⏳ Промпт готов! Генерирую фото эталона...\n"
-                f"Категория: {category}",
+        caption=f"⏳ Генерирую фото эталона...\n"
+                f"Категория: {category}\n\n"
+                f"Созданный эталон позволит вам массово генерировать "
+                f"фото и видео для любых площадок: Telegram, VK, "
+                f"Instagram, YouTube и других социальных сетей.\n\n"
+                f"Осталось немного...",
     )
 
     # 6. Создаём коллаж для I2I (не показываем пользователю)
@@ -227,7 +232,7 @@ async def start_reference_generation(
         f"📸 Это ваш {reference_number}-й эталон для этого товара\n"
         f"🏷 Категория: {category}\n\n"
         f"💰 Списано: {REFERENCE_COST}₽\n"
-        f"💳 Остаток: {new_balance}₽\n\n"
+        f"💳 Ваш баланс: {new_balance}₽\n\n"
         f"Эталон может немного отличаться от оригинала.\n"
         f"Если отличия значительные — перегенерируйте эталон,\n"
         f"заменив фотографии на шаге выбора фото.\n\n"
