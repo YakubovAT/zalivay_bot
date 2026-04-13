@@ -654,6 +654,24 @@ async def cb_create_reference(update: Update, context: ContextTypes.DEFAULT_TYPE
     return ConversationHandler.END
 
 
+async def cb_back_to_photo_select(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Кнопка «← Назад» с Шага 7 (подтверждение эталона) -> возврат к Шагу 6 (выбор фото)."""
+    query = update.callback_query
+    await query.answer()
+
+    paths = context.user_data.get("photo_paths", [])
+    selected = context.user_data.get("photo_selected", [])
+    idx = context.user_data.get("photo_idx", 0)
+
+    # Если данных нет, возвращаемся в меню
+    if not paths:
+        return await cb_back_to_menu(update, context)
+
+    # Возвращаемся к состоянию выбора фото
+    await _show_photo(context, query.from_user.id, query.message.message_id, idx, paths, selected)
+    return _PHOTO_SELECT
+
+
 async def cb_product_no(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Пользователь отказался: «Нет, другой»."""
     query = update.callback_query
@@ -713,7 +731,7 @@ def build_new_article_handler() -> ConversationHandler:
             ],
             _REFERENCE_CONFIRM: [
                 CallbackQueryHandler(cb_create_reference, pattern="^ref_create_yes$"),
-                CallbackQueryHandler(cb_back_to_mp, pattern="^back_to_mp$"),
+                CallbackQueryHandler(cb_back_to_photo_select, pattern="^back_to_photo_select$"),
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],
         },

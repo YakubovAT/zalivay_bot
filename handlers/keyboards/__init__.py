@@ -92,7 +92,7 @@ def kb_confirm_reference() -> InlineKeyboardMarkup:
             InlineKeyboardButton("✅ Создать эталон", callback_data="ref_create_yes"),
         ],
         [
-            InlineKeyboardButton("← Назад", callback_data="back_to_mp"),
+            InlineKeyboardButton("← Назад", callback_data="back_to_photo_select"),
             InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
         ],
     ])
