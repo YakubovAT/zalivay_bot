@@ -221,32 +221,31 @@ async def start_reference_generation(
                 user_id, article, reference_number, file_id)
 
     # Редактируем исходное сообщение с финальным результатом
+    final_caption = (
+        f"Шаг 11 из N: Эталон готов!\n\n"
+        f"📦 Артикул: <code>{article}</code>\n"
+        f"📸 Это ваш {reference_number}-й эталон для этого товара\n"
+        f"🏷 Категория: {category}\n\n"
+        f"💰 Списано: {REFERENCE_COST}₽\n"
+        f"💳 Остаток: {new_balance}₽\n\n"
+        f"Эталон может немного отличаться от оригинала.\n"
+        f"Если отличия значительные — перегенерируйте эталон,\n"
+        f"заменив фотографии на шаге выбора фото.\n\n"
+        f"Теперь вы можете генерировать фото и видео!"
+    )
     try:
         await context.bot.edit_message_media(
             chat_id=user_id,
             message_id=message_id,
-            media=InputMediaPhoto(media=open(result_local, "rb"), caption=f"🎉 Эталон готов!\n\n"
-                f"📦 Артикул: <code>{article}</code>\n"
-                f"📸 Это ваш {reference_number}-й эталон для этого товара\n"
-                f"🏷 Категория: {category}\n\n"
-                f"💰 Списано: {REFERENCE_COST}₽\n"
-                f"💳 Остаток: {new_balance}₽\n\n"
-                f"Теперь вы можете генерировать фото и видео!",
-            parse_mode="HTML",
-            reply_markup=_kb_reference_result()),
+            media=InputMediaPhoto(media=open(result_local, "rb"), caption=final_caption, parse_mode="HTML"),
+            reply_markup=_kb_reference_result(),
         )
     except Exception:
         # Если редактирование media не сработало — отправляем новое
         await context.bot.send_photo(
             chat_id=user_id,
             photo=open(result_local, "rb"),
-            caption=f"🎉 Эталон готов!\n\n"
-                    f"📦 Артикул: <code>{article}</code>\n"
-                    f"📸 Это ваш {reference_number}-й эталон для этого товара\n"
-                    f"🏷 Категория: {category}\n\n"
-                    f"💰 Списано: {REFERENCE_COST}₽\n"
-                    f"💳 Остаток: {new_balance}₽\n\n"
-                    f"Теперь вы можете генерировать фото и видео!",
+            caption=final_caption,
             parse_mode="HTML",
             reply_markup=_kb_reference_result(),
         )
