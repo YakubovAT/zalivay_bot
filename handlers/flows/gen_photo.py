@@ -90,6 +90,7 @@ async def cb_menu_gen_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["_screen_msg"] = query.message.message_id
 
     text = (
+        "📸 Шаг P1: Сколько фото?\n\n"
         "Сколько фото сгенерировать на основе этого эталона?\n\n"
         "Вы можете сгенерировать одно или множество изображений.\n"
         "Каждое фото будет уникальным — разная локация, освещение, ракурс.\n\n"
@@ -145,6 +146,7 @@ async def msg_photo_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     msg = await context.bot.send_message(
         chat_id=user.id,
         text=(
+            "📸 Шаг P2: Пожелания\n\n"
             "У вас будут пожелания к генерации?\n\n"
             'Например: «хочу фото на фоне моря», «сделай в студии».\n\n'
             'Или напишите «Пропустить» — я сам подберу лучшие локации\n'
@@ -208,6 +210,7 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return _P_COUNT
 
     final_caption = (
+        f"📸 Шаг P3: Подтверждение\n\n"
         f"Готов генерировать {count} фото на основе Эталона #{ref_number}\n\n"
         f"📦 Артикул: <code>{article}</code>\n"
         f"🏷 Тип товара: {ref.get('category', '—')}\n"
@@ -261,6 +264,7 @@ async def _start_generation(
         chat_id=user_id,
         message_id=screen_msg,
         caption=(
+            f"📸 Шаг P4: Генерация\n\n"
             f"⏳ Генерирую {count} фото для артикула <code>{article}</code>...\n\n"
             "Это может занять несколько минут.\n"
             "Я пришлю результат когда будет готово."
@@ -380,7 +384,7 @@ async def _generate_photos(
             batch = results[batch_start:batch_start + batch_size]
 
             caption = (
-                f"📸 Готово! {len(results)} фото для артикула <code>{article}</code>\n\n"
+                f"📸 Шаг P5: Результат — {len(results)} фото для артикула <code>{article}</code>\n\n"
                 f"📦 Эталон: #{ref.get('reference_number', '—')}\n"
                 f"💰 Списано: {total_cost}₽\n"
                 f"💳 Остаток: {new_balance}₽"
@@ -457,6 +461,7 @@ async def cb_back_to_p_count(update: Update, context: ContextTypes.DEFAULT_TYPE)
     ref = context.user_data.get("gen_ref", {})
 
     text = (
+        "📸 Шаг P1: Сколько фото?\n\n"
         "Сколько фото сгенерировать на основе этого эталона?\n\n"
         "Вы можете сгенерировать одно или множество изображений.\n"
         "Каждое фото будет уникальным — разная локация, освещение, ракурс.\n\n"
@@ -489,6 +494,7 @@ async def cb_back_to_p_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     msg = await context.bot.send_message(
         chat_id=update.effective_user.id,
         text=(
+            "📸 Шаг P2: Пожелания\n\n"
             "У вас будут пожелания к генерации?\n\n"
             'Например: «хочу фото на фоне моря», «сделай в студии».\n\n'
             'Или напишите «Пропустить» — я сам подберу лучшие локации\n'

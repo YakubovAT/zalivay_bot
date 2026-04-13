@@ -34,7 +34,7 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if not articles:
         text = (
-            "📂 Мои эталоны\n\n"
+            "📂 Мои эталоны (Шаг 15)\n\n"
             "У вас пока нет товаров с эталонами.\n\n"
             "Создайте первый эталон, чтобы генерировать "
             "фото и видео для ваших товаров."
@@ -45,7 +45,7 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         ])
     else:
         text = (
-            "📂 Мои эталоны\n\n"
+            "📂 Мои эталоны (Шаг 15)\n\n"
             "Ниже ваши артикулы с эталонами.\n"
             "Нажмите на артикул — откроется меню работы с эталонами."
         )
@@ -98,7 +98,7 @@ async def show_ref_card(user, article: str, ref_index: int, bot, query) -> None:
     total = len(refs)
 
     caption = (
-        f"📸 Эталон #{ref_number} из {total}\n"
+        f"📸 Шаг 16: Эталон #{ref_number} из {total}\n"
         f"📦 Артикул: <code>{article}</code>\n"
         f"🏷 Тип товара: {category}"
     )
@@ -189,7 +189,7 @@ async def cb_ref_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data["ref_number_for_gen"] = ref_number
 
     caption = (
-        f"📸 Эталон #{ref_number} из {total}\n"
+        f"📸 Шаг 16: Эталон #{ref_number} из {total}\n"
         f"📦 Артикул: <code>{article}</code>\n"
         f"🏷 Тип товара: {category}"
     )
@@ -277,7 +277,7 @@ async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     context.user_data["ref_number_for_gen"] = ref_number
 
     caption = (
-        f"📸 Эталон #{ref_number} из {total}\n"
+        f"📸 Шаг 16: Эталон #{ref_number} из {total}\n"
         f"📦 Артикул: <code>{article}</code>\n"
         f"🏷 Тип товара: {category}"
     )
