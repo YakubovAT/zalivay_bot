@@ -116,6 +116,20 @@ def main() -> None:
     # --- Видео ---
     application.add_handler(build_video_handler())
 
+    # --- Глобальный обработчик ошибок ---
+    async def error_handler(update, context):
+        logger.error("Unhandled error: %s", context.error, exc_info=context.error)
+        if update and update.effective_user:
+            try:
+                await context.bot.send_message(
+                    chat_id=update.effective_user.id,
+                    text="❌ Произошла ошибка. Попробуйте снова или нажмите /start.",
+                )
+            except Exception:
+                pass
+
+    application.add_error_handler(error_handler)
+
     logger.info("Бот запущен")
     application.run_polling()
 

@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 async def log_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message:
-        logger.info("MSG | user=%s type=%s text=%s", update.effective_user.id, update.message.content_type, update.message.text)
+        msg_type = update.message.content_type if hasattr(update.message, 'content_type') else 'unknown'
+        logger.info("MSG | user=%s type=%s text=%s", update.effective_user.id, msg_type, update.message.text)
 
 
 async def log_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
