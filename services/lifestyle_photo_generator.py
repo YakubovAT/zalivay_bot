@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 LIFESTYLE_I2I_MODEL = "gpt-image/1.5-image-to-image"
 
 # Параметры для lifestyle-фото
-LIFESTYLE_ASPECT_RATIO = "3:4"  # Портретный формат для соцсетей
-LIFESTYLE_QUALITY = "high"
+LIFESTYLE_ASPECT_RATIO = "1:1"  # Квадратный формат (совместим с I2I API)
+LIFESTYLE_QUALITY = "medium"  # Среднее качество (как в reference_i2i)
 
 # Максимальное количество попыток polling и интервал
 MAX_POLL_ATTEMPTS = 60
