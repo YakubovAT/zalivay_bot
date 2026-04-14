@@ -111,6 +111,8 @@ def _list_user_files(user_id: int) -> list[dict]:
             continue
         articul = articul_dir.name
         for f in articul_dir.iterdir():
+            if f.name.startswith(".thumb_"):
+                continue
             ext = f.suffix.lower()
             if ext in PHOTO_EXT:
                 ftype = "photo"
