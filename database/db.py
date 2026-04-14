@@ -81,9 +81,16 @@ async def get_user_stats(user_id: int) -> dict:
         "SELECT COUNT(*) FROM article_references WHERE user_id = $1 AND is_active = TRUE",
         user_id,
     )
-    # TODO: фото и видео — пока нет таблицы content
-    photo_count = 0
-    video_count = 0
+    photo_count = await pool.fetchval(
+        """
+        SELECT COUNT(*) FROM generation_tasks
+        WHERE user_id = $1
+          AND task_type = 'lifestyle_photo'
+          AND status = 'completed'
+        """,
+        user_id,
+    )
+    video_count = 0  # TODO: видео генерация не реализована
 
     row = await pool.fetchrow(
         "SELECT balance FROM users WHERE user_id = $1",
