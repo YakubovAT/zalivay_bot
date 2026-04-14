@@ -391,6 +391,7 @@ async def get_pending_tasks(limit: int = 5) -> list[asyncpg.Record]:
         WHERE id IN (
             SELECT id FROM generation_tasks
             WHERE status = 'pending'
+              AND task_type IN ('photo', 'video')
             ORDER BY created_at
             LIMIT $1
         )
