@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 
 import aiohttp
-from telegram import InputMediaPhoto
+from telegram import Bot
 
 from database import (
     get_pending_tasks,
@@ -47,6 +47,7 @@ from services.reference_i2i import generate_reference_image
 from services.lifestyle_photo_generator import generate_lifestyle_photo
 from config import I2I_API_BASE, I2I_API_KEY, PHOTO_COST
 from handlers.keyboards import kb_gen_photo_result
+from handlers.flows.messages.common import msg_generation_done, msg_generation_failed
 
 logger = logging.getLogger(__name__)
 
@@ -189,18 +190,13 @@ async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
     )
 
     if completed == 0:
-        # Все упали — баннер с job_id для поддержки
+        # Все упали — уведомляем, баланс не списываем
         await fail_generation_job(job_id)
         try:
             await bot.send_photo(
                 chat_id=chat_id,
                 photo=open("assets/banner_default.png", "rb"),
-                caption=(
-                    "❌ Не удалось сгенерировать фото.\n\n"
-                    "С вашего баланса ничего не списано.\n\n"
-                    f"🆔 Задание #{job_id}\n\n"
-                    "При обращении в поддержку укажите номер задания."
-                ),
+                caption=msg_generation_failed(job_id),
                 parse_mode="HTML",
                 reply_markup=kb_gen_photo_result(),
             )
@@ -208,52 +204,35 @@ async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
             logger.error("JOB_WORKER | job_id=%d | notify_fail error: %s", job_id, e)
         return
 
-    # Есть хотя бы одно готовое фото
-    file_paths = await get_job_results(job_id)
+    # Есть готовые фото — списываем и отправляем первое
+    file_paths  = await get_job_results(job_id)
     actual_cost = len(file_paths) * PHOTO_COST
     new_balance = await deduct_balance(user_id, actual_cost)
 
-    caption = (
-        f"📸 Шаг P5: Результат — {len(file_paths)} фото для <code>{article}</code>\n\n"
-        f"📦 Эталон: #{ref_number}\n"
-        f"💰 Списано: {actual_cost}₽\n"
-        f"💳 Остаток: {new_balance}₽\n"
-        f"⏱ Время генерации: {elapsed_str}\n"
-        f"🆔 Задание #{job_id}"
-        + (f"\n⚠️ Не удалось: {failed} из {failed + completed}" if failed else "")
+    caption = msg_generation_done(
+        article=article,
+        ref_number=ref_number,
+        total=len(file_paths),
+        actual_cost=actual_cost,
+        new_balance=new_balance,
+        elapsed_str=elapsed_str,
+        job_id=job_id,
+        failed=failed,
     )
 
     try:
-        batch_size = 10
-        for batch_start in range(0, len(file_paths), batch_size):
-            batch = file_paths[batch_start:batch_start + batch_size]
-
-            if len(batch) == 1:
-                await bot.send_photo(
-                    chat_id=chat_id,
-                    photo=open(batch[0], "rb"),
-                    caption=caption,
-                    parse_mode="HTML",
-                    reply_markup=kb_gen_photo_result(),
-                )
-            else:
-                # Альбом: caption на первом, кнопки на последнем
-                media_group = [
-                    InputMediaPhoto(media=open(batch[0], "rb"), caption=caption, parse_mode="HTML"),
-                    *[InputMediaPhoto(media=open(p, "rb")) for p in batch[1:]],
-                ]
-                sent = await bot.send_media_group(chat_id=chat_id, media=media_group)
-                await bot.edit_message_reply_markup(
-                    chat_id=chat_id,
-                    message_id=sent[-1].message_id,
-                    reply_markup=kb_gen_photo_result(),
-                )
-
+        await bot.send_photo(
+            chat_id=chat_id,
+            photo=open(file_paths[0], "rb"),
+            caption=caption,
+            parse_mode="HTML",
+            reply_markup=kb_gen_photo_result(),
+        )
         await complete_generation_job(job_id)
-        logger.info("JOB_WORKER | job_id=%d | album sent | files=%d elapsed=%s", job_id, len(file_paths), elapsed_str)
+        logger.info("JOB_WORKER | job_id=%d | done | files=%d elapsed=%s", job_id, len(file_paths), elapsed_str)
 
     except Exception as e:
-        logger.error("JOB_WORKER | job_id=%d | send_album error: %s", job_id, e)
+        logger.error("JOB_WORKER | job_id=%d | send_result error: %s", job_id, e)
         await fail_generation_job(job_id)
 
 
