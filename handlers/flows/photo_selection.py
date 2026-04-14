@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Состояния (10-12, чтобы не пересекаться с new_article 0-2)
 _PHOTO_SELECT, _PHOTO_CONFIRM, _REFERENCE_CONFIRM = range(10, 13)
+_REFERENCE_GENERATING = 13  # Из create_reference.py
 
 
 # ---------------------------------------------------------------------------
@@ -354,14 +355,15 @@ async def cb_create_reference(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
 
     from handlers.flows.create_reference import start_reference_generation
-    await start_reference_generation(
+    result = await start_reference_generation(
         context=context,
         user_id=query.from_user.id,
         message_id=query.message.message_id,
     )
-    # Всегда возвращаем _REFERENCE_CONFIRM чтобы кнопки оставались активными
-    # (даже при недостатке средств — алерт удаляется, экран остаётся)
-    return _REFERENCE_CONFIRM
+    # Возвращаем результат start_reference_generation:
+    # _REFERENCE_GENERATING — если алерт (недостаточно средств), кнопки остаются активными
+    # ConversationHandler.END — если эталон создан успешно
+    return result
 
 
 async def cb_back_to_menu_from_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
