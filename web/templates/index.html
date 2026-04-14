@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zalivai — Мои медиафайлы</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d0d;
+      --surface:   #1a1a1a;
+      --border:    #2a2a2a;
+      --accent:    #2AABEE;   /* Telegram blue */
+      --text:      #e8e8e8;
+      --muted:     #666;
+      --radius:    10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Шапка ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.3px;
+      white-space: nowrap;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .user-name { color: var(--text); font-weight: 500; }
+
+    .btn-logout {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: border-color .2s, color .2s;
+    }
+    .btn-logout:hover { border-color: #555; color: var(--text); }
+
+    /* ── Экран входа ── */
+    #login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 56px);
+      gap: 24px;
+      padding: 40px 20px;
+    }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px 48px;
+      text-align: center;
+      max-width: 360px;
+      width: 100%;
+    }
+
+    .login-card h2 { font-size: 22px; margin-bottom: 8px; }
+    .login-card p  { color: var(--muted); font-size: 14px; margin-bottom: 28px; line-height: 1.5; }
+
+    /* ── Фильтры ── */
+    #app { display: none; }
+
+    .filters {
+      padding: 16px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 56px;
+      z-index: 90;
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .filter-sep {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      align-self: center;
+    }
+
+    .chip {
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .chip:hover            { border-color: var(--accent); color: var(--text); }
+    .chip.active           { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .chip.video.active     { background: #a855f7; border-color: #a855f7; }
+    .chip.photo.active     { background: #22c55e; border-color: #22c55e; }
+
+    /* ── Статистика ── */
+    .stats {
+      padding: 10px 20px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ── Сетка ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 2px;
+      padding: 2px;
+    }
+
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    }
+
+    .card {
+      position: relative;
+      aspect-ratio: 1;
+      overflow: hidden;
+      cursor: pointer;
+      background: var(--surface);
+    }
+
+    .card img,
+    .card video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform .2s;
+    }
+
+    .card:hover img,
+    .card:hover video { transform: scale(1.03); }
+
+    .card-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,.75) 0%, transparent 50%);
+      opacity: 0;
+      transition: opacity .2s;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 10px;
+    }
+    .card:hover .card-overlay { opacity: 1; }
+
+    .card-articul {
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      background: rgba(0,0,0,.4);
+      border-radius: 4px;
+      padding: 2px 6px;
+      align-self: flex-start;
+      letter-spacing: .3px;
+    }
+
+    .card-name {
+      font-size: 11px;
+      color: rgba(255,255,255,.7);
+      margin-top: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .badge-video {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0,0,0,.6);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      color: #fff;
+    }
+
+    /* ── Пустой экран ── */
+    .empty {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--muted);
+    }
+    .empty h3 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
+    .empty p  { font-size: 14px; }
+
+    /* ── Лайтбокс ── */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.92);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #lightbox.open { display: flex; }
+
+    .lightbox-inner {
+      position: relative;
+      max-width: 90vw;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .lightbox-inner img,
+    .lightbox-inner video {
+      max-width: 90vw;
+      max-height: 80vh;
+      border-radius: 8px;
+      object-fit: contain;
+    }
+
+    .lightbox-meta {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .lightbox-meta strong { color: var(--text); }
+
+    .lightbox-close {
+      position: fixed;
+      top: 20px;
+      right: 24px;
+      font-size: 28px;
+      color: #fff;
+      cursor: pointer;
+      background: none;
+      border: none;
+      line-height: 1;
+      opacity: .7;
+      transition: opacity .15s;
+    }
+    .lightbox-close:hover { opacity: 1; }
+
+    .lightbox-nav {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 36px;
+      color: #fff;
+      cursor: pointer;
+      background: rgba(0,0,0,.4);
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: .7;
+      transition: opacity .15s, background .15s;
+    }
+    .lightbox-nav:hover { opacity: 1; background: rgba(0,0,0,.7); }
+    #lb-prev { left: 12px; }
+    #lb-next { right: 12px; }
+
+    /* ── Loader ── */
+    .loader {
+      display: flex;
+      justify-content: center;
+      padding: 60px;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Шапка -->
+<header>
+  <div class="logo">📦 Zalivai</div>
+  {% if user %}
+  <div class="user-info">
+    <span>Привет, <span class="user-name">{{ user.first_name }}</span></span>
+    <button class="btn-logout" onclick="logout()">Выйти</button>
+  </div>
+  {% endif %}
+</header>
+
+<!-- Экран входа -->
+{% if not user %}
+<div id="login-screen">
+  <div class="login-card">
+    <h2>Мои медиафайлы</h2>
+    <p>Войдите через Telegram, чтобы просмотреть фото и видео, сгенерированные для ваших артикулов.</p>
+    <script
+      async
+      src="https://telegram.org/js/telegram-widget.js?22"
+      data-telegram-login="{{ bot_username }}"
+      data-size="large"
+      data-onauth="onTelegramAuth(user)"
+      data-request-access="write">
+    </script>
+  </div>
+</div>
+
+{% else %}
+
+<!-- Основное приложение -->
+<div id="app">
+
+  <!-- Фильтры -->
+  <div class="filters">
+    <!-- Тип -->
+    <div class="filter-group" id="type-filters">
+      <button class="chip active" data-type="all" onclick="setType(this)">Все</button>
+      <button class="chip photo"  data-type="photo" onclick="setType(this)">📷 Фото</button>
+      <button class="chip video"  data-type="video" onclick="setType(this)">🎬 Видео</button>
+    </div>
+
+    <div class="filter-sep"></div>
+
+    <!-- Артикулы -->
+    <div class="filter-group" id="articul-filters">
+      <button class="chip active" data-articul="all" onclick="setArticul(this)">Все артикулы</button>
+      <!-- динамически добавляются -->
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div id="content">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+
+</div>
+
+<!-- Лайтбокс -->
+<div id="lightbox">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <button class="lightbox-nav" id="lb-prev" onclick="navLightbox(-1)">‹</button>
+  <div class="lightbox-inner">
+    <div id="lb-media"></div>
+    <div class="lightbox-meta" id="lb-meta"></div>
+  </div>
+  <button class="lightbox-nav" id="lb-next" onclick="navLightbox(1)">›</button>
+</div>
+
+{% endif %}
+
+<script>
+// ── Авторизация ──────────────────────────────────────────────────────────────
+
+function onTelegramAuth(user) {
+  fetch('/api/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(user),
+  })
+  .then(r => r.json())
+  .then(d => { if (d.ok) location.reload(); })
+  .catch(console.error);
+}
+
+function logout() {
+  fetch('/api/logout', { method: 'POST' })
+    .then(() => location.reload());
+}
+
+{% if user %}
+// ── Состояние фильтров ───────────────────────────────────────────────────────
+
+let allFiles   = [];
+let activeType = 'all';
+let activeArt  = 'all';
+let lbIndex    = 0;
+let lbFiles    = [];
+
+// ── Загрузка файлов ──────────────────────────────────────────────────────────
+
+fetch('/api/files')
+  .then(r => r.json())
+  .then(data => {
+    allFiles = data.files;
+
+    // Строим кнопки артикулов
+    const artContainer = document.getElementById('articul-filters');
+    data.articuls.forEach(art => {
+      const btn = document.createElement('button');
+      btn.className = 'chip';
+      btn.dataset.articul = art;
+      btn.textContent = art;
+      btn.onclick = () => setArticul(btn);
+      artContainer.appendChild(btn);
+    });
+
+    document.getElementById('app').style.display = 'block';
+    render();
+  })
+  .catch(() => {
+    document.getElementById('content').innerHTML =
+      '<div class="empty"><h3>Ошибка загрузки</h3><p>Попробуйте обновить страницу.</p></div>';
+  });
+
+// ── Фильтры ──────────────────────────────────────────────────────────────────
+
+function setType(btn) {
+  activeType = btn.dataset.type;
+  document.querySelectorAll('#type-filters .chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function setArticul(btn) {
+  activeArt = btn.dataset.articul;
+  document.querySelectorAll('#articul-filters .chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function filtered() {
+  return allFiles.filter(f => {
+    if (activeType !== 'all' && f.type !== activeType) return false;
+    if (activeArt  !== 'all' && f.articul !== activeArt)  return false;
+    return true;
+  });
+}
+
+// ── Рендер сетки ─────────────────────────────────────────────────────────────
+
+function render() {
+  const files = filtered();
+  const content = document.getElementById('content');
+  const stats   = document.getElementById('stats');
+
+  const photos = files.filter(f => f.type === 'photo').length;
+  const videos = files.filter(f => f.type === 'video').length;
+  stats.textContent = files.length === 0 ? '' :
+    `Показано: ${files.length} файл${plural(files.length, '', 'а', 'ов')}` +
+    (photos ? ` · ${photos} фото` : '') +
+    (videos ? ` · ${videos} видео` : '');
+
+  if (files.length === 0) {
+    content.innerHTML = `
+      <div class="empty">
+        <h3>Файлы не найдены</h3>
+        <p>Попробуйте изменить фильтры или сгенерируйте фото в боте.</p>
+      </div>`;
+    return;
+  }
+
+  lbFiles = files;
+
+  content.innerHTML = `<div class="grid">${files.map((f, i) => cardHTML(f, i)).join('')}</div>`;
+}
+
+function cardHTML(f, i) {
+  const src = `/files/${f.path}`;
+  const media = f.type === 'photo'
+    ? `<img src="${src}" loading="lazy" alt="${f.articul}">`
+    : `<video src="${src}" muted preload="none"></video>`;
+
+  return `
+    <div class="card" onclick="openLightbox(${i})">
+      ${media}
+      ${f.type === 'video' ? '<span class="badge-video">▶ видео</span>' : ''}
+      <div class="card-overlay">
+        <span class="card-articul">${f.articul}</span>
+        <span class="card-name">${f.name}</span>
+      </div>
+    </div>`;
+}
+
+// ── Лайтбокс ─────────────────────────────────────────────────────────────────
+
+function openLightbox(i) {
+  lbIndex = i;
+  showLightboxItem();
+  document.getElementById('lightbox').classList.add('open');
+  document.addEventListener('keydown', onKeyDown);
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lb-media').innerHTML = '';
+  document.removeEventListener('keydown', onKeyDown);
+}
+
+function navLightbox(dir) {
+  lbIndex = (lbIndex + dir + lbFiles.length) % lbFiles.length;
+  showLightboxItem();
+}
+
+function showLightboxItem() {
+  const f   = lbFiles[lbIndex];
+  const src = `/files/${f.path}`;
+  const mediaEl = document.getElementById('lb-media');
+  const metaEl  = document.getElementById('lb-meta');
+
+  if (f.type === 'photo') {
+    mediaEl.innerHTML = `<img src="${src}" alt="${f.name}">`;
+  } else {
+    mediaEl.innerHTML = `<video src="${src}" controls autoplay loop></video>`;
+  }
+
+  metaEl.innerHTML = `<strong>${f.articul}</strong> · ${f.name} · ${fmtSize(f.size)}`;
+  document.getElementById('lb-prev').style.display = lbFiles.length > 1 ? 'flex' : 'none';
+  document.getElementById('lb-next').style.display = lbFiles.length > 1 ? 'flex' : 'none';
+}
+
+function onKeyDown(e) {
+  if (e.key === 'Escape')       closeLightbox();
+  if (e.key === 'ArrowLeft')    navLightbox(-1);
+  if (e.key === 'ArrowRight')   navLightbox(1);
+}
+
+// ── Вспомогалки ──────────────────────────────────────────────────────────────
+
+function fmtSize(bytes) {
+  if (bytes < 1024)       return bytes + ' B';
+  if (bytes < 1024*1024)  return (bytes/1024).toFixed(0) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+
+function plural(n, one, few, many) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
+{% endif %}
+</script>
+</body>
+</html>

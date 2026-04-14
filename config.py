@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN    = os.getenv("BOT_TOKEN")
+BOT_USERNAME = os.getenv("BOT_USERNAME", "ZalivaiBot")   # username без @, для Telegram Login Widget
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/zalivai_db")
 
 # ---------------------------------------------------------------------------
