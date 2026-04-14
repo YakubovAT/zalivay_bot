@@ -565,16 +565,7 @@ function showLightboxItem() {
   const metaEl  = document.getElementById('lb-meta');
 
   if (f.type === 'photo') {
-    mediaEl.innerHTML = `<div class="lb-spinner"><div class="spinner"></div></div>`;
-    const img = new Image();
-    img.alt = f.name;
-    img.onload = () => {
-      if (mediaEl.querySelector('.lb-spinner')) {
-        mediaEl.innerHTML = '';
-        mediaEl.appendChild(img);
-      }
-    };
-    img.src = fullSrc;
+    mediaEl.innerHTML = `<img src="${fullSrc}" alt="${f.name}">`;
   } else {
     mediaEl.innerHTML = `<video src="${fullSrc}" controls autoplay loop></video>`;
   }
