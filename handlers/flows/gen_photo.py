@@ -408,17 +408,17 @@ async def _generate_photos(
                     reply_markup=kb_gen_photo_result(),
                 )
             else:
-                # Первое фото с caption, остальные без
-                media_group = [
-                    InputMediaPhoto(media=open(batch[0], "rb"), caption=caption, parse_mode="HTML"),
-                ] + [InputMediaPhoto(media=open(p, "rb")) for p in batch[1:]]
-                await bot.send_media_group(chat_id=user_id, media=media_group)
-                # Кнопки — отдельным сообщением
-                await bot.send_message(
+                # Первое фото с caption + кнопки, остальные через media_group
+                await bot.send_photo(
                     chat_id=user_id,
-                    text="Что дальше?",
+                    photo=open(batch[0], "rb"),
+                    caption=caption,
+                    parse_mode="HTML",
                     reply_markup=kb_gen_photo_result(),
                 )
+                if len(batch) > 1:
+                    media_group = [InputMediaPhoto(media=open(p, "rb")) for p in batch[1:]]
+                    await bot.send_media_group(chat_id=user_id, media=media_group)
 
     # Удаляем баннер P4 (экран генерации)
     screen_msg = context.user_data.get("_screen_msg")
