@@ -13,12 +13,9 @@ Flow генерации фото на основе эталона.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import os
 
-import aiohttp
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CallbackQueryHandler,
     ConversationHandler,
@@ -27,8 +24,14 @@ from telegram.ext import (
     filters,
 )
 
-from config import PHOTO_COST, I2I_API_BASE, I2I_API_KEY
-from database import get_user_stats, deduct_balance, get_reference, get_active_references
+from config import PHOTO_COST
+from database import (
+    get_user_stats,
+    get_reference,
+    get_active_references,
+    create_generation_job,
+    create_job_task,
+)
 from handlers.flows.flow_helpers import safe_delete
 from handlers.flows.messages.common import msg_insufficient_funds, kb_alert_close
 from handlers.keyboards import (
@@ -38,7 +41,6 @@ from handlers.keyboards import (
     kb_gen_photo_result,
 )
 from services.prompt_generator_cloth import generate_photo_prompts
-from services.lifestyle_photo_generator import generate_lifestyle_photo
 
 logger = logging.getLogger(__name__)
 
@@ -287,38 +289,89 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # ---------------------------------------------------------------------------
 
 async def cb_gen_photo_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь подтвердил генерацию."""
+    """Пользователь подтвердил генерацию — создаём job + tasks в БД."""
     query = update.callback_query
     await query.answer()
 
-    user_id = update.effective_user.id
-    article = context.user_data["gen_article"]
+    user_id    = update.effective_user.id
+    article    = context.user_data["gen_article"]
     ref_number = context.user_data["gen_ref_number"]
-    ref = context.user_data["gen_ref"]
-    count = context.user_data["gen_count"]
-    wish = context.user_data.get("gen_wish")
+    ref        = context.user_data["gen_ref"]
+    count      = context.user_data["gen_count"]
+    wish       = context.user_data.get("gen_wish")
+    screen_msg = context.user_data.get("_screen_msg")
+    total_cost = count * PHOTO_COST
 
     logger.info("GEN_PHOTO_START | user=%s article=%s ref=%d count=%d", user_id, article, ref_number, count)
 
-    return await _start_generation(update, context, user_id, article, ref_number, ref, count, wish)
+    # Формируем URL эталона
+    ref_image_url = ref.get("reference_image_url", "")
+    if not ref_image_url:
+        file_path = ref.get("file_path", "")
+        if file_path:
+            import os
+            abs_path = os.path.realpath(file_path)
+            media_idx = abs_path.find("/media/")
+            if media_idx >= 0:
+                rel = abs_path[media_idx + len("/media/"):]
+                ref_image_url = f"https://zaliv.ai/media/{rel}"
+            else:
+                rel = file_path.lstrip("/").replace("media/", "", 1)
+                ref_image_url = f"https://zaliv.ai/media/{user_id}/{rel}"
 
+    if not ref_image_url:
+        await query.edit_message_caption(
+            caption="❌ Эталон не содержит изображения. Создайте эталон заново.",
+        )
+        return ConversationHandler.END
 
-async def _start_generation(
-    update, context, user_id: int, article: str, ref_number: int,
-    ref: dict, count: int, wish: str | None,
-) -> int:
-    """Запускает генерацию N фото."""
-    total_cost = count * PHOTO_COST
-    screen_msg = context.user_data.get("_screen_msg")
+    # Генерируем промпты
+    base_prompts = generate_photo_prompts(
+        name=ref.get("product_name", "товар"),
+        color=ref.get("product_color", "neutral"),
+        material=ref.get("product_material", ""),
+        category=ref.get("category", "верх"),
+        count=count,
+    )
+    prompts = [
+        ", ".join(filter(None, [base, wish]))
+        for base in base_prompts
+    ]
 
+    # Создаём job в БД
+    job_id = await create_generation_job(
+        user_id=user_id,
+        chat_id=user_id,
+        article=article,
+        ref_number=ref_number,
+        ref_image_url=ref_image_url,
+        wish=wish,
+        count=count,
+        cost=total_cost,
+        screen_msg_id=screen_msg,
+    )
+
+    # Создаём N задач внутри job
+    for prompt in prompts:
+        await create_job_task(
+            job_id=job_id,
+            user_id=user_id,
+            chat_id=user_id,
+            article=article,
+            prompt=prompt,
+        )
+
+    logger.info("GEN_PHOTO | job_id=%d | created %d tasks", job_id, count)
+
+    # Показываем экран P4 — ожидание
     await context.bot.edit_message_caption(
         chat_id=user_id,
         message_id=screen_msg,
         caption=(
             f"📸 Шаг P4: Генерация\n\n"
-            f"⏳ Генерирую {count} фото для артикула <code>{article}</code>...\n\n"
-            "Это может занять несколько минут.\n"
-            "Я пришлю результат когда будет готово."
+            f"⏳ Поставил в очередь {count} фото для артикула <code>{article}</code>.\n\n"
+            "Фото генерируются параллельно.\n"
+            "Я пришлю результат когда все будут готовы."
         ),
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup([
@@ -326,168 +379,7 @@ async def _start_generation(
         ]),
     )
 
-    # Запускаем генерацию в фоне
-    asyncio.create_task(
-        _generate_photos(context.bot, user_id, article, ref, count, wish, total_cost)
-    )
-
     return _P_GENERATING
-
-
-# ---------------------------------------------------------------------------
-# Генерация (фоновая задача)
-# ---------------------------------------------------------------------------
-
-async def _generate_photos(
-    bot, user_id: int, article: str, ref: dict,
-    count: int, wish: str | None, total_cost: int,
-) -> None:
-    """Генерирует N фото и отправляет пользователю."""
-    # Формируем публичный URL из file_path (файл на нашем сервере)
-    # Приоритет: reference_image_url (если есть), иначе формируем через nginx
-    ref_image_url = ref.get("reference_image_url", "")
-    if not ref_image_url:
-        file_path = ref.get("file_path", "")
-        if file_path:
-            # file_path может быть абсолютным с «..»: /var/www/bots/.../../media/171470918/references/xxx.png
-            # Нормализуем и извлекаем путь после /media/
-            abs_path = os.path.realpath(file_path)
-            media_idx = abs_path.find("/media/")
-            if media_idx >= 0:
-                rel = abs_path[media_idx + len("/media/"):]
-                ref_image_url = f"https://zaliv.ai/media/{rel}"
-            else:
-                # Фоллбэк: пробуем извлечь user_id и относительный путь
-                rel = file_path.lstrip("/").replace("media/", "", 1)
-                ref_image_url = f"https://zaliv.ai/media/{user_id}/{rel}"
-            logger.info("GEN_PHOTO | url from file_path | user=%s url=%s", user_id, ref_image_url)
-        else:
-            logger.error("GEN_PHOTO | no file_path | user=%s", user_id)
-            await bot.send_message(
-                chat_id=user_id,
-                text="❌ Эталон не содержит изображения. Создайте эталон заново.",
-            )
-            return
-
-    # Генерируем N уникальных промптов
-    product_name = ref.get("product_name", "товар")
-    product_color = ref.get("product_color", "neutral")
-    product_material = ref.get("product_material", "")
-    category = ref.get("category", "верх")
-    ref_prompt = ref.get("reference_prompt", "")  # Базовый промпт из эталона
-
-    base_prompts = generate_photo_prompts(
-        name=product_name,
-        color=product_color,
-        material=product_material,
-        category=category,
-        count=count,
-    )
-
-    # Формируем финальные промпты: lifestyle-шаблон + пожелания (если есть)
-    # reference_prompt НЕ используем — он создан для создания эталона (удалить фон,
-    # удалить тело модели), что противоречит задаче lifestyle-фотосессии
-    prompts = []
-    for base in base_prompts:
-        parts = [base]
-        if wish:
-            parts.append(wish)
-        prompts.append(", ".join(parts))
-
-    # Папка для сохранения
-    save_dir = f"media/{user_id}/generated/{article}"
-    os.makedirs(save_dir, exist_ok=True)
-
-    results = []
-    errors = 0
-
-    async with aiohttp.ClientSession() as session:
-        for i, prompt in enumerate(prompts):
-            logger.info("GEN_PHOTO | i2i_call | user=%s i=%d/%d", user_id, i + 1, count)
-
-            result_url = await generate_lifestyle_photo(
-                session=session,
-                api_base=I2I_API_BASE,
-                api_key=I2I_API_KEY,
-                ref_image_url=ref_image_url,
-                prompt=prompt,
-            )
-
-            if not result_url:
-                errors += 1
-                continue
-
-            # Скачиваем результат
-            save_path = f"{save_dir}/photo_{article}_{i + 1}.png"
-            try:
-                async with session.get(result_url) as resp:
-                    if resp.status == 200:
-                        with open(save_path, "wb") as f:
-                            f.write(await resp.read())
-                        results.append(save_path)
-            except Exception as e:
-                logger.error("GEN_PHOTO | download_failed | i=%d error=%s", i, e)
-                errors += 1
-
-    # Списываем баланс только за успешно сгенерированные фото
-    if results:
-        actual_cost = len(results) * PHOTO_COST
-        new_balance = await deduct_balance(user_id, actual_cost)
-
-        batch_size = 10
-        for batch_start in range(0, len(results), batch_size):
-            batch = results[batch_start:batch_start + batch_size]
-
-            caption = (
-                f"📸 Шаг P5: Результат — {len(results)} фото для артикула <code>{article}</code>\n\n"
-                f"📦 Эталон: #{ref.get('reference_number', '—')}\n"
-                f"💰 Списано: {actual_cost}₽\n"
-                f"💳 Остаток: {new_balance}₽"
-                + (f"\n⚠️ Не удалось сгенерировать: {errors}" if errors else "")
-            )
-
-            if len(batch) == 1:
-                await bot.send_photo(
-                    chat_id=user_id,
-                    photo=open(batch[0], "rb"),
-                    caption=caption,
-                    parse_mode="HTML",
-                    reply_markup=kb_gen_photo_result(),
-                )
-            else:
-                # Все фото одним альбомом, caption на первом
-                media_group = [
-                    InputMediaPhoto(media=open(batch[0], "rb"), caption=caption, parse_mode="HTML"),
-                    *[InputMediaPhoto(media=open(p, "rb")) for p in batch[1:]],
-                ]
-                sent = await bot.send_media_group(chat_id=user_id, media=media_group)
-                # Кнопки на последнее фото альбома
-                await bot.edit_message_reply_markup(
-                    chat_id=user_id,
-                    message_id=sent[-1].message_id,
-                    reply_markup=kb_gen_photo_result(),
-                )
-
-    # Удаляем баннер P4 (экран генерации)
-    screen_msg = context.user_data.get("_screen_msg")
-    if screen_msg:
-        await safe_delete(bot, user_id, screen_msg)
-
-    if not results:
-        await bot.send_message(
-            chat_id=user_id,
-            text=(
-                "❌ Не удалось сгенерировать фото.\n\n"
-                "С вашего баланса ничего не списано.\n\n"
-                "Попробуйте снова или обратитесь в поддержку."
-            ),
-            reply_markup=kb_gen_photo_result(),
-        )
-
-    logger.info(
-        "GEN_PHOTO_DONE | user=%s article=%s count=%d success=%d errors=%d",
-        user_id, article, count, len(results), errors,
-    )
 
 
 # ---------------------------------------------------------------------------

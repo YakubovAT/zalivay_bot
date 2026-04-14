@@ -432,3 +432,181 @@ async def fail_stuck_tasks(minutes: int = 10) -> int:
         str(minutes),
     )
     return int(result.split()[-1])
+
+
+# ---------------------------------------------------------------------------
+# generation_jobs — группы задач (Вариант C)
+# ---------------------------------------------------------------------------
+
+async def create_generation_job(
+    user_id: int,
+    chat_id: int,
+    article: str,
+    ref_number: int,
+    ref_image_url: str,
+    wish: str | None,
+    count: int,
+    cost: int,
+    screen_msg_id: int | None = None,
+) -> int:
+    """Создаёт группу генерации. Возвращает job_id."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        INSERT INTO generation_jobs
+            (user_id, chat_id, article, ref_number, ref_image_url, wish, count, cost, screen_msg_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id
+        """,
+        user_id, chat_id, article, ref_number, ref_image_url, wish, count, cost, screen_msg_id,
+    )
+    return row["id"] if row else -1
+
+
+async def create_job_task(
+    job_id: int,
+    user_id: int,
+    chat_id: int,
+    article: str,
+    prompt: str,
+) -> int:
+    """Создаёт задачу внутри группы. Возвращает task_id."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        INSERT INTO generation_tasks (job_id, user_id, chat_id, task_type, articul, prompt)
+        VALUES ($1, $2, $3, 'lifestyle_photo', $4, $5)
+        RETURNING id
+        """,
+        job_id, user_id, chat_id, article, prompt,
+    )
+    return row["id"] if row else -1
+
+
+async def get_pending_job_tasks(limit: int = 10) -> list[asyncpg.Record]:
+    """Берёт pending lifestyle_photo задачи (с job_id), атомарно переводит в processing."""
+    pool = await get_pool()
+    return await pool.fetch(
+        """
+        UPDATE generation_tasks
+        SET status = 'processing', updated_at = NOW()
+        WHERE id IN (
+            SELECT id FROM generation_tasks
+            WHERE status = 'pending'
+              AND task_type = 'lifestyle_photo'
+              AND job_id IS NOT NULL
+            ORDER BY created_at
+            LIMIT $1
+        )
+        RETURNING *
+        """,
+        limit,
+    )
+
+
+async def complete_job_task(task_id: int, result_url: str, file_path: str) -> None:
+    """Помечает задачу группы как выполненную, сохраняет file_path."""
+    pool = await get_pool()
+    await pool.execute(
+        """
+        UPDATE generation_tasks
+        SET status = 'completed', result_url = $2, file_path = $3, updated_at = NOW()
+        WHERE id = $1
+        """,
+        task_id, result_url, file_path,
+    )
+
+
+async def fail_job_task(task_id: int, error_msg: str) -> None:
+    """Помечает задачу группы как неудачную."""
+    pool = await get_pool()
+    await pool.execute(
+        """
+        UPDATE generation_tasks
+        SET status = 'failed', error_msg = $2, updated_at = NOW()
+        WHERE id = $1
+        """,
+        task_id, error_msg,
+    )
+
+
+async def get_job_status(job_id: int) -> dict:
+    """Возвращает счётчики задач группы: total, completed, failed, pending."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        SELECT
+            COUNT(*)                                      AS total,
+            COUNT(*) FILTER (WHERE status = 'completed') AS completed,
+            COUNT(*) FILTER (WHERE status = 'failed')    AS failed,
+            COUNT(*) FILTER (WHERE status = 'pending'
+                              OR   status = 'processing') AS in_progress
+        FROM generation_tasks
+        WHERE job_id = $1
+        """,
+        job_id,
+    )
+    return dict(row) if row else {"total": 0, "completed": 0, "failed": 0, "in_progress": 0}
+
+
+async def get_job_info(job_id: int) -> asyncpg.Record | None:
+    """Возвращает запись generation_jobs по id."""
+    pool = await get_pool()
+    return await pool.fetchrow(
+        "SELECT * FROM generation_jobs WHERE id = $1",
+        job_id,
+    )
+
+
+async def get_job_results(job_id: int) -> list[str]:
+    """Возвращает file_path всех выполненных задач группы (по порядку)."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT file_path FROM generation_tasks
+        WHERE job_id = $1 AND status = 'completed' AND file_path IS NOT NULL
+        ORDER BY id
+        """,
+        job_id,
+    )
+    return [r["file_path"] for r in rows]
+
+
+async def complete_generation_job(job_id: int) -> None:
+    """Помечает группу как выполненную."""
+    pool = await get_pool()
+    await pool.execute(
+        """
+        UPDATE generation_jobs SET status = 'done', updated_at = NOW()
+        WHERE id = $1
+        """,
+        job_id,
+    )
+
+
+async def fail_generation_job(job_id: int) -> None:
+    """Помечает группу как неудачную."""
+    pool = await get_pool()
+    await pool.execute(
+        """
+        UPDATE generation_jobs SET status = 'failed', updated_at = NOW()
+        WHERE id = $1
+        """,
+        job_id,
+    )
+
+
+async def fail_stuck_jobs(minutes: int = 15) -> int:
+    """Сбрасывает зависшие processing задачи групп обратно в pending."""
+    pool = await get_pool()
+    result = await pool.execute(
+        """
+        UPDATE generation_tasks
+        SET status = 'pending', updated_at = NOW()
+        WHERE status = 'processing'
+          AND task_type = 'lifestyle_photo'
+          AND updated_at < NOW() - ($1 || ' minutes')::INTERVAL
+        """,
+        str(minutes),
+    )
+    return int(result.split()[-1])

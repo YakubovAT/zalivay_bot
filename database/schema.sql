@@ -76,6 +76,34 @@ CREATE INDEX IF NOT EXISTS idx_generation_tasks_status
 CREATE INDEX IF NOT EXISTS idx_generation_tasks_user
     ON generation_tasks (user_id, created_at DESC);
 
+-- Группа задач генерации (один запрос пользователя = N фото)
+CREATE TABLE IF NOT EXISTS generation_jobs (
+    id              SERIAL PRIMARY KEY,
+    user_id         BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    chat_id         BIGINT NOT NULL,
+    article         TEXT NOT NULL,
+    ref_number      INTEGER NOT NULL,
+    ref_image_url   TEXT NOT NULL,
+    wish            TEXT,
+    count           INTEGER NOT NULL,
+    cost            INTEGER NOT NULL,
+    screen_msg_id   BIGINT,
+    status          TEXT NOT NULL DEFAULT 'pending'
+                        CHECK (status IN ('pending', 'processing', 'done', 'failed')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_generation_jobs_user
+    ON generation_jobs (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_generation_jobs_status
+    ON generation_jobs (status, created_at);
+
+-- Добавляем job_id и file_path к существующей таблице задач
+ALTER TABLE generation_tasks
+    ADD COLUMN IF NOT EXISTS job_id    INTEGER REFERENCES generation_jobs(id) ON DELETE CASCADE,
+    ADD COLUMN IF NOT EXISTS file_path TEXT;
+
 -- Кэш маркетплейса: хранит подтверждённый результат (WB/OZON)
 -- для ускорения повторного ввода того же артикула.
 CREATE TABLE IF NOT EXISTS marketplace_cache (

@@ -27,6 +27,18 @@ from .db import (
     complete_task,
     fail_task,
     fail_stuck_tasks,
+    # generation_jobs (Вариант C)
+    create_generation_job,
+    create_job_task,
+    get_pending_job_tasks,
+    complete_job_task,
+    fail_job_task,
+    get_job_status,
+    get_job_info,
+    get_job_results,
+    complete_generation_job,
+    fail_generation_job,
+    fail_stuck_jobs,
 )
 
 __all__ = [
@@ -58,4 +70,16 @@ __all__ = [
     "complete_task",
     "fail_task",
     "fail_stuck_tasks",
+    # generation_jobs (Вариант C)
+    "create_generation_job",
+    "create_job_task",
+    "get_pending_job_tasks",
+    "complete_job_task",
+    "fail_job_task",
+    "get_job_status",
+    "get_job_info",
+    "get_job_results",
+    "complete_generation_job",
+    "fail_generation_job",
+    "fail_stuck_jobs",
 ]

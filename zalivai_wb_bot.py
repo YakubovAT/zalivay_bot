@@ -76,8 +76,9 @@ async def on_startup(application: Application) -> None:
     )
     application.bot_data["worker_session"] = worker_session
 
-    from services.task_worker import run_worker
+    from services.task_worker import run_worker, run_job_worker
     asyncio.create_task(run_worker(application.bot, worker_session))
+    asyncio.create_task(run_job_worker(application.bot, worker_session))
     logger.info("Task worker запущен")
 
 
