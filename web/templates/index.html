@@ -551,15 +551,30 @@ function navLightbox(dir) {
 }
 
 function showLightboxItem() {
-  const f   = lbFiles[lbIndex];
-  const src = `/files/${f.path}`;
-  const mediaEl = document.getElementById('lb-media');
-  const metaEl  = document.getElementById('lb-meta');
+  const f        = lbFiles[lbIndex];
+  const fullSrc  = `/files/${f.path}`;
+  const thumbSrc = f.type === 'photo' ? `/thumb/${f.path}` : fullSrc;
+  const mediaEl  = document.getElementById('lb-media');
+  const metaEl   = document.getElementById('lb-meta');
 
   if (f.type === 'photo') {
-    mediaEl.innerHTML = `<img src="${src}" alt="${f.name}">`;
+    // Сразу показываем thumbnail, подгружаем оригинал в фоне
+    const img = new Image();
+    img.alt   = f.name;
+    img.style.transition = 'filter .3s';
+    img.src   = thumbSrc;          // мгновенно из кэша браузера
+    mediaEl.innerHTML = '';
+    mediaEl.appendChild(img);
+
+    const full = new Image();
+    full.onload = () => {
+      if (mediaEl.firstChild === img) {  // пользователь не ушёл на другое фото
+        img.src = fullSrc;
+      }
+    };
+    full.src = fullSrc;            // грузим оригинал в фоне
   } else {
-    mediaEl.innerHTML = `<video src="${src}" controls autoplay loop></video>`;
+    mediaEl.innerHTML = `<video src="${fullSrc}" controls autoplay loop></video>`;
   }
 
   metaEl.innerHTML = `<strong>${f.articul}</strong> · ${f.name} · ${fmtSize(f.size)}`;
