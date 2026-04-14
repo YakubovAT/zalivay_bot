@@ -541,7 +541,10 @@ def build_gen_photo_handler() -> ConversationHandler:
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],
         },
-        fallbacks=[],
+        fallbacks=[
+            CallbackQueryHandler(cb_menu_gen_photo, pattern="^menu_gen_photo$"),
+        ],
         name="gen_photo",
         persistent=False,
+        allow_reentry=True,
     )
