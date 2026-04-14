@@ -283,7 +283,9 @@ async def cb_close_alert(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     query = update.callback_query
     await query.answer()
     await query.message.delete()
-    return _REFERENCE_GENERATING
+    # Возвращаемся к экрану подтверждения создания эталона
+    from handlers.flows.photo_selection import _REFERENCE_CONFIRM
+    return _REFERENCE_CONFIRM
 
 
 # ---------------------------------------------------------------------------

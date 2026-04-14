@@ -386,10 +386,10 @@ def build_new_article_handler() -> ConversationHandler:
                 CallbackQueryHandler(cb_create_reference, pattern="^ref_create_yes$"),
                 CallbackQueryHandler(cb_back_to_photo_select, pattern="^back_to_photo_select$"),
                 CallbackQueryHandler(cb_back_to_menu_from_photo, pattern="^back_to_menu$"),
+                CallbackQueryHandler(cb_close_alert, pattern="^alert_close$"),
             ],
             _REFERENCE_GENERATING: [
                 CallbackQueryHandler(cb_back_to_menu_from_photo, pattern="^back_to_menu$"),
-                CallbackQueryHandler(cb_close_alert, pattern="^alert_close$"),
             ],
         },
         fallbacks=[],
