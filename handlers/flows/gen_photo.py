@@ -61,10 +61,6 @@ async def cb_menu_gen_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     if not article or ref_number is None:
         # Пришли из главного меню — перенаправляем на «Мои эталоны»
-        context.user_data["redirect_to_gen_photo"] = True
-        await update.effective_user.send_message(
-            text="Сначала выберите артикул и эталон из списка «Мои эталоны»."
-        )
         from handlers.flows.etalon import cb_menu_my_refs
         await cb_menu_my_refs(update, context)
         return ConversationHandler.END
