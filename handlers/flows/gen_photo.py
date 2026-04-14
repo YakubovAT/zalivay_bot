@@ -125,36 +125,52 @@ async def msg_photo_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         0, lambda: asyncio.create_task(safe_delete(context.bot, user.id, update.message.message_id))
     )
 
+    screen_msg = context.user_data.get("_screen_msg")
+
     try:
         count = int(text)
         if count < 1 or count > 20:
-            await context.bot.send_message(
-                chat_id=user.id,
-                text="Введите число от 1 до 20:",
-            )
+            if screen_msg:
+                await context.bot.edit_message_caption(
+                    chat_id=user.id,
+                    message_id=screen_msg,
+                    caption="Введите число от 1 до 20:",
+                )
             return _P_COUNT
     except ValueError:
-        await context.bot.send_message(
-            chat_id=user.id,
-            text="Пожалуйста, введите число (от 1 до 20):",
-        )
+        if screen_msg:
+            await context.bot.edit_message_caption(
+                chat_id=user.id,
+                message_id=screen_msg,
+                caption="Пожалуйста, введите число (от 1 до 20):",
+            )
         return _P_COUNT
 
     context.user_data["gen_count"] = count
 
-    # Показываем экран P2 — Пожелания
-    msg = await context.bot.send_message(
-        chat_id=user.id,
-        text=(
-            "📸 Шаг P2: Пожелания\n\n"
-            "У вас будут пожелания к генерации?\n\n"
-            'Например: «хочу фото на фоне моря», «сделай в студии».\n\n'
-            'Или напишите «Пропустить» — я сам подберу лучшие локации\n'
-            "и условия для вашего типа товара."
-        ),
-        reply_markup=kb_gen_photo_wish(),
+    # Редактируем экран — показываем P2 (Пожелания)
+    article = context.user_data["gen_article"]
+    ref_number = context.user_data["gen_ref_number"]
+    ref = context.user_data["gen_ref"]
+
+    text_p2 = (
+        f"📸 Шаг P2: Пожелания\n\n"
+        f"📦 Артикул: <code>{article}</code>\n"
+        f"📸 Эталон: #{ref_number}\n\n"
+        f"У вас будут пожелания к генерации?\n\n"
+        'Например: «хочу фото на фоне моря», «сделай в студии».\n\n'
+        'Или напишите «Пропустить» — я сам подберу лучшие локации\n'
+        "и условия для вашего типа товара."
     )
-    context.user_data["gen_intermediate_msg"] = msg.message_id
+
+    if screen_msg:
+        await context.bot.edit_message_caption(
+            chat_id=user.id,
+            message_id=screen_msg,
+            caption=text_p2,
+            parse_mode="HTML",
+            reply_markup=kb_gen_photo_wish(),
+        )
     return _P_WISH
 
 
@@ -174,11 +190,6 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     wish = None if text.lower() in ("пропустить", "пропуск", "skip", "нет") else text
     context.user_data["gen_wish"] = wish
-
-    # Удаляем промежуточное сообщение
-    inter_msg = context.user_data.get("gen_intermediate_msg")
-    if inter_msg:
-        await safe_delete(context.bot, user.id, inter_msg)
 
     # Показываем экран P3 — Подтверждение
     article = context.user_data["gen_article"]
@@ -483,22 +494,28 @@ async def cb_back_to_p_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
 
-    inter_msg = context.user_data.get("gen_intermediate_msg")
-    if inter_msg:
-        await safe_delete(context.bot, update.effective_user.id, inter_msg)
+    screen_msg = context.user_data.get("_screen_msg")
+    article = context.user_data.get("gen_article", "")
+    ref_number = context.user_data.get("gen_ref_number", "")
 
-    msg = await context.bot.send_message(
-        chat_id=update.effective_user.id,
-        text=(
-            "📸 Шаг P2: Пожелания\n\n"
-            "У вас будут пожелания к генерации?\n\n"
-            'Например: «хочу фото на фоне моря», «сделай в студии».\n\n'
-            'Или напишите «Пропустить» — я сам подберу лучшие локации\n'
-            "и условия для вашего типа товара."
-        ),
-        reply_markup=kb_gen_photo_wish(),
+    text = (
+        f"📸 Шаг P2: Пожелания\n\n"
+        f"📦 Артикул: <code>{article}</code>\n"
+        f"📸 Эталон: #{ref_number}\n\n"
+        f"У вас будут пожелания к генерации?\n\n"
+        'Например: «хочу фото на фоне моря», «сделай в студии».\n\n'
+        'Или напишите «Пропустить» — я сам подберу лучшие локации\n'
+        "и условия для вашего типа товара."
     )
-    context.user_data["gen_intermediate_msg"] = msg.message_id
+
+    if screen_msg:
+        await context.bot.edit_message_caption(
+            chat_id=query.message.chat_id,
+            message_id=screen_msg,
+            caption=text,
+            parse_mode="HTML",
+            reply_markup=kb_gen_photo_wish(),
+        )
     return _P_WISH
 
 
