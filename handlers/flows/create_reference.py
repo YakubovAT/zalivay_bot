@@ -10,6 +10,7 @@ handlers/flows/create_reference.py
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 
@@ -69,14 +70,18 @@ async def start_reference_generation(
     balance = stats["balance"]
 
     if balance < REFERENCE_COST:
-        await context.bot.edit_message_caption(
+        alert_msg = await context.bot.send_message(
             chat_id=user_id,
-            message_id=message_id,
-            caption=msg_insufficient_funds(
+            text=msg_insufficient_funds(
                 needed=REFERENCE_COST,
                 balance=balance,
                 purpose="Стоимость создания эталона",
             ),
+        )
+        asyncio.get_event_loop().call_later(
+            5, lambda: asyncio.create_task(
+                context.bot.delete_message(chat_id=user_id, message_id=alert_msg.message_id)
+            )
         )
         return ConversationHandler.END
 

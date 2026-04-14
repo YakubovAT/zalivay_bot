@@ -5,3 +5,4 @@ __pycache__/
 *.pyo
 logs/
 QWEN.md
+.claude/settings.json
