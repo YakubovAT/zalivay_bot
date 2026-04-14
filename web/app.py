@@ -18,16 +18,16 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
 import os
 import time
+from io import BytesIO
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import Cookie, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
+from PIL import Image
 
 load_dotenv()
 
@@ -35,6 +35,7 @@ BOT_TOKEN    = os.getenv("BOT_TOKEN", "")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "ZalivaiBot")
 WEB_SECRET   = os.getenv("WEB_SECRET", "change-me-in-production")
 MEDIA_ROOT   = Path(os.getenv("MEDIA_ROOT", "media"))
+THUMB_SIZE   = (400, 400)   # размер превью в пикселях
 
 app = FastAPI(docs_url=None, redoc_url=None)
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -186,6 +187,31 @@ async def list_files(session: str | None = Cookie(default=None)):
     files = _list_user_files(user["user_id"])
     articuls = sorted({f["articul"] for f in files})
     return {"files": files, "articuls": articuls}
+
+
+@app.get("/thumb/{path:path}")
+async def serve_thumb(path: str, session: str | None = Cookie(default=None)):
+    """Отдаёт превью 400×400. Генерирует и кэширует рядом с оригиналом."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    parts = path.split("/")
+    if not parts or parts[0] != str(user["user_id"]):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    orig = MEDIA_ROOT / path
+    if not orig.exists() or not orig.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    thumb_path = orig.parent / f".thumb_{orig.stem}.jpg"
+
+    if not thumb_path.exists() or thumb_path.stat().st_mtime < orig.stat().st_mtime:
+        img = Image.open(orig).convert("RGB")
+        img.thumbnail(THUMB_SIZE, Image.LANCZOS)
+        img.save(thumb_path, "JPEG", quality=80, optimize=True)
+
+    return FileResponse(thumb_path, media_type="image/jpeg")
 
 
 @app.get("/files/{path:path}")
