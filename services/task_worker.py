@@ -229,29 +229,25 @@ async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
             batch = file_paths[batch_start:batch_start + batch_size]
 
             if len(batch) == 1:
-                # Одно фото — caption на нём, кнопки на отдельном баннере
                 await bot.send_photo(
                     chat_id=chat_id,
                     photo=open(batch[0], "rb"),
                     caption=caption,
                     parse_mode="HTML",
+                    reply_markup=kb_gen_photo_result(),
                 )
             else:
-                # Альбом без кнопок — caption на первом фото
+                # Альбом: caption на первом, кнопки на последнем
                 media_group = [
                     InputMediaPhoto(media=open(batch[0], "rb"), caption=caption, parse_mode="HTML"),
                     *[InputMediaPhoto(media=open(p, "rb")) for p in batch[1:]],
                 ]
-                await bot.send_media_group(chat_id=chat_id, media=media_group)
-
-        # Отдельный баннер с кнопками под альбомом
-        # "✕ Закрыть" удаляет только этот баннер — фото остаются в истории
-        await bot.send_photo(
-            chat_id=chat_id,
-            photo=open("assets/banner_default.png", "rb"),
-            caption="Выберите действие:",
-            reply_markup=kb_gen_photo_result(),
-        )
+                sent = await bot.send_media_group(chat_id=chat_id, media=media_group)
+                await bot.edit_message_reply_markup(
+                    chat_id=chat_id,
+                    message_id=sent[-1].message_id,
+                    reply_markup=kb_gen_photo_result(),
+                )
 
         await complete_generation_job(job_id)
         logger.info("JOB_WORKER | job_id=%d | album sent | files=%d elapsed=%s", job_id, len(file_paths), elapsed_str)
