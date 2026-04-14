@@ -187,4 +187,5 @@ def kb_gen_photo_result() -> InlineKeyboardMarkup:
             InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
         ],
         [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
+        [InlineKeyboardButton("✕ Закрыть", callback_data="gen_photo_close")],
     ])

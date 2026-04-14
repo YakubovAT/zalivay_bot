@@ -166,6 +166,17 @@ def main() -> None:
 
     application.add_handler(CallbackQueryHandler(cb_close_error, pattern="^close_error$"))
 
+    # Обработчик закрытия результата генерации фото
+    async def cb_gen_photo_close(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        query = update.callback_query
+        await query.answer()
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+
+    application.add_handler(CallbackQueryHandler(cb_gen_photo_close, pattern="^gen_photo_close$"))
+
     logger.info("Бот запущен")
     application.run_polling()
 
