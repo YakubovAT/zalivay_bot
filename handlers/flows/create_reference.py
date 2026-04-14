@@ -299,7 +299,6 @@ def build_reference_handler() -> ConversationHandler:
         states={
             _REFERENCE_GENERATING: [
                 CallbackQueryHandler(cb_back_to_menu_from_reference, pattern="^back_to_menu$"),
-                CallbackQueryHandler(cb_close_alert, pattern="^alert_close$"),
                 # Повторное нажатие «Создать эталон» — перезапуск проверки баланса
                 CallbackQueryHandler(cb_retry_reference, pattern="^ref_create_yes$"),
             ],
