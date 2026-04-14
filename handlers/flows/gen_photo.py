@@ -626,8 +626,8 @@ async def cb_close_alert_photo(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     await query.answer()
     await query.message.delete()
-    # Возвращаемся к P_COUNT — пусть пользователь введёт другое число
-    return _P_COUNT
+    # Возвращаемся к P_WISH — откуда пришли (Нет пожеланий / Пожелания)
+    return _P_WISH
 
 
 # ---------------------------------------------------------------------------
