@@ -347,9 +347,6 @@ async def _generate_photos(
         for i, prompt in enumerate(prompts):
             logger.info("GEN_PHOTO | i2i_call | user=%s i=%d/%d", user_id, i + 1, count)
 
-            # Используем reference_image_url эталона как входное изображение
-            ref_image_url = ref.get("reference_image_url", "")
-
             result_url = await generate_lifestyle_photo(
                 session=session,
                 api_base=I2I_API_BASE,
