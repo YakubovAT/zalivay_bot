@@ -160,6 +160,7 @@ def kb_gen_photo_count() -> InlineKeyboardMarkup:
 
 def kb_gen_photo_wish() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Нет пожеланий", callback_data="gen_photo_no_wish")],
         [
             InlineKeyboardButton("← Назад", callback_data="back_to_p_count"),
             InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),

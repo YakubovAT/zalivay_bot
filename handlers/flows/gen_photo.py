@@ -152,15 +152,16 @@ async def msg_photo_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     article = context.user_data["gen_article"]
     ref_number = context.user_data["gen_ref_number"]
     ref = context.user_data["gen_ref"]
+    total_cost = count * PHOTO_COST
 
     text_p2 = (
         f"📸 Шаг P2: Пожелания\n\n"
         f"📦 Артикул: <code>{article}</code>\n"
         f"📸 Эталон: #{ref_number}\n\n"
-        f"У вас будут пожелания к генерации?\n\n"
-        'Например: «хочу фото на фоне моря», «сделай в студии».\n\n'
-        'Или напишите «Пропустить» — я сам подберу лучшие локации\n'
-        "и условия для вашего типа товара."
+        f"Будет сгенерировано: {count} фото\n"
+        f"💰 Стоимость: {total_cost}₽\n\n"
+        f"Есть пожелания к генерации?\n\n"
+        'Например: «хочу фото на фоне моря», «сделай в студии».'
     )
 
     if screen_msg:
@@ -174,8 +175,61 @@ async def msg_photo_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return _P_WISH
 
 
+async def cb_no_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Пользователь нажал «Нет пожеланий» — сразу к P3."""
+    query = update.callback_query
+    await query.answer()
+
+    context.user_data["gen_wish"] = None
+
+    user = update.effective_user
+    article = context.user_data["gen_article"]
+    ref_number = context.user_data["gen_ref_number"]
+    ref = context.user_data["gen_ref"]
+    count = context.user_data["gen_count"]
+    total_cost = count * PHOTO_COST
+
+    stats = await get_user_stats(user.id)
+    balance = stats["balance"]
+
+    if balance < total_cost:
+        alert_msg = await context.bot.send_message(
+            chat_id=user.id,
+            text=(
+                f"❌ Недостаточно средств.\n\n"
+                f"💰 Нужно: {total_cost}₽\n"
+                f"💳 Ваш баланс: {balance}₽\n\n"
+                f"Пополните баланс и попробуйте снова."
+            ),
+        )
+        asyncio.get_event_loop().call_later(
+            5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert_msg.message_id))
+        )
+        return _P_COUNT
+
+    final_caption = (
+        f"📸 Шаг P3: Подтверждение\n\n"
+        f"Готов генерировать {count} фото на основе изображения представленного выше.\n\n"
+        f"📦 Артикул: <code>{article}</code>\n\n"
+        f"💰 Стоимость: {total_cost}₽\n"
+        f"💳 Ваш баланс: {balance}₽\n\n"
+        f"Если всё устраивает, нажмите ✅ Сгенерировать и процесс запустится."
+    )
+
+    screen_msg = context.user_data.get("_screen_msg")
+    if screen_msg:
+        await context.bot.edit_message_caption(
+            chat_id=user.id,
+            message_id=screen_msg,
+            caption=final_caption,
+            parse_mode="HTML",
+            reply_markup=kb_gen_photo_confirm(),
+        )
+    return _P_CONFIRM
+
+
 # ---------------------------------------------------------------------------
-# P2. Пожелания
+# P3. Подтверждение
 # ---------------------------------------------------------------------------
 
 async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -205,7 +259,6 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     balance = stats["balance"]
 
     if balance < total_cost:
-        # Недостаточно средств — алерт
         alert_msg = await context.bot.send_message(
             chat_id=user.id,
             text=(
@@ -222,12 +275,12 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     final_caption = (
         f"📸 Шаг P3: Подтверждение\n\n"
-        f"Готов генерировать {count} фото на основе Эталона #{ref_number}\n\n"
+        f"Готов генерировать {count} фото на основе изображения представленного выше.\n\n"
         f"📦 Артикул: <code>{article}</code>\n"
-        f"🏷 Тип товара: {ref.get('category', '—')}\n"
         f"{wish_line}\n\n"
         f"💰 Стоимость: {total_cost}₽\n"
-        f"💳 Ваш баланс: {balance}₽"
+        f"💳 Ваш баланс: {balance}₽\n\n"
+        f"Если всё устраивает, нажмите ✅ Сгенерировать и процесс запустится."
     )
 
     screen_msg = context.user_data.get("_screen_msg")
@@ -476,15 +529,16 @@ async def cb_quick_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     screen_msg = context.user_data.get("_screen_msg")
     article = context.user_data["gen_article"]
     ref_number = context.user_data["gen_ref_number"]
+    total_cost = count * PHOTO_COST
 
     text_p2 = (
         f"📸 Шаг P2: Пожелания\n\n"
         f"📦 Артикул: <code>{article}</code>\n"
         f"📸 Эталон: #{ref_number}\n\n"
-        f"У вас будут пожелания к генерации?\n\n"
-        'Например: «хочу фото на фоне моря», «сделай в студии».\n\n'
-        'Или напишите «Пропустить» — я сам подберу лучшие локации\n'
-        "и условия для вашего типа товара."
+        f"Будет сгенерировано: {count} фото\n"
+        f"💰 Стоимость: {total_cost}₽\n\n"
+        f"Есть пожелания к генерации?\n\n"
+        'Например: «хочу фото на фоне моря», «сделай в студии».'
     )
 
     if screen_msg:
@@ -587,6 +641,7 @@ def build_gen_photo_handler() -> ConversationHandler:
             ],
             _P_WISH: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, msg_photo_wish),
+                CallbackQueryHandler(cb_no_wish, pattern="^gen_photo_no_wish$"),
                 CallbackQueryHandler(cb_back_to_p_count, pattern="^back_to_p_count$"),
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],
