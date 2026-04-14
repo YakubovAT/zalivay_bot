@@ -83,7 +83,8 @@ async def start_reference_generation(
                 context.bot.delete_message(chat_id=user_id, message_id=alert_msg.message_id)
             )
         )
-        return ConversationHandler.END
+        # НЕ завершаем диалог — кнопка «Создать эталон» останется активной
+        return _REFERENCE_GENERATING
 
     # 2. Показываем экран генерации
     await context.bot.edit_message_caption(
