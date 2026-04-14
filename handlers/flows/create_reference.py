@@ -20,7 +20,7 @@ from telegram.ext import CallbackQueryHandler, ConversationHandler, ContextTypes
 
 from config import REFERENCE_COST, AI_API_KEY, AI_API_BASE, AI_MODEL, I2I_API_KEY, I2I_API_BASE
 from database import get_user_stats, deduct_balance, save_reference, get_reference_count
-from handlers.flows.messages.common import msg_insufficient_funds
+from handlers.flows.messages.common import msg_insufficient_funds, kb_alert_close
 from services.reference_t2t import generate_reference_prompt
 from services.reference_i2i import generate_reference_image
 from services.image_merger import merge_photos_horizontal
@@ -79,11 +79,7 @@ async def start_reference_generation(
                 purpose="Стоимость создания эталона",
             ),
             parse_mode="HTML",
-        )
-        asyncio.get_event_loop().call_later(
-            5, lambda: asyncio.create_task(
-                context.bot.delete_message(chat_id=user_id, message_id=alert_msg.message_id)
-            )
+            reply_markup=kb_alert_close(),
         )
         # НЕ завершаем диалог — кнопка «Создать эталон» останется активной
         return _REFERENCE_GENERATING
@@ -282,6 +278,14 @@ async def cb_back_to_menu_from_reference(update: Update, context: ContextTypes.D
     return await cb_back_to_menu(update, context)
 
 
+async def cb_close_alert(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Закрыть алерт-сообщение (недостаточно средств и т.п.)."""
+    query = update.callback_query
+    await query.answer()
+    await query.message.delete()
+    return _REFERENCE_GENERATING
+
+
 # ---------------------------------------------------------------------------
 # Сборка ConversationHandler
 # ---------------------------------------------------------------------------
@@ -292,6 +296,7 @@ def build_reference_handler() -> ConversationHandler:
         states={
             _REFERENCE_GENERATING: [
                 CallbackQueryHandler(cb_back_to_menu_from_reference, pattern="^back_to_menu$"),
+                CallbackQueryHandler(cb_close_alert, pattern="^alert_close$"),
                 # Повторное нажатие «Создать эталон» — перезапуск проверки баланса
                 CallbackQueryHandler(cb_retry_reference, pattern="^ref_create_yes$"),
             ],
