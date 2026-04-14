@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Zalivai — Мои медиафайлы</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -17,11 +17,20 @@
       --radius:    10px;
     }
 
+    html, body {
+      height: 100%;
+    }
+
     body {
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      min-height: 100vh;
+      min-height: 100%;
+      /* Убираем резиновый отскок на iOS/Android */
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: auto;
+      /* Safe area для iPhone с чёлкой */
+      padding-bottom: env(safe-area-inset-bottom);
     }
 
     /* ── Шапка ── */
@@ -239,6 +248,8 @@
       align-items: center;
       justify-content: center;
       padding: 20px;
+      overscroll-behavior: contain;
+      touch-action: pinch-zoom;
     }
     #lightbox.open { display: flex; }
 
