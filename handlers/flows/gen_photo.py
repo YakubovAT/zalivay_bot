@@ -201,7 +201,7 @@ async def cb_no_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             parse_mode="HTML",
             reply_markup=kb_alert_close(),
         )
-        return _P_COUNT
+        return _P_WISH
 
     final_caption = (
         f"📸 Шаг P3: Подтверждение\n\n"
@@ -262,7 +262,7 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode="HTML",
             reply_markup=kb_alert_close(),
         )
-        return _P_COUNT
+        return _P_WISH
 
     final_caption = (
         f"📸 Шаг P3: Подтверждение\n\n"
