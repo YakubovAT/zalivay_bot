@@ -29,15 +29,15 @@ def msg_generation_done(
 ) -> str:
     """Результат генерации фото — 1 фото из N."""
     lines = [
-        f"📸 Готово! <b>1 из {total}</b> фото для <code>{article}</code>",
+        f"📸 <b>{total} из {total}</b> фото готовы для <code>{article}</code>",
+        f"Тут представлен один из вариантов, все ваши генерации хранятся здесь:",
+        f"🖼 {WEB_VIEWER_URL}",
         "",
         f"📦 Эталон: #{ref_number}",
         f"💰 Списано: {actual_cost}₽",
         f"💳 Остаток: {new_balance}₽",
         f"⏱ Время: {elapsed_str}",
         f"🆔 Задание #{job_id}",
-        "",
-        f"🖼 Все фото: {WEB_VIEWER_URL}",
     ]
     if failed:
         lines.append(f"⚠️ Не удалось: {failed} из {failed + total}")
