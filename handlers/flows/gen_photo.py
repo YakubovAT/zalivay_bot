@@ -353,10 +353,17 @@ async def _generate_photos(
     if not ref_image_url:
         file_path = ref.get("file_path", "")
         if file_path:
-            # file_path = media/171470918/references/400015193_ref_final.png
-            # → https://zaliv.ai/media/171470918/references/400015193_ref_final.png
-            rel = file_path.lstrip("/").replace("media/", "", 1)
-            ref_image_url = f"https://zaliv.ai/media/{user_id}/{rel}"
+            # file_path может быть абсолютным с «..»: /var/www/bots/.../../media/171470918/references/xxx.png
+            # Нормализуем и извлекаем путь после /media/
+            abs_path = os.path.realpath(file_path)
+            media_idx = abs_path.find("/media/")
+            if media_idx >= 0:
+                rel = abs_path[media_idx + len("/media/"):]
+                ref_image_url = f"https://zaliv.ai/media/{rel}"
+            else:
+                # Фоллбэк: пробуем извлечь user_id и относительный путь
+                rel = file_path.lstrip("/").replace("media/", "", 1)
+                ref_image_url = f"https://zaliv.ai/media/{user_id}/{rel}"
             logger.info("GEN_PHOTO | url from file_path | user=%s url=%s", user_id, ref_image_url)
         else:
             logger.error("GEN_PHOTO | no file_path | user=%s", user_id)
