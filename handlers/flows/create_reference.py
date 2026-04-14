@@ -70,13 +70,15 @@ async def start_reference_generation(
     balance = stats["balance"]
 
     if balance < REFERENCE_COST:
-        alert_msg = await context.bot.send_message(
+        alert_msg = await context.bot.send_photo(
             chat_id=user_id,
-            text=msg_insufficient_funds(
+            photo=open("assets/banner_default.png", "rb"),
+            caption=msg_insufficient_funds(
                 needed=REFERENCE_COST,
                 balance=balance,
                 purpose="Стоимость создания эталона",
             ),
+            parse_mode="HTML",
         )
         asyncio.get_event_loop().call_later(
             5, lambda: asyncio.create_task(

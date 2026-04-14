@@ -194,9 +194,11 @@ async def cb_no_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     balance = stats["balance"]
 
     if balance < total_cost:
-        alert_msg = await context.bot.send_message(
+        alert_msg = await context.bot.send_photo(
             chat_id=user.id,
-            text=msg_insufficient_funds(needed=total_cost, balance=balance),
+            photo=open("assets/banner_default.png", "rb"),
+            caption=msg_insufficient_funds(needed=total_cost, balance=balance),
+            parse_mode="HTML",
         )
         asyncio.get_event_loop().call_later(
             5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert_msg.message_id))
@@ -255,9 +257,11 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     balance = stats["balance"]
 
     if balance < total_cost:
-        alert_msg = await context.bot.send_message(
+        alert_msg = await context.bot.send_photo(
             chat_id=user.id,
-            text=msg_insufficient_funds(needed=total_cost, balance=balance),
+            photo=open("assets/banner_default.png", "rb"),
+            caption=msg_insufficient_funds(needed=total_cost, balance=balance),
+            parse_mode="HTML",
         )
         asyncio.get_event_loop().call_later(
             5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert_msg.message_id))
