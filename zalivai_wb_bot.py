@@ -1,7 +1,7 @@
 """
-bot.py
+zalivai_wb_bot.py
 
-Точка входа бота. Инициализация Application, регистрация хендлеров, запуск.
+Точка входа бота Zalivai. Инициализация Application, регистрация хендлеров, запуск.
 """
 
 import asyncio
