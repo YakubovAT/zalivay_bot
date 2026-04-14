@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
     id          SERIAL PRIMARY KEY,
     user_id     BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     chat_id     BIGINT NOT NULL,
-    task_type   TEXT NOT NULL CHECK (task_type IN ('photo', 'video')),
+    task_type   TEXT NOT NULL CHECK (task_type IN ('photo', 'video', 'lifestyle_photo')),
     articul     TEXT NOT NULL,
     prompt      TEXT NOT NULL,
     status      TEXT NOT NULL DEFAULT 'pending'
