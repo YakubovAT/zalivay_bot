@@ -30,6 +30,7 @@ from telegram.ext import (
 from config import PHOTO_COST, I2I_API_BASE, I2I_API_KEY
 from database import get_user_stats, deduct_balance, get_reference, get_active_references
 from handlers.flows.flow_helpers import safe_delete
+from handlers.flows.messages.common import msg_insufficient_funds
 from handlers.keyboards import (
     kb_gen_photo_count,
     kb_gen_photo_wish,
@@ -195,12 +196,7 @@ async def cb_no_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if balance < total_cost:
         alert_msg = await context.bot.send_message(
             chat_id=user.id,
-            text=(
-                f"❌ Недостаточно средств.\n\n"
-                f"💰 Нужно: {total_cost}₽\n"
-                f"💳 Ваш баланс: {balance}₽\n\n"
-                f"Пополните баланс и попробуйте снова."
-            ),
+            text=msg_insufficient_funds(needed=total_cost, balance=balance),
         )
         asyncio.get_event_loop().call_later(
             5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert_msg.message_id))
@@ -261,12 +257,7 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if balance < total_cost:
         alert_msg = await context.bot.send_message(
             chat_id=user.id,
-            text=(
-                f"❌ Недостаточно средств.\n\n"
-                f"💰 Нужно: {total_cost}₽\n"
-                f"💳 Ваш баланс: {balance}₽\n\n"
-                f"Пополните баланс и попробуйте снова."
-            ),
+            text=msg_insufficient_funds(needed=total_cost, balance=balance),
         )
         asyncio.get_event_loop().call_later(
             5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert_msg.message_id))

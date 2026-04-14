@@ -19,6 +19,7 @@ from telegram.ext import CallbackQueryHandler, ConversationHandler, ContextTypes
 
 from config import REFERENCE_COST, AI_API_KEY, AI_API_BASE, AI_MODEL, I2I_API_KEY, I2I_API_BASE
 from database import get_user_stats, deduct_balance, save_reference, get_reference_count
+from handlers.flows.messages.common import msg_insufficient_funds
 from services.reference_t2t import generate_reference_prompt
 from services.reference_i2i import generate_reference_image
 from services.image_merger import merge_photos_horizontal
@@ -71,10 +72,11 @@ async def start_reference_generation(
         await context.bot.edit_message_caption(
             chat_id=user_id,
             message_id=message_id,
-            caption=f"❌ Недостаточно средств.\n\n"
-                    f"💰 Стоимость создания эталона: {REFERENCE_COST}₽\n"
-                    f"💳 Ваш баланс: {balance}₽\n\n"
-                    f"Пополните баланс и попробуйте снова.",
+            caption=msg_insufficient_funds(
+                needed=REFERENCE_COST,
+                balance=balance,
+                purpose="Стоимость создания эталона",
+            ),
         )
         return ConversationHandler.END
 
