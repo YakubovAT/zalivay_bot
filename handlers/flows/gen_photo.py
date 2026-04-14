@@ -30,7 +30,7 @@ from telegram.ext import (
 from config import PHOTO_COST, I2I_API_BASE, I2I_API_KEY
 from database import get_user_stats, deduct_balance, get_reference, get_active_references
 from handlers.flows.flow_helpers import safe_delete
-from handlers.flows.messages.common import msg_insufficient_funds
+from handlers.flows.messages.common import msg_insufficient_funds, kb_alert_close
 from handlers.keyboards import (
     kb_gen_photo_count,
     kb_gen_photo_wish,
@@ -199,9 +199,7 @@ async def cb_no_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             photo=open("assets/banner_default.png", "rb"),
             caption=msg_insufficient_funds(needed=total_cost, balance=balance),
             parse_mode="HTML",
-        )
-        asyncio.get_event_loop().call_later(
-            5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert_msg.message_id))
+            reply_markup=kb_alert_close(),
         )
         return _P_COUNT
 
@@ -262,9 +260,7 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             photo=open("assets/banner_default.png", "rb"),
             caption=msg_insufficient_funds(needed=total_cost, balance=balance),
             parse_mode="HTML",
-        )
-        asyncio.get_event_loop().call_later(
-            5, lambda: asyncio.create_task(safe_delete(context.bot, user.id, alert_msg.message_id))
+            reply_markup=kb_alert_close(),
         )
         return _P_COUNT
 
@@ -625,6 +621,15 @@ async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return await cb_back_to_menu(update, context)
 
 
+async def cb_close_alert_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Закрыть алерт-сообщение (недостаточно средств)."""
+    query = update.callback_query
+    await query.answer()
+    await query.message.delete()
+    # Возвращаемся к P_COUNT — пусть пользователь введёт другое число
+    return _P_COUNT
+
+
 # ---------------------------------------------------------------------------
 # Сборка ConversationHandler
 # ---------------------------------------------------------------------------
@@ -640,12 +645,14 @@ def build_gen_photo_handler() -> ConversationHandler:
                 CallbackQueryHandler(cb_quick_count, pattern="^gen_count_\d+$"),
                 CallbackQueryHandler(cb_back_to_ref_card, pattern="^back_to_ref_card$"),
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
+                CallbackQueryHandler(cb_close_alert_photo, pattern="^alert_close$"),
             ],
             _P_WISH: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, msg_photo_wish),
                 CallbackQueryHandler(cb_no_wish, pattern="^gen_photo_no_wish$"),
                 CallbackQueryHandler(cb_back_to_p_count, pattern="^back_to_p_count$"),
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
+                CallbackQueryHandler(cb_close_alert_photo, pattern="^alert_close$"),
             ],
             _P_CONFIRM: [
                 CallbackQueryHandler(cb_gen_photo_yes, pattern="^gen_photo_yes$"),
