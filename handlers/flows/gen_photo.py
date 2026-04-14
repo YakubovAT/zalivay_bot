@@ -371,11 +371,11 @@ async def _generate_photos(
                 logger.error("GEN_PHOTO | download_failed | i=%d error=%s", i, e)
                 errors += 1
 
-    # Списываем баланс
-    new_balance = await deduct_balance(user_id, total_cost)
-
-    # Отправляем результат
+    # Списываем баланс только за успешно сгенерированные фото
     if results:
+        actual_cost = len(results) * PHOTO_COST
+        new_balance = await deduct_balance(user_id, actual_cost)
+
         batch_size = 10
         for batch_start in range(0, len(results), batch_size):
             batch = results[batch_start:batch_start + batch_size]
@@ -383,9 +383,9 @@ async def _generate_photos(
             caption = (
                 f"📸 Шаг P5: Результат — {len(results)} фото для артикула <code>{article}</code>\n\n"
                 f"📦 Эталон: #{ref.get('reference_number', '—')}\n"
-                f"💰 Списано: {total_cost}₽\n"
+                f"💰 Списано: {actual_cost}₽\n"
                 f"💳 Остаток: {new_balance}₽"
-                + (f"\n⚠️ Ошибок: {errors}" if errors else "")
+                + (f"\n⚠️ Не удалось сгенерировать: {errors}" if errors else "")
             )
 
             if len(batch) == 1:
@@ -409,10 +409,9 @@ async def _generate_photos(
         await bot.send_message(
             chat_id=user_id,
             text=(
-                f"❌ Не удалось сгенерировать фото.\n\n"
-                f"💰 Списано: {total_cost}₽\n"
-                f"💳 Остаток: {new_balance}₽\n\n"
-                f"Попробуйте снова или обратитесь в поддержку."
+                "❌ Не удалось сгенерировать фото.\n\n"
+                "С вашего баланса ничего не списано.\n\n"
+                "Попробуйте снова или обратитесь в поддержку."
             ),
             reply_markup=kb_gen_photo_result(),
         )
