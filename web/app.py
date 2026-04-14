@@ -136,10 +136,11 @@ def _list_user_files(user_id: int) -> list[dict]:
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, session: str | None = Cookie(default=None)):
     user = _get_current_user(session)
+    # Starlette 0.36+ / 1.0: request идёт первым аргументом
     return templates.TemplateResponse(
+        request,
         "index.html",
         {
-            "request": request,
             "user": user,
             "bot_username": BOT_USERNAME,
         },
