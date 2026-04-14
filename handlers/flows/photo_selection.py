@@ -354,11 +354,14 @@ async def cb_create_reference(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
 
     from handlers.flows.create_reference import start_reference_generation
-    return await start_reference_generation(
+    await start_reference_generation(
         context=context,
         user_id=query.from_user.id,
         message_id=query.message.message_id,
     )
+    # Всегда возвращаем _REFERENCE_CONFIRM чтобы кнопки оставались активными
+    # (даже при недостатке средств — алерт удаляется, экран остаётся)
+    return _REFERENCE_CONFIRM
 
 
 async def cb_back_to_menu_from_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
