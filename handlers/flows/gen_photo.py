@@ -463,6 +463,41 @@ async def cb_back_to_ref_card(update: Update, context: ContextTypes.DEFAULT_TYPE
     return await cb_back_to_menu(update, context)
 
 
+async def cb_quick_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Быстрый выбор количества фото (кнопки 1 / 5 / 10)."""
+    query = update.callback_query
+    await query.answer()
+
+    count = int(query.data.replace("gen_count_", ""))
+    context.user_data["gen_count"] = count
+
+    # Переходим к P2 — Пожелания
+    user = update.effective_user
+    screen_msg = context.user_data.get("_screen_msg")
+    article = context.user_data["gen_article"]
+    ref_number = context.user_data["gen_ref_number"]
+
+    text_p2 = (
+        f"📸 Шаг P2: Пожелания\n\n"
+        f"📦 Артикул: <code>{article}</code>\n"
+        f"📸 Эталон: #{ref_number}\n\n"
+        f"У вас будут пожелания к генерации?\n\n"
+        'Например: «хочу фото на фоне моря», «сделай в студии».\n\n'
+        'Или напишите «Пропустить» — я сам подберу лучшие локации\n'
+        "и условия для вашего типа товара."
+    )
+
+    if screen_msg:
+        await context.bot.edit_message_caption(
+            chat_id=user.id,
+            message_id=screen_msg,
+            caption=text_p2,
+            parse_mode="HTML",
+            reply_markup=kb_gen_photo_wish(),
+        )
+    return _P_WISH
+
+
 async def cb_back_to_p_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Назад к вводу числа."""
     query = update.callback_query
@@ -546,6 +581,7 @@ def build_gen_photo_handler() -> ConversationHandler:
         states={
             _P_COUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, msg_photo_count),
+                CallbackQueryHandler(cb_quick_count, pattern="^gen_count_\d+$"),
                 CallbackQueryHandler(cb_back_to_ref_card, pattern="^back_to_ref_card$"),
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],

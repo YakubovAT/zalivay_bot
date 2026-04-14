@@ -143,6 +143,11 @@ def kb_photo_select(selected: list, current_idx: int, total: int, done: bool = F
 def kb_gen_photo_count() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
+            InlineKeyboardButton("1", callback_data="gen_count_1"),
+            InlineKeyboardButton("5", callback_data="gen_count_5"),
+            InlineKeyboardButton("10", callback_data="gen_count_10"),
+        ],
+        [
             InlineKeyboardButton("← Назад", callback_data="back_to_ref_card"),
             InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
         ],
