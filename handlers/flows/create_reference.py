@@ -282,9 +282,10 @@ async def cb_close_alert(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """Закрыть алерт-сообщение (недостаточно средств и т.п.)."""
     query = update.callback_query
     await query.answer()
+    from handlers.flows.photo_selection import _REFERENCE_CONFIRM
+    logger.info("CB_CLOSE_ALERT | deleting msg_id=%s returning state=%d", query.message.message_id, _REFERENCE_CONFIRM)
     await query.message.delete()
     # Возвращаемся к экрану подтверждения создания эталона
-    from handlers.flows.photo_selection import _REFERENCE_CONFIRM
     return _REFERENCE_CONFIRM
 
 
