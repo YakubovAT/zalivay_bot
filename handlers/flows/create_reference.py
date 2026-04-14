@@ -290,9 +290,18 @@ def build_reference_handler() -> ConversationHandler:
         states={
             _REFERENCE_GENERATING: [
                 CallbackQueryHandler(cb_back_to_menu_from_reference, pattern="^back_to_menu$"),
+                # Повторное нажатие «Создать эталон» — перезапуск проверки баланса
+                CallbackQueryHandler(cb_retry_reference, pattern="^ref_create_yes$"),
             ],
         },
         fallbacks=[],
         name="create_reference",
         persistent=False,
     )
+
+
+async def cb_retry_reference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Повторная попытка создания эталона (после алерта о недостатке средств)."""
+    query = update.callback_query
+    await query.answer()
+    return await start_reference_generation(context, update.effective_user.id, query.message.message_id)
