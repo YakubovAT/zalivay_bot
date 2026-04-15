@@ -137,6 +137,62 @@ def kb_photo_select(selected: list, current_idx: int, total: int, done: bool = F
 
 
 # ---------------------------------------------------------------------------
+# Шаг 16: Карточка эталона (динамическая — навигация зависит от кол-ва)
+# ---------------------------------------------------------------------------
+
+def kb_ref_card(article: str, idx: int, total: int) -> InlineKeyboardMarkup:
+    """Клавиатура карточки эталона с кнопкой перегенерации."""
+    buttons = []
+    if total > 1:
+        nav_row = []
+        if idx > 0:
+            nav_row.append(InlineKeyboardButton("← Пред.", callback_data=f"ref_prev_{article}"))
+        nav_row.append(InlineKeyboardButton(f"{idx + 1}/{total}", callback_data="noop"))
+        if idx < total - 1:
+            nav_row.append(InlineKeyboardButton("След. →", callback_data=f"ref_next_{article}"))
+        buttons.append(nav_row)
+    buttons.append([InlineKeyboardButton("🔄 Перегенерировать", callback_data=f"ref_regen_{article}")])
+    buttons.append([
+        InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
+        InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
+    ])
+    buttons.append([
+        InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
+        InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+    ])
+    return InlineKeyboardMarkup(buttons)
+
+
+# ---------------------------------------------------------------------------
+# Шаг 16а: Перегенерация — ввод пожеланий и результат
+# ---------------------------------------------------------------------------
+
+def kb_regen_wish() -> InlineKeyboardMarkup:
+    """Клавиатура экрана ввода пожеланий перед перегенерацией."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Пропустить", callback_data="regen_skip")],
+        [
+            InlineKeyboardButton("← Назад к эталону", callback_data="regen_back"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
+
+
+def kb_regen_result() -> InlineKeyboardMarkup:
+    """Клавиатура после успешной перегенерации."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
+            InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
+        ],
+        [
+            InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
+
+
+# ---------------------------------------------------------------------------
 # Шаг 15: Мои эталоны — пустое состояние
 # ---------------------------------------------------------------------------
 

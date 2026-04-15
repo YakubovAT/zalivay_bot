@@ -105,6 +105,11 @@ ALTER TABLE generation_tasks
     ADD COLUMN IF NOT EXISTS job_id    INTEGER REFERENCES generation_jobs(id) ON DELETE CASCADE,
     ADD COLUMN IF NOT EXISTS file_path TEXT;
 
+-- Исходные фото эталона и дата мягкого удаления (web-корзина)
+ALTER TABLE article_references
+    ADD COLUMN IF NOT EXISTS source_photo_paths JSONB DEFAULT '[]',
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+
 -- Кэш маркетплейса: хранит подтверждённый результат (WB/OZON)
 -- для ускорения повторного ввода того же артикула.
 CREATE TABLE IF NOT EXISTS marketplace_cache (

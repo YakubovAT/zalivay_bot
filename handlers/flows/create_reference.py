@@ -223,6 +223,7 @@ async def start_reference_generation(
         pass
 
     # Сохраняем в БД
+    import json as _json
     await save_reference(
         user_id=user_id,
         articul=article,
@@ -236,6 +237,7 @@ async def start_reference_generation(
         product_name=name,
         product_color=color,
         product_material=composition,
+        source_photo_paths=_json.dumps(chosen_paths),
     )
 
     logger.info("REFERENCE SAVED | user=%s article=%s ref=%d file_id=%s",

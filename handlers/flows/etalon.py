@@ -15,7 +15,8 @@ from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from database import get_user_articles_with_refs, get_active_references
 from handlers.flows.flow_helpers import send_screen, safe_delete
-from handlers.keyboards import kb_my_refs_empty
+from handlers.flows.messages.regen_reference import msg_ref_card
+from handlers.keyboards import kb_my_refs_empty, kb_ref_card
 
 logger = logging.getLogger(__name__)
 
@@ -91,57 +92,22 @@ async def show_ref_card(user, article: str, ref_index: int, bot, query) -> None:
         idx = 0
 
     ref = refs[idx]
-    file_id = ref["file_id"]
-    ref_number = ref["reference_number"]
-    category = ref["category"] or "—"
     total = len(refs)
-
-    caption = (
-        f"📸 Шаг 16: Эталон #{ref_number} из {total}\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"🏷 Тип товара: {category}"
-    )
-
-    # Кнопки навигации (если эталонов > 1)
-    nav_row = []
-    if total > 1:
-        if idx > 0:
-            nav_row.append(InlineKeyboardButton("← Пред.", callback_data=f"ref_prev_{article}"))
-        nav_row.append(InlineKeyboardButton(f"{idx + 1}/{total}", callback_data="noop"))
-        if idx < total - 1:
-            nav_row.append(InlineKeyboardButton("След. →", callback_data=f"ref_next_{article}"))
-
-    # Кнопки действий
-    action_row = [
-        InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
-        InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
-    ]
-    bottom_row = [
-        InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
-        InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
-    ]
-
-    buttons = []
-    if nav_row:
-        buttons.append(nav_row)
-    buttons.append(action_row)
-    buttons.append(bottom_row)
-    keyboard = InlineKeyboardMarkup(buttons)
-
-    message_id = query.message.message_id
+    caption = msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
+    keyboard = kb_ref_card(article, idx, total)
 
     try:
         await bot.edit_message_media(
             chat_id=user_id,
-            message_id=message_id,
-            media=InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"),
+            message_id=query.message.message_id,
+            media=InputMediaPhoto(media=ref["file_id"], caption=caption, parse_mode="HTML"),
             reply_markup=keyboard,
         )
     except Exception:
         try:
             await bot.send_photo(
                 chat_id=user_id,
-                photo=file_id,
+                photo=ref["file_id"],
                 caption=caption,
                 parse_mode="HTML",
                 reply_markup=keyboard,
@@ -178,59 +144,26 @@ async def cb_ref_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     _ref_index[user_id] = idx
 
     ref = refs[idx]
-    file_id = ref["file_id"]
-    ref_number = ref["reference_number"]
-    category = ref["category"] or "—"
     total = len(refs)
 
-    # Запоминаем для flow генерации фото/видео
+    # Запоминаем для flow генерации фото/видео и перегенерации
     context.user_data["article_code"] = article
-    context.user_data["ref_number_for_gen"] = ref_number
+    context.user_data["ref_number_for_gen"] = ref["reference_number"]
 
-    caption = (
-        f"📸 Шаг 16: Эталон #{ref_number} из {total}\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"🏷 Тип товара: {category}"
-    )
-
-    # Кнопки навигации (если эталонов > 1)
-    nav_row = []
-    if total > 1:
-        if idx > 0:
-            nav_row.append(InlineKeyboardButton("← Пред.", callback_data=f"ref_prev_{article}"))
-        nav_row.append(InlineKeyboardButton(f"{idx + 1}/{total}", callback_data="noop"))
-        if idx < total - 1:
-            nav_row.append(InlineKeyboardButton("След. →", callback_data=f"ref_next_{article}"))
-
-    # Кнопки действий
-    action_row = [
-        InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
-        InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
-    ]
-    bottom_row = [
-        InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
-        InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
-    ]
-
-    buttons = []
-    if nav_row:
-        buttons.append(nav_row)
-    buttons.append(action_row)
-    buttons.append(bottom_row)
-    keyboard = InlineKeyboardMarkup(buttons)
+    caption = msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
+    keyboard = kb_ref_card(article, idx, total)
 
     try:
         await context.bot.edit_message_media(
             chat_id=user_id,
             message_id=message_id,
-            media=InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"),
+            media=InputMediaPhoto(media=ref["file_id"], caption=caption, parse_mode="HTML"),
             reply_markup=keyboard,
         )
     except Exception:
-        # Если edit_message_media не сработал — отправляем новое
         await context.bot.send_photo(
             chat_id=user_id,
-            photo=file_id,
+            photo=ref["file_id"],
             caption=caption,
             parse_mode="HTML",
             reply_markup=keyboard,
@@ -266,59 +199,27 @@ async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     # Перерисовываем экран напрямую, без вызова cb_ref_article
     ref = refs[idx]
-    file_id = ref["file_id"]
-    ref_number = ref["reference_number"]
-    category = ref["category"] or "—"
     total = len(refs)
 
-    # Запоминаем для flow генерации фото/видео
+    # Запоминаем для flow генерации фото/видео и перегенерации
     context.user_data["article_code"] = article
-    context.user_data["ref_number_for_gen"] = ref_number
+    context.user_data["ref_number_for_gen"] = ref["reference_number"]
 
-    caption = (
-        f"📸 Шаг 16: Эталон #{ref_number} из {total}\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"🏷 Тип товара: {category}"
-    )
-
-    # Кнопки навигации
-    nav_row = []
-    if total > 1:
-        if idx > 0:
-            nav_row.append(InlineKeyboardButton("← Пред.", callback_data=f"ref_prev_{article}"))
-        nav_row.append(InlineKeyboardButton(f"{idx + 1}/{total}", callback_data="noop"))
-        if idx < total - 1:
-            nav_row.append(InlineKeyboardButton("След. →", callback_data=f"ref_next_{article}"))
-
-    # Кнопки действий
-    action_row = [
-        InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
-        InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
-    ]
-    bottom_row = [
-        InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
-        InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
-    ]
-
-    buttons = []
-    if nav_row:
-        buttons.append(nav_row)
-    buttons.append(action_row)
-    buttons.append(bottom_row)
-    keyboard = InlineKeyboardMarkup(buttons)
+    caption = msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
+    keyboard = kb_ref_card(article, idx, total)
 
     try:
         await context.bot.edit_message_media(
             chat_id=user_id,
             message_id=message_id,
-            media=InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"),
+            media=InputMediaPhoto(media=ref["file_id"], caption=caption, parse_mode="HTML"),
             reply_markup=keyboard,
         )
     except Exception:
         try:
             await context.bot.send_photo(
                 chat_id=user_id,
-                photo=file_id,
+                photo=ref["file_id"],
                 caption=caption,
                 parse_mode="HTML",
                 reply_markup=keyboard,

@@ -21,6 +21,7 @@ from handlers import (
     build_etalon_handler,
     build_ref_article_handler,
     build_ref_nav_handler,
+    build_regen_reference_handler,
     build_gen_photo_handler,
     build_gen_video_handler,
     build_noop_handler,
@@ -124,6 +125,9 @@ def main() -> None:
     application.add_handler(build_noop_handler())
     application.add_handler(build_ref_article_handler())
     application.add_handler(build_ref_nav_handler())
+
+    # --- Шаг 16а: Перегенерация эталона ---
+    application.add_handler(build_regen_reference_handler())
 
     # --- Новый артикул (включает выбор фото и создание эталона) ---
     application.add_handler(build_new_article_handler())
