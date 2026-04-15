@@ -326,10 +326,9 @@ async def cb_gen_photo_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return ConversationHandler.END
 
     # Генерируем промпты
+    description = ref["product_description"]
     base_prompts = generate_photo_prompts(
-        name=ref.get("product_name", "товар"),
-        color=ref.get("product_color", "neutral"),
-        material=ref.get("product_material", ""),
+        description=description,
         category=ref.get("category", "верх"),
         count=count,
     )

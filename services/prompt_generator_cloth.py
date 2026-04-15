@@ -4,7 +4,8 @@ services/prompt_generator_cloth.py
 Локальный генератор lifestyle-промптов для I2I на основе категории товара.
 
 Логика:
-  - Категория берётся из article_references.category (записывается при создании эталона)
+  - Описание товара (description) берётся из article_references.product_description
+  - Категория берётся из article_references.category (верх/низ/обувь/головной убор)
   - N промптов генерируются случайно: location × item × color
   - Никаких T2T запросов — всё на английском прямо в коде
 """
@@ -87,28 +88,25 @@ COLORS = [
 
 PROMPT_TOP = (
     "Professional lifestyle fashion photograph. "
-    "Product: {name} — {product_color} {material}. "
-    "A model wearing this {product_color} {material} {name}, "
+    "A model wearing {description}, "
     "paired with {item_color} {bottom_item}. "
     "Location: {location}. "
     "Natural relaxed pose, high-quality e-commerce photography, "
-    "realistic lighting, sharp focus on the clothing item."
+    "realistic lighting, sharp focus on the clothing."
 )
 
 PROMPT_BOTTOM = (
     "Professional lifestyle fashion photograph. "
-    "Product: {name} — {product_color} {material}. "
-    "A model wearing this {product_color} {material} {name}, "
+    "A model wearing {description}, "
     "paired with {item_color} {top_item}. "
     "Location: {location}. "
     "Natural relaxed pose, high-quality e-commerce photography, "
-    "realistic lighting, sharp focus on the clothing item."
+    "realistic lighting, sharp focus on the clothing."
 )
 
 PROMPT_SHOES = (
     "Professional lifestyle fashion photograph. "
-    "Product: {name} — {product_color} {material}. "
-    "A model wearing this {product_color} {material} {name}. "
+    "A model wearing {description}. "
     "Outfit: {neutral_outfit}. "
     "Location: {location}. "
     "Natural relaxed pose, high-quality e-commerce photography, "
@@ -117,8 +115,7 @@ PROMPT_SHOES = (
 
 PROMPT_HAT = (
     "Professional lifestyle fashion photograph. "
-    "Product: {name} — {product_color} {material}. "
-    "A model wearing this {product_color} {material} {name}. "
+    "A model wearing {description}. "
     "Outfit: {neutral_outfit}. "
     "Location: {location}. "
     "Natural relaxed pose, high-quality e-commerce photography, "
@@ -130,9 +127,7 @@ PROMPT_HAT = (
 # ---------------------------------------------------------------------------
 
 def generate_photo_prompts(
-    name: str,
-    color: str,
-    material: str,
+    description: str,
     category: str,
     count: int,
 ) -> list[str]:
@@ -140,9 +135,7 @@ def generate_photo_prompts(
     Генерирует список из `count` уникальных lifestyle-промптов для I2I.
 
     Args:
-        name: название товара из БД
-        color: цвет товара из БД
-        material: материал товара из БД
+        description: готовое EN-описание товара из article_references.product_description
         category: верх / низ / обувь / головной убор
         count: количество фото
 
@@ -157,9 +150,7 @@ def generate_photo_prompts(
 
         if category == "верх":
             prompt = PROMPT_TOP.format(
-                name=name,
-                product_color=color,
-                material=material,
+                description=description,
                 bottom_item=random.choice(BOTTOM_ITEMS),
                 item_color=random.choice(COLORS),
                 location=location,
@@ -167,9 +158,7 @@ def generate_photo_prompts(
 
         elif category == "низ":
             prompt = PROMPT_BOTTOM.format(
-                name=name,
-                product_color=color,
-                material=material,
+                description=description,
                 top_item=random.choice(TOP_ITEMS),
                 item_color=random.choice(COLORS),
                 location=location,
@@ -177,18 +166,14 @@ def generate_photo_prompts(
 
         elif category == "обувь":
             prompt = PROMPT_SHOES.format(
-                name=name,
-                product_color=color,
-                material=material,
+                description=description,
                 neutral_outfit=random.choice(NEUTRAL_OUTFITS),
                 location=location,
             )
 
         elif category == "головной убор":
             prompt = PROMPT_HAT.format(
-                name=name,
-                product_color=color,
-                material=material,
+                description=description,
                 neutral_outfit=random.choice(NEUTRAL_OUTFITS),
                 location=location,
             )
@@ -197,9 +182,7 @@ def generate_photo_prompts(
             # Неизвестная категория — используем нейтральный шаблон
             logger.warning("Unknown category %r, using neutral template", category)
             prompt = PROMPT_SHOES.format(
-                name=name,
-                product_color=color,
-                material=material,
+                description=description,
                 neutral_outfit=random.choice(NEUTRAL_OUTFITS),
                 location=location,
             )
