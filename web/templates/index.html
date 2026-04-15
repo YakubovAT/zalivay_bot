@@ -11,25 +11,21 @@
       --bg:        #0d0d0d;
       --surface:   #1a1a1a;
       --border:    #2a2a2a;
-      --accent:    #2AABEE;   /* Telegram blue */
+      --accent:    #2AABEE;
       --text:      #e8e8e8;
       --muted:     #666;
       --radius:    10px;
     }
 
-    html, body {
-      height: 100%;
-    }
+    html, body { height: 100%; }
 
     body {
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       min-height: 100%;
-      /* Убираем резиновый отскок на iOS/Android */
       overscroll-behavior: none;
       -webkit-overflow-scrolling: auto;
-      /* Safe area для iPhone с чёлкой */
       padding-bottom: env(safe-area-inset-bottom);
     }
 
@@ -102,9 +98,39 @@
     .login-card h2 { font-size: 22px; margin-bottom: 8px; }
     .login-card p  { color: var(--muted); font-size: 14px; margin-bottom: 28px; line-height: 1.5; }
 
-    /* ── Фильтры ── */
+    /* ── Вкладки ── */
     #app { display: none; }
 
+    .tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 56px;
+      z-index: 95;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      padding: 14px 18px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Фильтры (медиафайлы) ── */
     .filters {
       padding: 16px 20px;
       display: flex;
@@ -114,7 +140,7 @@
       border-bottom: 1px solid var(--border);
       background: var(--surface);
       position: sticky;
-      top: 56px;
+      top: 104px;
       z-index: 90;
     }
 
@@ -154,7 +180,7 @@
       color: var(--muted);
     }
 
-    /* ── Сетка ── */
+    /* ── Сетка медиафайлов ── */
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -271,14 +297,6 @@
       object-fit: contain;
     }
 
-    .lb-spinner {
-      width: 90vw;
-      height: 50vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
     .lightbox-meta {
       font-size: 13px;
       color: var(--muted);
@@ -338,6 +356,174 @@
       animation: spin .7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Эталоны — список ── */
+    .ref-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 20px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .ref-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      gap: 20px;
+      padding: 16px;
+      align-items: flex-start;
+    }
+
+    @media (max-width: 640px) {
+      .ref-card { flex-direction: column; }
+    }
+
+    /* Два фото рядом */
+    .ref-photos {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .ref-photo-wrap {
+      width: 120px;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 640px) {
+      .ref-photo-wrap { width: 100px; }
+    }
+
+    .ref-photo-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    .ref-photo-wrap img {
+      width: 100%;
+      border-radius: 8px;
+      display: block;
+      background: #111;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+    }
+
+    .ref-photo-wrap .ref-photo-placeholder {
+      width: 100%;
+      aspect-ratio: 3/4;
+      border-radius: 8px;
+      background: #111;
+      border: 1px dashed var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    /* Поля */
+    .ref-fields {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .ref-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .ref-articul {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .ref-number {
+      font-size: 12px;
+      color: var(--muted);
+      background: #222;
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+
+    .ref-date {
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .ref-field-row {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 6px 12px;
+      align-items: start;
+      margin-bottom: 8px;
+    }
+
+    .ref-field-label {
+      font-size: 12px;
+      color: var(--muted);
+      padding-top: 5px;
+      white-space: nowrap;
+    }
+
+    .ref-field-value {
+      font-size: 14px;
+      color: var(--text);
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      cursor: text;
+      word-break: break-word;
+      min-height: 28px;
+      transition: border-color .15s, background .15s;
+      line-height: 1.4;
+    }
+
+    .ref-field-value:hover {
+      border-color: var(--border);
+      background: #111;
+    }
+
+    .ref-field-value.editing {
+      border-color: var(--accent);
+      background: #111;
+      outline: none;
+    }
+
+    .ref-field-value[data-multiline="true"] {
+      min-height: 60px;
+    }
+
+    .ref-field-readonly {
+      font-size: 14px;
+      color: var(--muted);
+      padding: 4px 6px;
+    }
+
+    .ref-save-hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+
+    .ref-save-status {
+      font-size: 12px;
+      margin-top: 6px;
+      height: 16px;
+    }
+    .ref-save-status.ok   { color: #22c55e; }
+    .ref-save-status.err  { color: #ef4444; }
   </style>
 </head>
 <body>
@@ -375,28 +561,41 @@
 <!-- Основное приложение -->
 <div id="app">
 
-  <!-- Фильтры -->
-  <div class="filters">
-    <!-- Тип -->
-    <div class="filter-group" id="type-filters">
-      <button class="chip active" data-type="all" onclick="setType(this)">Все</button>
-      <button class="chip photo"  data-type="photo" onclick="setType(this)">📷 Фото</button>
-      <button class="chip video"  data-type="video" onclick="setType(this)">🎬 Видео</button>
-    </div>
-
-    <div class="filter-sep"></div>
-
-    <!-- Артикулы -->
-    <div class="filter-group" id="articul-filters">
-      <button class="chip active" data-articul="all" onclick="setArticul(this)">Все артикулы</button>
-      <!-- динамически добавляются -->
-    </div>
+  <!-- Вкладки -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="media"  onclick="switchTab('media')">Медиафайлы</button>
+    <button class="tab-btn"        data-tab="refs"   onclick="switchTab('refs')">Эталоны</button>
   </div>
 
-  <div class="stats" id="stats"></div>
+  <!-- ── Вкладка: Медиафайлы ── -->
+  <div id="tab-media" class="tab-panel active">
 
-  <div id="content">
-    <div class="loader"><div class="spinner"></div></div>
+    <div class="filters">
+      <div class="filter-group" id="type-filters">
+        <button class="chip active" data-type="all"   onclick="setType(this)">Все</button>
+        <button class="chip photo"  data-type="photo" onclick="setType(this)">📷 Фото</button>
+        <button class="chip video"  data-type="video" onclick="setType(this)">🎬 Видео</button>
+      </div>
+
+      <div class="filter-sep"></div>
+
+      <div class="filter-group" id="articul-filters">
+        <button class="chip active" data-articul="all" onclick="setArticul(this)">Все артикулы</button>
+      </div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+    <div id="content">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+
+  </div>
+
+  <!-- ── Вкладка: Эталоны ── -->
+  <div id="tab-refs" class="tab-panel">
+    <div id="refs-content">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
   </div>
 
 </div>
@@ -434,7 +633,22 @@ function logout() {
 }
 
 {% if user %}
-// ── Состояние фильтров ───────────────────────────────────────────────────────
+
+// ── Вкладки ──────────────────────────────────────────────────────────────────
+
+let refsLoaded = false;
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+
+  if (name === 'refs' && !refsLoaded) {
+    refsLoaded = true;
+    loadReferences();
+  }
+}
+
+// ── Медиафайлы: состояние фильтров ───────────────────────────────────────────
 
 let allFiles   = [];
 let activeType = 'all';
@@ -442,14 +656,11 @@ let activeArt  = 'all';
 let lbIndex    = 0;
 let lbFiles    = [];
 
-// ── Загрузка файлов ──────────────────────────────────────────────────────────
-
 fetch('/api/files')
   .then(r => r.json())
   .then(data => {
     allFiles = data.files;
 
-    // Строим кнопки артикулов
     const artContainer = document.getElementById('articul-filters');
     data.articuls.forEach(art => {
       const btn = document.createElement('button');
@@ -467,8 +678,6 @@ fetch('/api/files')
     document.getElementById('content').innerHTML =
       '<div class="empty"><h3>Ошибка загрузки</h3><p>Попробуйте обновить страницу.</p></div>';
   });
-
-// ── Фильтры ──────────────────────────────────────────────────────────────────
 
 function setType(btn) {
   activeType = btn.dataset.type;
@@ -492,8 +701,6 @@ function filtered() {
   });
 }
 
-// ── Рендер сетки ─────────────────────────────────────────────────────────────
-
 function render() {
   const files = filtered();
   const content = document.getElementById('content');
@@ -516,12 +723,10 @@ function render() {
   }
 
   lbFiles = files;
-
   content.innerHTML = `<div class="grid">${files.map((f, i) => cardHTML(f, i)).join('')}</div>`;
 }
 
 function cardHTML(f, i) {
-  // В сетке — лёгкое превью, в лайтбоксе — оригинал
   const thumb = f.type === 'photo' ? `/thumb/${f.path}` : `/files/${f.path}`;
   const media = f.type === 'photo'
     ? `<img src="${thumb}" loading="lazy" alt="${f.articul}">`
@@ -581,6 +786,151 @@ function onKeyDown(e) {
   if (e.key === 'ArrowRight')   navLightbox(1);
 }
 
+// ── Эталоны ──────────────────────────────────────────────────────────────────
+
+function loadReferences() {
+  fetch('/api/references')
+    .then(r => r.json())
+    .then(data => renderReferences(data.references))
+    .catch(() => {
+      document.getElementById('refs-content').innerHTML =
+        '<div class="empty"><h3>Ошибка загрузки</h3><p>Попробуйте обновить страницу.</p></div>';
+    });
+}
+
+function renderReferences(refs) {
+  const container = document.getElementById('refs-content');
+
+  if (!refs || refs.length === 0) {
+    container.innerHTML = `
+      <div class="empty">
+        <h3>Эталоны не найдены</h3>
+        <p>Создайте эталон для артикула в боте.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="ref-list">${refs.map(refCardHTML).join('')}</div>`;
+}
+
+function refCardHTML(ref) {
+  const origSrc = ref.orig_path ? `/files/${ref.orig_path}` : null;
+  const refSrc  = ref.ref_path  ? `/files/${ref.ref_path}`  : null;
+
+  const origImg = origSrc
+    ? `<img src="${origSrc}" loading="lazy" alt="оригинал">`
+    : `<div class="ref-photo-placeholder">нет фото</div>`;
+
+  const refImg = refSrc
+    ? `<img src="${refSrc}" loading="lazy" alt="эталон">`
+    : `<div class="ref-photo-placeholder">нет эталона</div>`;
+
+  const dateStr = ref.created_at
+    ? new Date(ref.created_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : '';
+
+  const fields = [
+    { label: 'Название',    key: 'product_name',        multiline: false },
+    { label: 'Цвет',        key: 'product_color',       multiline: false },
+    { label: 'Материал',    key: 'product_material',    multiline: false },
+    { label: 'Категория',   key: 'category',            multiline: false },
+    { label: 'Описание',    key: 'product_description', multiline: true  },
+  ];
+
+  const fieldsHTML = fields.map(f => `
+    <div class="ref-field-row">
+      <span class="ref-field-label">${f.label}</span>
+      <div
+        class="ref-field-value"
+        data-ref-id="${ref.id}"
+        data-field="${f.key}"
+        data-multiline="${f.multiline}"
+        contenteditable="true"
+        spellcheck="false"
+        onkeydown="onFieldKeydown(event, this)"
+        onblur="saveField(this)"
+        onfocus="onFieldFocus(this)"
+      >${escHtml(ref[f.key] || '')}</div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="ref-card" id="ref-${ref.id}">
+      <div class="ref-photos">
+        <div class="ref-photo-wrap">
+          <div class="ref-photo-label">Оригинал</div>
+          ${origImg}
+        </div>
+        <div class="ref-photo-wrap">
+          <div class="ref-photo-label">Эталон</div>
+          ${refImg}
+        </div>
+      </div>
+      <div class="ref-fields">
+        <div class="ref-header">
+          <span class="ref-articul">${escHtml(ref.articul)}</span>
+          <span class="ref-number">эталон №${ref.reference_number}</span>
+          <span class="ref-date">${dateStr}</span>
+        </div>
+        ${fieldsHTML}
+        <div class="ref-save-hint">Кликните на поле, чтобы редактировать. Enter или клик вне поля — сохранение.</div>
+        <div class="ref-save-status" id="save-status-${ref.id}"></div>
+      </div>
+    </div>`;
+}
+
+// ── Редактирование полей ─────────────────────────────────────────────────────
+
+function onFieldFocus(el) {
+  el.classList.add('editing');
+  // Сохраняем оригинальное значение для отмены
+  el.dataset.original = el.textContent;
+}
+
+function onFieldKeydown(e, el) {
+  const multiline = el.dataset.multiline === 'true';
+  if (e.key === 'Enter' && !multiline) {
+    e.preventDefault();
+    el.blur();
+  }
+  if (e.key === 'Escape') {
+    el.textContent = el.dataset.original || '';
+    el.blur();
+  }
+}
+
+function saveField(el) {
+  el.classList.remove('editing');
+
+  const refId   = el.dataset.refId;
+  const field   = el.dataset.field;
+  const value   = el.textContent.trim();
+  const original = el.dataset.original || '';
+
+  // Не отправляем если значение не изменилось
+  if (value === original) return;
+
+  const statusEl = document.getElementById(`save-status-${refId}`);
+
+  fetch(`/api/references/${refId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [field]: value }),
+  })
+  .then(r => {
+    if (!r.ok) throw new Error('error');
+    statusEl.textContent = 'Сохранено';
+    statusEl.className = 'ref-save-status ok';
+    el.dataset.original = value;
+    setTimeout(() => { statusEl.textContent = ''; statusEl.className = 'ref-save-status'; }, 2000);
+  })
+  .catch(() => {
+    statusEl.textContent = 'Ошибка сохранения';
+    statusEl.className = 'ref-save-status err';
+    el.textContent = original;
+  });
+}
+
 // ── Вспомогалки ──────────────────────────────────────────────────────────────
 
 function fmtSize(bytes) {
@@ -595,6 +945,15 @@ function plural(n, one, few, many) {
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
   return many;
 }
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 {% endif %}
 </script>
 </body>

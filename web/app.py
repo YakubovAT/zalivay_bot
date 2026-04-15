@@ -18,11 +18,15 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import os
 import time
+from contextlib import asynccontextmanager
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 
+import asyncpg
 from dotenv import load_dotenv
 from fastapi import Cookie, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
@@ -35,13 +39,29 @@ BOT_TOKEN    = os.getenv("BOT_TOKEN", "")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "ZalivaiBot")
 WEB_SECRET   = os.getenv("WEB_SECRET", "change-me-in-production")
 MEDIA_ROOT   = Path(os.getenv("MEDIA_ROOT", "media"))
-THUMB_SIZE   = (400, 400)   # размер превью в пикселях
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/zalivai_db")
+THUMB_SIZE   = (400, 400)
 
-app = FastAPI(docs_url=None, redoc_url=None)
+# Поля, которые разрешено редактировать через веб
+EDITABLE_REFERENCE_FIELDS = {
+    "product_name", "product_color", "product_material",
+    "product_description", "category",
+}
+
+_db_pool: asyncpg.Pool | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _db_pool
+    _db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5)
+    yield
+    if _db_pool:
+        await _db_pool.close()
+
+
+app = FastAPI(docs_url=None, redoc_url=None, lifespan=lifespan)
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
-
-# Раздаём media-файлы только авторизованным (через /files/ endpoint ниже)
-# Не монтируем StaticFiles напрямую на /media
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +77,6 @@ def _verify_telegram_auth(data: dict) -> bool:
     expected = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, received_hash):
         return False
-    # Данные не старше 1 суток
     auth_date = int(fields.get("auth_date", 0))
     if time.time() - auth_date > 86400:
         return False
@@ -79,7 +98,7 @@ def _parse_session(token: str) -> dict | None:
         if not hmac.compare_digest(expected, sig):
             return None
         user_id_str, first_name, ts_str = parts[0], parts[1], parts[2]
-        if time.time() - int(ts_str) > 86400 * 30:  # 30 дней
+        if time.time() - int(ts_str) > 86400 * 30:
             return None
         return {"user_id": int(user_id_str), "first_name": first_name}
     except Exception:
@@ -132,14 +151,40 @@ def _list_user_files(user_id: int) -> list[dict]:
     return sorted(files, key=lambda x: x["mtime"], reverse=True)
 
 
+def _find_wb_original(user_id: int, articul: str) -> str | None:
+    """Возвращает путь (относительно MEDIA_ROOT) к первому оригинальному фото WB."""
+    wb_dir = MEDIA_ROOT / str(user_id) / "WB" / articul
+    if not wb_dir.exists():
+        return None
+    PHOTO_EXT = {".png", ".jpg", ".jpeg", ".webp"}
+    candidates = sorted(
+        [f for f in wb_dir.iterdir() if f.suffix.lower() in PHOTO_EXT],
+        key=lambda f: f.name,
+    )
+    if not candidates:
+        return None
+    return str(candidates[0].relative_to(MEDIA_ROOT))
+
+
+def _db_path_to_serve_path(file_path: str | None) -> str | None:
+    """
+    Конвертирует путь из БД (media/{user_id}/...) в путь для /files/ (без media/).
+    """
+    if not file_path:
+        return None
+    p = file_path.lstrip("/")
+    if p.startswith("media/"):
+        p = p[len("media/"):]
+    return p
+
+
 # ---------------------------------------------------------------------------
-# Роуты
+# Роуты — основные
 # ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, session: str | None = Cookie(default=None)):
     user = _get_current_user(session)
-    # Starlette 0.36+ / 1.0: request идёт первым аргументом
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -191,6 +236,108 @@ async def list_files(session: str | None = Cookie(default=None)):
     return {"files": files, "articuls": articuls}
 
 
+# ---------------------------------------------------------------------------
+# Роуты — эталоны
+# ---------------------------------------------------------------------------
+
+@app.get("/api/references")
+async def list_references(session: str | None = Cookie(default=None)):
+    """Возвращает все активные эталоны пользователя с данными о товаре."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    user_id = user["user_id"]
+
+    rows = await _db_pool.fetch(
+        """
+        SELECT
+            ar.id,
+            ar.articul,
+            ar.reference_number,
+            ar.file_path,
+            ar.reference_image_url,
+            ar.category,
+            ar.product_description,
+            ar.product_name,
+            ar.product_color,
+            ar.product_material,
+            ar.created_at,
+            a.name     AS article_name,
+            a.color    AS article_color,
+            a.material AS article_material
+        FROM article_references ar
+        LEFT JOIN articles a
+            ON a.user_id = ar.user_id AND a.article_code = ar.articul
+        WHERE ar.user_id = $1 AND ar.is_active = TRUE
+        ORDER BY ar.created_at DESC
+        """,
+        user_id,
+    )
+
+    result = []
+    for row in rows:
+        ref_path   = _db_path_to_serve_path(row["file_path"])
+        orig_path  = _find_wb_original(user_id, row["articul"])
+
+        result.append({
+            "id":                  row["id"],
+            "articul":             row["articul"],
+            "reference_number":    row["reference_number"],
+            "ref_path":            ref_path,
+            "orig_path":           orig_path,
+            "category":            row["category"] or "",
+            "product_description": row["product_description"] or "",
+            "product_name":        row["product_name"] or row["article_name"] or "",
+            "product_color":       row["product_color"] or row["article_color"] or "",
+            "product_material":    row["product_material"] or row["article_material"] or "",
+            "created_at":          row["created_at"].isoformat() if row["created_at"] else None,
+        })
+
+    return {"references": result}
+
+
+@app.patch("/api/references/{ref_id}")
+async def update_reference(
+    ref_id: int,
+    request: Request,
+    session: str | None = Cookie(default=None),
+):
+    """Обновляет редактируемые поля эталона. Доступ только владельцу."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    body: dict[str, Any] = await request.json()
+
+    # Отфильтровываем только разрешённые поля
+    updates = {k: v for k, v in body.items() if k in EDITABLE_REFERENCE_FIELDS}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No editable fields provided")
+
+    # Строим SET-часть запроса динамически
+    set_clauses = ", ".join(f"{col} = ${i+3}" for i, col in enumerate(updates))
+    values = [user["user_id"], ref_id, *updates.values()]
+
+    result = await _db_pool.execute(
+        f"""
+        UPDATE article_references
+        SET {set_clauses}
+        WHERE user_id = $1 AND id = $2 AND is_active = TRUE
+        """,
+        *values,
+    )
+
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Reference not found")
+
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Раздача файлов
+# ---------------------------------------------------------------------------
+
 @app.get("/thumb/{path:path}")
 async def serve_thumb(path: str, session: str | None = Cookie(default=None)):
     """Отдаёт превью 400×400. Генерирует и кэширует рядом с оригиналом."""
@@ -223,7 +370,6 @@ async def serve_file(path: str, session: str | None = Cookie(default=None)):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    # Путь начинается с user_id — проверяем что это его файл
     parts = path.split("/")
     if not parts or parts[0] != str(user["user_id"]):
         raise HTTPException(status_code=403, detail="Access denied")
