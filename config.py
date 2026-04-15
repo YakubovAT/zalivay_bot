@@ -25,7 +25,7 @@ I2I_API_KEY    = os.getenv("I2I_API_KEY", AI_API_KEY)  # тот же ключ ч
 I2I_API_BASE   = os.getenv("I2I_API_BASE", "https://api.kie.ai")
 
 # I2V (генерация видео) — модель KIE.ai image-to-video
-VIDEO_I2V_MODEL = os.getenv("VIDEO_I2V_MODEL", "wan/2.1-i2v-720p")
+VIDEO_I2V_MODEL = os.getenv("VIDEO_I2V_MODEL", "sora-2-image-to-video")
 
 # ---------------------------------------------------------------------------
 # Баннер — единая ширина сообщений

@@ -3,7 +3,7 @@ services/lifestyle_video_generator.py
 
 Генерация lifestyle-видео для товаров на основе эталона.
 
-Использует Kie.ai I2V API: image-to-video.
+Использует Kie.ai sora-2-image-to-video API.
 Полный цикл: create → poll → URL видео.
 """
 
@@ -18,15 +18,18 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
-# I2V модель для генерации lifestyle-видео
-LIFESTYLE_VIDEO_MODEL = "wan/2.1-i2v-720p"
+# I2V модель
+LIFESTYLE_VIDEO_MODEL = "sora-2-image-to-video"
 
 # Параметры видео
-LIFESTYLE_VIDEO_ASPECT_RATIO = "2:3"   # Портретный формат
+LIFESTYLE_VIDEO_ASPECT_RATIO = "portrait"   # portrait | landscape
+LIFESTYLE_VIDEO_N_FRAMES = "10"             # 10 | 15
+LIFESTYLE_VIDEO_REMOVE_WATERMARK = True
+LIFESTYLE_VIDEO_UPLOAD_METHOD = "s3"        # s3 | oss
 
-# Polling
-MAX_POLL_ATTEMPTS = 120   # видео генерируется дольше фото
-POLL_INTERVAL = 5         # секунды
+# Polling (видео генерируется дольше фото)
+MAX_POLL_ATTEMPTS = 120
+POLL_INTERVAL = 5  # секунды
 
 _STATES_IN_PROGRESS = {"waiting", "queuing", "generating"}
 _STATE_SUCCESS = "success"
@@ -39,15 +42,17 @@ async def _create_video_task(
     api_key: str,
     image_url: str,
     prompt: str,
-    aspect_ratio: str = LIFESTYLE_VIDEO_ASPECT_RATIO,
 ) -> str | None:
-    """Создаёт задачу генерации lifestyle-видео."""
+    """Создаёт задачу генерации lifestyle-видео через sora-2-image-to-video."""
     payload = {
         "model": LIFESTYLE_VIDEO_MODEL,
         "input": {
-            "input_urls": [image_url],
             "prompt": prompt,
-            "aspect_ratio": aspect_ratio,
+            "image_urls": [image_url],
+            "aspect_ratio": LIFESTYLE_VIDEO_ASPECT_RATIO,
+            "n_frames": LIFESTYLE_VIDEO_N_FRAMES,
+            "remove_watermark": LIFESTYLE_VIDEO_REMOVE_WATERMARK,
+            "upload_method": LIFESTYLE_VIDEO_UPLOAD_METHOD,
         },
     }
 
@@ -150,17 +155,17 @@ async def generate_lifestyle_video(
     prompt: str,
 ) -> str | None:
     """
-    Полный цикл генерации lifestyle-видео.
+    Полный цикл генерации lifestyle-видео через sora-2-image-to-video.
 
     Args:
         session: aiohttp.ClientSession
         api_base: URL API (https://api.kie.ai)
         api_key: API ключ
-        ref_image_url: URL эталона (входное изображение)
-        prompt: промпт на английском
+        ref_image_url: URL эталона (первый кадр видео)
+        prompt: промпт на английском (max 10000 символов)
 
     Returns:
-        URL сгенерированного видео (.mp4) или None
+        URL сгенерированного видео или None
     """
     logger.info(
         "LIFESTYLE_VIDEO GENERATE | ref=%s | prompt_len=%d",
