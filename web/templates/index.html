@@ -618,6 +618,20 @@
       white-space: nowrap;
     }
     .btn-restore:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-purge {
+      flex-shrink: 0;
+      background: none;
+      border: 1px solid transparent;
+      color: var(--muted);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s, background .15s;
+      white-space: nowrap;
+    }
+    .btn-purge:hover { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,.08); }
   </style>
 </head>
 <body>
@@ -1058,6 +1072,7 @@ function trashCardHTML(item) {
         <span class="trash-days ${daysClass}">${daysLabel}</span>
       </div>
       <button class="btn-restore" onclick="restoreReference(${item.id})">Восстановить</button>
+      <button class="btn-purge"   onclick="purgeReference(${item.id})" title="Удалить навсегда">✕</button>
     </div>`;
 }
 
@@ -1065,20 +1080,35 @@ function restoreReference(refId) {
   fetch(`/api/trash/${refId}/restore`, { method: 'POST' })
     .then(r => {
       if (!r.ok) throw new Error();
-      // Убираем из корзины
       const el = document.getElementById(`trash-${refId}`);
       if (el) el.remove();
       // Обновляем список эталонов
       refsLoaded = false;
       loadReferences();
-      // Если корзина опустела — скрываем вкладку
-      const remaining = document.querySelectorAll('[id^="trash-"]').length;
-      if (remaining === 0) {
-        document.getElementById('tab-btn-trash').style.display = 'none';
-        switchTab('refs');
-      }
+      _hideTrashIfEmpty();
     })
     .catch(() => alert('Ошибка восстановления. Попробуйте ещё раз.'));
+}
+
+function purgeReference(refId) {
+  if (!confirm('Удалить эталон навсегда?\nЭто действие нельзя отменить.')) return;
+
+  fetch(`/api/trash/${refId}`, { method: 'DELETE' })
+    .then(r => {
+      if (!r.ok) throw new Error();
+      const el = document.getElementById(`trash-${refId}`);
+      if (el) el.remove();
+      _hideTrashIfEmpty();
+    })
+    .catch(() => alert('Ошибка удаления. Попробуйте ещё раз.'));
+}
+
+function _hideTrashIfEmpty() {
+  const remaining = document.querySelectorAll('[id^="trash-"]').length;
+  if (remaining === 0) {
+    document.getElementById('tab-btn-trash').style.display = 'none';
+    switchTab('refs');
+  }
 }
 
 // ── Редактирование полей ─────────────────────────────────────────────────────

@@ -396,6 +396,28 @@ async def restore_reference(ref_id: int, session: str | None = Cookie(default=No
     return {"ok": True}
 
 
+@app.delete("/api/trash/{ref_id}")
+async def purge_reference(ref_id: int, session: str | None = Cookie(default=None)):
+    """Окончательно удаляет эталон из корзины (необратимо)."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    result = await _db_pool.execute(
+        """
+        UPDATE article_references
+        SET is_active = FALSE
+        WHERE user_id = $1 AND id = $2 AND is_active = TRUE AND deleted_at IS NOT NULL
+        """,
+        user["user_id"], ref_id,
+    )
+
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Reference not found in trash")
+
+    return {"ok": True}
+
+
 @app.patch("/api/references/{ref_id}")
 async def update_reference(
     ref_id: int,
