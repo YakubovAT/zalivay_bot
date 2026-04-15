@@ -56,14 +56,15 @@ async def get_user_articles_with_refs(user_id: int) -> list[asyncpg.Record]:
             a.article_code,
             a.name,
             a.marketplace,
-            COUNT(DISTINCT CASE WHEN ar.is_active = TRUE THEN ar.id END) as ref_count
+            COUNT(DISTINCT CASE WHEN ar.is_active = TRUE AND ar.deleted_at IS NULL THEN ar.id END) as ref_count
         FROM articles a
         INNER JOIN article_references ar
             ON ar.user_id = a.user_id AND ar.articul = a.article_code
         WHERE a.user_id = $1
           AND ar.is_active = TRUE
+          AND ar.deleted_at IS NULL
         GROUP BY a.article_code, a.name, a.marketplace
-        HAVING COUNT(DISTINCT ar.id) > 0
+        HAVING COUNT(DISTINCT CASE WHEN ar.is_active = TRUE AND ar.deleted_at IS NULL THEN ar.id END) > 0
         ORDER BY MAX(a.parsed_at) DESC
         """,
         user_id,
@@ -78,7 +79,7 @@ async def get_user_stats(user_id: int) -> dict:
         user_id,
     )
     ref_count = await pool.fetchval(
-        "SELECT COUNT(*) FROM article_references WHERE user_id = $1 AND is_active = TRUE",
+        "SELECT COUNT(*) FROM article_references WHERE user_id = $1 AND is_active = TRUE AND deleted_at IS NULL",
         user_id,
     )
     photo_count = await pool.fetchval(
@@ -261,14 +262,15 @@ async def get_reference(user_id: int, articul: str, ref_number: int | None = Non
         return await pool.fetchrow(
             """
             SELECT * FROM article_references
-            WHERE user_id = $1 AND articul = $2 AND reference_number = $3 AND is_active = TRUE
+            WHERE user_id = $1 AND articul = $2 AND reference_number = $3
+              AND is_active = TRUE AND deleted_at IS NULL
             """,
             user_id, articul, ref_number,
         )
     return await pool.fetchrow(
         """
         SELECT * FROM article_references
-        WHERE user_id = $1 AND articul = $2 AND is_active = TRUE
+        WHERE user_id = $1 AND articul = $2 AND is_active = TRUE AND deleted_at IS NULL
         ORDER BY reference_number DESC
         LIMIT 1
         """,
@@ -278,12 +280,12 @@ async def get_reference(user_id: int, articul: str, ref_number: int | None = Non
 
 
 async def get_active_references(user_id: int, articul: str) -> list[asyncpg.Record]:
-    """Возвращает все активные эталоны для артикула."""
+    """Возвращает все активные эталоны для артикула (не в корзине)."""
     pool = await get_pool()
     return await pool.fetch(
         """
         SELECT * FROM article_references
-        WHERE user_id = $1 AND articul = $2 AND is_active = TRUE
+        WHERE user_id = $1 AND articul = $2 AND is_active = TRUE AND deleted_at IS NULL
         ORDER BY reference_number
         """,
         user_id, articul,
@@ -291,10 +293,10 @@ async def get_active_references(user_id: int, articul: str) -> list[asyncpg.Reco
 
 
 async def get_reference_count(user_id: int, articul: str) -> int:
-    """Возвращает количество активных эталонов для артикула."""
+    """Возвращает количество активных эталонов для артикула (не в корзине)."""
     pool = await get_pool()
     count = await pool.fetchval(
-        "SELECT COUNT(*) FROM article_references WHERE user_id = $1 AND articul = $2 AND is_active = TRUE",
+        "SELECT COUNT(*) FROM article_references WHERE user_id = $1 AND articul = $2 AND is_active = TRUE AND deleted_at IS NULL",
         user_id, articul,
     )
     return count or 0

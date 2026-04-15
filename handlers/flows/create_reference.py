@@ -188,8 +188,12 @@ async def start_reference_generation(
 
     logger.info("I2I DONE | result_url=%s", result_url)
 
-    # 8. Скачиваем результат
-    result_local = f"media/{user_id}/references/{article}_ref_final.png"
+    # 8. Определяем reference_number до скачивания файла (для имени файла)
+    ref_count = await get_reference_count(user_id, article)
+    reference_number = ref_count + 1
+
+    # 9. Скачиваем результат
+    result_local = f"media/{user_id}/references/{article}_ref_{reference_number}.png"
     os.makedirs(os.path.dirname(result_local), exist_ok=True)
 
     async with aiohttp.ClientSession() as session:
@@ -198,12 +202,8 @@ async def start_reference_generation(
                 with open(result_local, "wb") as f:
                     f.write(await resp.read())
 
-    # 9. Списываем баланс
+    # 10. Списываем баланс
     new_balance = await deduct_balance(user_id, REFERENCE_COST)
-
-    # 10. Определяем reference_number
-    ref_count = await get_reference_count(user_id, article)
-    reference_number = ref_count + 1
 
     # 11. Редактируем исходное сообщение с результатом
     from telegram import InputMediaPhoto
