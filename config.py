@@ -24,6 +24,9 @@ AI_MODEL       = os.getenv("AI_MODEL", "gpt-5-2")
 I2I_API_KEY    = os.getenv("I2I_API_KEY", AI_API_KEY)  # тот же ключ что и T2T
 I2I_API_BASE   = os.getenv("I2I_API_BASE", "https://api.kie.ai")
 
+# I2V (генерация видео) — модель KIE.ai image-to-video
+VIDEO_I2V_MODEL = os.getenv("VIDEO_I2V_MODEL", "wan/2.1-i2v-720p")
+
 # ---------------------------------------------------------------------------
 # Баннер — единая ширина сообщений
 # ---------------------------------------------------------------------------

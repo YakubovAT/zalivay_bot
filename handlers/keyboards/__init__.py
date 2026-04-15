@@ -263,3 +263,64 @@ def kb_gen_photo_result() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
         [InlineKeyboardButton("✕ Закрыть", callback_data="gen_photo_close")],
     ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Генерация видео — Шаг V1 (сколько видео?)
+# ---------------------------------------------------------------------------
+
+def kb_gen_video_count() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("1", callback_data="gen_video_count_1"),
+            InlineKeyboardButton("2", callback_data="gen_video_count_2"),
+            InlineKeyboardButton("3", callback_data="gen_video_count_3"),
+        ],
+        [
+            InlineKeyboardButton("← Назад", callback_data="back_to_ref_card"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Генерация видео — Шаг V2 (пожелания)
+# ---------------------------------------------------------------------------
+
+def kb_gen_video_wish() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Нет пожеланий", callback_data="gen_video_no_wish")],
+        [
+            InlineKeyboardButton("← Назад", callback_data="back_to_v_count"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Генерация видео — Шаг V3 (подтверждение)
+# ---------------------------------------------------------------------------
+
+def kb_gen_video_confirm() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Сгенерировать", callback_data="gen_video_yes")],
+        [
+            InlineKeyboardButton("← Назад", callback_data="back_to_v_wish"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Генерация видео — Результат
+# ---------------------------------------------------------------------------
+
+def kb_gen_video_result() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🎥 Генерировать ещё", callback_data="menu_gen_video"),
+            InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
+        ],
+        [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
+        [InlineKeyboardButton("✕ Закрыть", callback_data="gen_video_close")],
+    ])

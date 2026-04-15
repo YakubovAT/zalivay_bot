@@ -54,6 +54,43 @@ def msg_generation_failed(job_id: int) -> str:
     )
 
 
+def msg_video_generation_done(
+    article: str,
+    ref_number: int,
+    total: int,
+    actual_cost: int,
+    new_balance: int,
+    elapsed_str: str,
+    job_id: int,
+    failed: int = 0,
+) -> str:
+    """Результат генерации видео."""
+    lines = [
+        f"🎥 <b>{total} из {total}</b> видео готовы для <code>{article}</code>",
+        f"Тут представлен один из вариантов, все ваши генерации хранятся здесь:",
+        f"🖼 {WEB_VIEWER_URL}",
+        "",
+        f"📦 Эталон: #{ref_number}",
+        f"💰 Списано: {actual_cost}₽",
+        f"💳 Остаток: {new_balance}₽",
+        f"⏱ Время: {elapsed_str}",
+        f"🆔 Задание #{job_id}",
+    ]
+    if failed:
+        lines.append(f"⚠️ Не удалось: {failed} из {failed + total}")
+    return "\n".join(lines)
+
+
+def msg_video_generation_failed(job_id: int) -> str:
+    """Ошибка генерации видео — ни одного не вышло."""
+    return (
+        "❌ Не удалось сгенерировать видео.\n\n"
+        "С вашего баланса ничего не списано.\n\n"
+        f"🆔 Задание #{job_id}\n\n"
+        "При обращении в поддержку укажите номер задания."
+    )
+
+
 def msg_insufficient_funds(needed: int, balance: int, purpose: str = "") -> str:
     """Недостаточно средств."""
     if purpose:

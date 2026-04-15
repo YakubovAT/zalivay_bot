@@ -39,6 +39,10 @@ from .db import (
     complete_generation_job,
     fail_generation_job,
     fail_stuck_jobs,
+    # video job tasks
+    create_video_job_task,
+    get_pending_video_job_tasks,
+    fail_stuck_video_jobs,
 )
 
 __all__ = [
@@ -82,4 +86,8 @@ __all__ = [
     "complete_generation_job",
     "fail_generation_job",
     "fail_stuck_jobs",
+    # video job tasks
+    "create_video_job_task",
+    "get_pending_video_job_tasks",
+    "fail_stuck_video_jobs",
 ]

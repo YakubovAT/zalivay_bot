@@ -77,10 +77,11 @@ async def on_startup(application: Application) -> None:
     )
     application.bot_data["worker_session"] = worker_session
 
-    from services.task_worker import run_worker, run_job_worker
+    from services.task_worker import run_worker, run_job_worker, run_video_job_worker
     asyncio.create_task(run_worker(application.bot, worker_session))
     asyncio.create_task(run_job_worker(application.bot, worker_session))
-    logger.info("Task worker запущен")
+    asyncio.create_task(run_video_job_worker(application.bot, worker_session))
+    logger.info("Task workers запущены")
 
 
 async def on_shutdown(application: Application) -> None:
@@ -181,6 +182,17 @@ def main() -> None:
             pass
 
     application.add_handler(CallbackQueryHandler(cb_gen_photo_close, pattern="^gen_photo_close$"))
+
+    # Обработчик закрытия результата генерации видео
+    async def cb_gen_video_close(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        query = update.callback_query
+        await query.answer()
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+
+    application.add_handler(CallbackQueryHandler(cb_gen_video_close, pattern="^gen_video_close$"))
 
     logger.info("Бот запущен")
     application.run_polling()

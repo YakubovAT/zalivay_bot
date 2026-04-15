@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
     id          SERIAL PRIMARY KEY,
     user_id     BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     chat_id     BIGINT NOT NULL,
-    task_type   TEXT NOT NULL CHECK (task_type IN ('photo', 'video', 'lifestyle_photo')),
+    task_type   TEXT NOT NULL CHECK (task_type IN ('photo', 'video', 'lifestyle_photo', 'lifestyle_video')),
     articul     TEXT NOT NULL,
     prompt      TEXT NOT NULL,
     status      TEXT NOT NULL DEFAULT 'pending'
@@ -104,6 +104,15 @@ CREATE INDEX IF NOT EXISTS idx_generation_jobs_status
 ALTER TABLE generation_tasks
     ADD COLUMN IF NOT EXISTS job_id    INTEGER REFERENCES generation_jobs(id) ON DELETE CASCADE,
     ADD COLUMN IF NOT EXISTS file_path TEXT;
+
+-- Добавляем lifestyle_video в CHECK constraint (миграция для существующих БД)
+DO $$
+BEGIN
+    ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_task_type_check;
+    ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_task_type_check
+        CHECK (task_type IN ('photo', 'video', 'lifestyle_photo', 'lifestyle_video'));
+EXCEPTION WHEN others THEN NULL;
+END $$;
 
 -- Исходные фото эталона и дата мягкого удаления (web-корзина)
 ALTER TABLE article_references

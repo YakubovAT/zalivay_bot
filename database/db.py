@@ -624,3 +624,64 @@ async def fail_stuck_jobs(minutes: int = 15) -> int:
         str(minutes),
     )
     return int(result.split()[-1])
+
+
+# ---------------------------------------------------------------------------
+# Video job — группы задач генерации видео (lifestyle_video)
+# ---------------------------------------------------------------------------
+
+async def create_video_job_task(
+    job_id: int,
+    user_id: int,
+    chat_id: int,
+    article: str,
+    prompt: str,
+) -> int:
+    """Создаёт задачу видео внутри группы. Возвращает task_id."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        INSERT INTO generation_tasks (job_id, user_id, chat_id, task_type, articul, prompt)
+        VALUES ($1, $2, $3, 'lifestyle_video', $4, $5)
+        RETURNING id
+        """,
+        job_id, user_id, chat_id, article, prompt,
+    )
+    return row["id"] if row else -1
+
+
+async def get_pending_video_job_tasks(limit: int = 5) -> list:
+    """Берёт pending lifestyle_video задачи, атомарно переводит в processing."""
+    pool = await get_pool()
+    return await pool.fetch(
+        """
+        UPDATE generation_tasks
+        SET status = 'processing', updated_at = NOW()
+        WHERE id IN (
+            SELECT id FROM generation_tasks
+            WHERE status = 'pending'
+              AND task_type = 'lifestyle_video'
+              AND job_id IS NOT NULL
+            ORDER BY created_at
+            LIMIT $1
+        )
+        RETURNING *
+        """,
+        limit,
+    )
+
+
+async def fail_stuck_video_jobs(minutes: int = 30) -> int:
+    """Сбрасывает зависшие processing lifestyle_video задачи обратно в pending."""
+    pool = await get_pool()
+    result = await pool.execute(
+        """
+        UPDATE generation_tasks
+        SET status = 'pending', updated_at = NOW()
+        WHERE status = 'processing'
+          AND task_type = 'lifestyle_video'
+          AND updated_at < NOW() - ($1 || ' minutes')::INTERVAL
+        """,
+        str(minutes),
+    )
+    return int(result.split()[-1])
