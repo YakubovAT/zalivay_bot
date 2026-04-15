@@ -524,6 +524,100 @@
     }
     .ref-save-status.ok   { color: #22c55e; }
     .ref-save-status.err  { color: #ef4444; }
+
+    /* ── Кнопка удаления на карточке ── */
+    .ref-delete-btn {
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-size: 16px;
+      line-height: 1;
+      transition: color .15s, background .15s;
+      flex-shrink: 0;
+    }
+    .ref-delete-btn:hover { color: #ef4444; background: rgba(239,68,68,.1); }
+
+    /* ── Корзина ── */
+    .trash-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      gap: 16px;
+      padding: 14px 16px;
+      align-items: center;
+      opacity: .75;
+    }
+
+    .trash-card:hover { opacity: 1; }
+
+    .trash-photo {
+      width: 64px;
+      height: 80px;
+      flex-shrink: 0;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #111;
+    }
+
+    .trash-photo-placeholder {
+      width: 64px;
+      height: 80px;
+      flex-shrink: 0;
+      border-radius: 6px;
+      background: #111;
+      border: 1px dashed var(--border);
+    }
+
+    .trash-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .trash-articul {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .trash-name {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .trash-days {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(239,68,68,.12);
+      color: #ef4444;
+    }
+
+    .trash-days.safe { background: rgba(100,100,100,.15); color: var(--muted); }
+
+    .btn-restore {
+      flex-shrink: 0;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+      white-space: nowrap;
+    }
+    .btn-restore:hover { border-color: var(--accent); color: var(--accent); }
   </style>
 </head>
 <body>
@@ -563,8 +657,9 @@
 
   <!-- Вкладки -->
   <div class="tabs">
-    <button class="tab-btn active" data-tab="media"  onclick="switchTab('media')">Медиафайлы</button>
-    <button class="tab-btn"        data-tab="refs"   onclick="switchTab('refs')">Эталоны</button>
+    <button class="tab-btn active" data-tab="media" onclick="switchTab('media')">Медиафайлы</button>
+    <button class="tab-btn"        data-tab="refs"  onclick="switchTab('refs')">Эталоны</button>
+    <button class="tab-btn"        data-tab="trash" id="tab-btn-trash" style="display:none" onclick="switchTab('trash')">Корзина</button>
   </div>
 
   <!-- ── Вкладка: Медиафайлы ── -->
@@ -594,6 +689,13 @@
   <!-- ── Вкладка: Эталоны ── -->
   <div id="tab-refs" class="tab-panel">
     <div id="refs-content">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- ── Вкладка: Корзина ── -->
+  <div id="tab-trash" class="tab-panel">
+    <div id="trash-content">
       <div class="loader"><div class="spinner"></div></div>
     </div>
   </div>
@@ -636,7 +738,8 @@ function logout() {
 
 // ── Вкладки ──────────────────────────────────────────────────────────────────
 
-let refsLoaded = false;
+let refsLoaded  = false;
+let trashLoaded = false;
 
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
@@ -645,6 +748,10 @@ function switchTab(name) {
   if (name === 'refs' && !refsLoaded) {
     refsLoaded = true;
     loadReferences();
+  }
+  if (name === 'trash' && !trashLoaded) {
+    trashLoaded = true;
+    loadTrash();
   }
 }
 
@@ -789,13 +896,21 @@ function onKeyDown(e) {
 // ── Эталоны ──────────────────────────────────────────────────────────────────
 
 function loadReferences() {
-  fetch('/api/references')
-    .then(r => r.json())
-    .then(data => renderReferences(data.references))
-    .catch(() => {
-      document.getElementById('refs-content').innerHTML =
-        '<div class="empty"><h3>Ошибка загрузки</h3><p>Попробуйте обновить страницу.</p></div>';
-    });
+  Promise.all([
+    fetch('/api/references').then(r => r.json()),
+    fetch('/api/trash').then(r => r.json()),
+  ])
+  .then(([refsData, trashData]) => {
+    renderReferences(refsData.references);
+    // Показываем вкладку Корзина только если там что-то есть
+    if (trashData.trash && trashData.trash.length > 0) {
+      document.getElementById('tab-btn-trash').style.display = '';
+    }
+  })
+  .catch(() => {
+    document.getElementById('refs-content').innerHTML =
+      '<div class="empty"><h3>Ошибка загрузки</h3><p>Попробуйте обновить страницу.</p></div>';
+  });
 }
 
 function renderReferences(refs) {
@@ -871,12 +986,99 @@ function refCardHTML(ref) {
           <span class="ref-articul">${escHtml(ref.articul)}</span>
           <span class="ref-number">эталон №${ref.reference_number}</span>
           <span class="ref-date">${dateStr}</span>
+          <button class="ref-delete-btn" title="Удалить в корзину" onclick="deleteReference(${ref.id})">🗑</button>
         </div>
         ${fieldsHTML}
         <div class="ref-save-hint">Кликните на поле, чтобы редактировать. Enter или клик вне поля — сохранение.</div>
         <div class="ref-save-status" id="save-status-${ref.id}"></div>
       </div>
     </div>`;
+}
+
+function deleteReference(refId) {
+  if (!confirm('Переместить эталон в корзину?\nОн будет удалён через 30 дней.')) return;
+
+  fetch(`/api/references/${refId}`, { method: 'DELETE' })
+    .then(r => {
+      if (!r.ok) throw new Error();
+      // Убираем карточку из списка
+      const el = document.getElementById(`ref-${refId}`);
+      if (el) el.remove();
+      // Показываем вкладку Корзина и сбрасываем её кэш
+      document.getElementById('tab-btn-trash').style.display = '';
+      trashLoaded = false;
+    })
+    .catch(() => alert('Ошибка удаления. Попробуйте ещё раз.'));
+}
+
+// ── Корзина ───────────────────────────────────────────────────────────────────
+
+function loadTrash() {
+  fetch('/api/trash')
+    .then(r => r.json())
+    .then(data => renderTrash(data.trash))
+    .catch(() => {
+      document.getElementById('trash-content').innerHTML =
+        '<div class="empty"><h3>Ошибка загрузки</h3><p>Попробуйте обновить страницу.</p></div>';
+    });
+}
+
+function renderTrash(items) {
+  const container = document.getElementById('trash-content');
+
+  if (!items || items.length === 0) {
+    document.getElementById('tab-btn-trash').style.display = 'none';
+    container.innerHTML = `
+      <div class="empty">
+        <h3>Корзина пуста</h3>
+        <p>Удалённые эталоны появятся здесь.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="ref-list">${items.map(trashCardHTML).join('')}</div>`;
+}
+
+function trashCardHTML(item) {
+  const photo = item.ref_path
+    ? `<img class="trash-photo" src="/files/${item.ref_path}" loading="lazy" alt="эталон">`
+    : `<div class="trash-photo-placeholder"></div>`;
+
+  const daysClass = item.days_left <= 7 ? '' : 'safe';
+  const daysLabel = item.days_left === 0
+    ? 'удаляется сегодня'
+    : `удалится через ${item.days_left} дн.`;
+
+  return `
+    <div class="trash-card" id="trash-${item.id}">
+      ${photo}
+      <div class="trash-info">
+        <div class="trash-articul">${escHtml(item.articul)} <span style="font-weight:400;font-size:13px;color:var(--muted)">эталон №${item.reference_number}</span></div>
+        <div class="trash-name">${escHtml(item.product_name)}</div>
+        <span class="trash-days ${daysClass}">${daysLabel}</span>
+      </div>
+      <button class="btn-restore" onclick="restoreReference(${item.id})">Восстановить</button>
+    </div>`;
+}
+
+function restoreReference(refId) {
+  fetch(`/api/trash/${refId}/restore`, { method: 'POST' })
+    .then(r => {
+      if (!r.ok) throw new Error();
+      // Убираем из корзины
+      const el = document.getElementById(`trash-${refId}`);
+      if (el) el.remove();
+      // Обновляем список эталонов
+      refsLoaded = false;
+      loadReferences();
+      // Если корзина опустела — скрываем вкладку
+      const remaining = document.querySelectorAll('[id^="trash-"]').length;
+      if (remaining === 0) {
+        document.getElementById('tab-btn-trash').style.display = 'none';
+        switchTab('refs');
+      }
+    })
+    .catch(() => alert('Ошибка восстановления. Попробуйте ещё раз.'));
 }
 
 // ── Редактирование полей ─────────────────────────────────────────────────────

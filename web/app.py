@@ -242,7 +242,7 @@ async def list_files(session: str | None = Cookie(default=None)):
 
 @app.get("/api/references")
 async def list_references(session: str | None = Cookie(default=None)):
-    """Возвращает все активные эталоны пользователя с данными о товаре."""
+    """Возвращает активные (не удалённые) эталоны пользователя."""
     user = _get_current_user(session)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -256,7 +256,6 @@ async def list_references(session: str | None = Cookie(default=None)):
             ar.articul,
             ar.reference_number,
             ar.file_path,
-            ar.reference_image_url,
             ar.category,
             ar.product_description,
             ar.product_name,
@@ -269,7 +268,7 @@ async def list_references(session: str | None = Cookie(default=None)):
         FROM article_references ar
         LEFT JOIN articles a
             ON a.user_id = ar.user_id AND a.article_code = ar.articul
-        WHERE ar.user_id = $1 AND ar.is_active = TRUE
+        WHERE ar.user_id = $1 AND ar.is_active = TRUE AND ar.deleted_at IS NULL
         ORDER BY ar.created_at DESC
         """,
         user_id,
@@ -277,15 +276,12 @@ async def list_references(session: str | None = Cookie(default=None)):
 
     result = []
     for row in rows:
-        ref_path   = _db_path_to_serve_path(row["file_path"])
-        orig_path  = _find_wb_original(user_id, row["articul"])
-
         result.append({
             "id":                  row["id"],
             "articul":             row["articul"],
             "reference_number":    row["reference_number"],
-            "ref_path":            ref_path,
-            "orig_path":           orig_path,
+            "ref_path":            _db_path_to_serve_path(row["file_path"]),
+            "orig_path":           _find_wb_original(user_id, row["articul"]),
             "category":            row["category"] or "",
             "product_description": row["product_description"] or "",
             "product_name":        row["product_name"] or row["article_name"] or "",
@@ -295,6 +291,109 @@ async def list_references(session: str | None = Cookie(default=None)):
         })
 
     return {"references": result}
+
+
+@app.delete("/api/references/{ref_id}")
+async def delete_reference(ref_id: int, session: str | None = Cookie(default=None)):
+    """Перемещает эталон в корзину (soft delete, 30 дней до полного удаления)."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    result = await _db_pool.execute(
+        """
+        UPDATE article_references
+        SET deleted_at = NOW()
+        WHERE user_id = $1 AND id = $2 AND is_active = TRUE AND deleted_at IS NULL
+        """,
+        user["user_id"], ref_id,
+    )
+
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Reference not found")
+
+    return {"ok": True}
+
+
+@app.get("/api/trash")
+async def list_trash(session: str | None = Cookie(default=None)):
+    """Возвращает эталоны из корзины. Попутно финализирует просроченные (>30 дней)."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    user_id = user["user_id"]
+
+    # Финализируем просроченные — переводим в is_active = FALSE
+    await _db_pool.execute(
+        """
+        UPDATE article_references
+        SET is_active = FALSE
+        WHERE user_id = $1
+          AND deleted_at IS NOT NULL
+          AND deleted_at < NOW() - INTERVAL '30 days'
+        """,
+        user_id,
+    )
+
+    rows = await _db_pool.fetch(
+        """
+        SELECT
+            ar.id,
+            ar.articul,
+            ar.reference_number,
+            ar.file_path,
+            ar.product_name,
+            ar.product_color,
+            ar.deleted_at,
+            a.name AS article_name
+        FROM article_references ar
+        LEFT JOIN articles a
+            ON a.user_id = ar.user_id AND a.article_code = ar.articul
+        WHERE ar.user_id = $1 AND ar.is_active = TRUE AND ar.deleted_at IS NOT NULL
+        ORDER BY ar.deleted_at DESC
+        """,
+        user_id,
+    )
+
+    result = []
+    for row in rows:
+        deleted_at = row["deleted_at"]
+        days_left  = 30 - (time.time() - deleted_at.timestamp()) / 86400
+        result.append({
+            "id":               row["id"],
+            "articul":          row["articul"],
+            "reference_number": row["reference_number"],
+            "ref_path":         _db_path_to_serve_path(row["file_path"]),
+            "orig_path":        _find_wb_original(user_id, row["articul"]),
+            "product_name":     row["product_name"] or row["article_name"] or "",
+            "deleted_at":       deleted_at.isoformat(),
+            "days_left":        max(0, int(days_left)),
+        })
+
+    return {"trash": result}
+
+
+@app.post("/api/trash/{ref_id}/restore")
+async def restore_reference(ref_id: int, session: str | None = Cookie(default=None)):
+    """Восстанавливает эталон из корзины."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    result = await _db_pool.execute(
+        """
+        UPDATE article_references
+        SET deleted_at = NULL
+        WHERE user_id = $1 AND id = $2 AND is_active = TRUE AND deleted_at IS NOT NULL
+        """,
+        user["user_id"], ref_id,
+    )
+
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Reference not found in trash")
+
+    return {"ok": True}
 
 
 @app.patch("/api/references/{ref_id}")
