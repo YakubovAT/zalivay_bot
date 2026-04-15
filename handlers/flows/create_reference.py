@@ -117,8 +117,9 @@ async def start_reference_generation(
         return ConversationHandler.END
 
     category = prompt_result["category"]
-    prompt = prompt_result["prompt"]
-    logger.info("T2T DONE | category=%s prompt_len=%d", category, len(prompt))
+    prompt_i2i = prompt_result["prompt_i2i"]
+    description = prompt_result.get("description", "")
+    logger.info("T2T DONE | category=%s prompt_len=%d desc_len=%d", category, len(prompt_i2i), len(description))
 
     # 4. Обновляем caption
     await context.bot.edit_message_caption(
@@ -174,7 +175,7 @@ async def start_reference_generation(
             api_base=I2I_API_BASE,
             api_key=I2I_API_KEY,
             image_urls=[file_url],
-            prompt=prompt,
+            prompt=prompt_i2i,
         )
 
     if not result_url:
@@ -230,7 +231,8 @@ async def start_reference_generation(
         file_path=result_local,
         reference_image_url=result_url,
         category=category,
-        reference_prompt=prompt,
+        reference_prompt=prompt_i2i,
+        product_description=description,
         product_name=name,
         product_color=color,
         product_material=composition,

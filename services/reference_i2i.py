@@ -41,7 +41,7 @@ async def create_i2i_task(
     api_key: str,
     image_urls: list[str],
     prompt: str,
-    aspect_ratio: str = "1:1",
+    aspect_ratio: str = "2:3",
     quality: str = "medium",
 ) -> str | None:
     """

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS article_references (
     reference_image_url TEXT,
     category          TEXT,
     reference_prompt  TEXT,
+    product_description TEXT,
     product_name      TEXT,
     product_color     TEXT,
     product_material  TEXT,

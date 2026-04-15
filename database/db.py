@@ -228,12 +228,14 @@ async def save_reference(
     product_name: str = "",
     product_color: str = "",
     product_material: str = "",
+    product_description: str = "",
 ) -> int:
     """Сохраняет эталон в БД. Много эталонов на один артикул.
 
     reference_image_url: публичный URL эталона для I2I API
     category: классификация товара (верх/низ/обувь/головной убор)
     reference_prompt: промпт на английском для I2I генерации
+    product_description: краткое описание товара на английском (для генерации фото/видео)
     reference_number: порядковый номер эталона для артикула
     product_name: название товара
     product_color: цвет товара
@@ -242,11 +244,11 @@ async def save_reference(
     pool = await get_pool()
     row = await pool.fetchrow(
         """
-        INSERT INTO article_references (user_id, articul, reference_number, file_id, file_path, reference_image_url, category, reference_prompt, product_name, product_color, product_material)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        INSERT INTO article_references (user_id, articul, reference_number, file_id, file_path, reference_image_url, category, reference_prompt, product_description, product_name, product_color, product_material)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id
         """,
-        user_id, articul, reference_number, file_id, file_path, reference_image_url, category, reference_prompt, product_name, product_color, product_material,
+        user_id, articul, reference_number, file_id, file_path, reference_image_url, category, reference_prompt, product_description, product_name, product_color, product_material,
     )
     return row["id"] if row else -1
 
