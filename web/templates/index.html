@@ -632,6 +632,258 @@
       white-space: nowrap;
     }
     .btn-purge:hover { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,.08); }
+
+    /* ── Admin ── */
+    .admin-section {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .admin-section h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin: 28px 0 12px;
+    }
+    .admin-section h2:first-child { margin-top: 0; }
+
+    /* Шаблоны */
+    .tpl-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .tpl-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tpl-key {
+      font-size: 11px;
+      font-family: monospace;
+      background: #222;
+      border-radius: 4px;
+      padding: 2px 7px;
+      color: var(--accent);
+    }
+
+    .tpl-desc {
+      font-size: 13px;
+      color: var(--muted);
+      flex: 1;
+    }
+
+    .tpl-placeholders {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 8px;
+      font-family: monospace;
+    }
+
+    .tpl-textarea {
+      width: 100%;
+      min-height: 80px;
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      padding: 8px 10px;
+      resize: vertical;
+      line-height: 1.5;
+      transition: border-color .15s;
+    }
+    .tpl-textarea:focus { outline: none; border-color: var(--accent); }
+
+    .tpl-footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .btn-save-tpl {
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn-save-tpl:hover { opacity: .85; }
+    .btn-save-tpl:disabled { opacity: .4; cursor: default; }
+
+    .tpl-status {
+      font-size: 12px;
+      height: 16px;
+    }
+    .tpl-status.ok  { color: #22c55e; }
+    .tpl-status.err { color: #ef4444; }
+
+    /* Списки */
+    .list-group {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .list-group-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid transparent;
+      transition: background .15s;
+    }
+    .list-group-header:hover { background: #1f1f1f; }
+    .list-group-header.open  { border-bottom-color: var(--border); }
+
+    .list-group-key {
+      font-size: 12px;
+      font-family: monospace;
+      color: var(--accent);
+      background: #222;
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+
+    .list-group-count {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .list-group-chevron {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12px;
+      transition: transform .2s;
+    }
+    .list-group-header.open .list-group-chevron { transform: rotate(90deg); }
+
+    .list-group-body { display: none; padding: 12px 16px; }
+    .list-group-body.open { display: block; }
+
+    .list-table { width: 100%; border-collapse: collapse; }
+
+    .list-table th {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      text-align: left;
+      padding: 0 6px 8px;
+      font-weight: 500;
+    }
+
+    .list-row td { padding: 4px 6px; vertical-align: middle; }
+
+    .list-row.inactive { opacity: .4; }
+
+    .list-input {
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 4px 6px;
+      width: 100%;
+      transition: border-color .15s, background .15s;
+    }
+    .list-input:hover  { border-color: var(--border); background: #111; }
+    .list-input:focus  { outline: none; border-color: var(--accent); background: #111; }
+
+    .list-toggle {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--accent);
+    }
+
+    .btn-del-item {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color .15s;
+    }
+    .btn-del-item:hover { color: #ef4444; }
+
+    .list-add-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .list-add-input {
+      flex: 1;
+      min-width: 120px;
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 6px 10px;
+    }
+    .list-add-input:focus { outline: none; border-color: var(--accent); }
+
+    .btn-add-item {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color .15s;
+      white-space: nowrap;
+    }
+    .btn-add-item:hover { border-color: var(--accent); color: var(--accent); }
+
+    .admin-invalidate {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn-invalidate {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 7px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-invalidate:hover { border-color: var(--accent); color: var(--accent); }
+
+    .invalidate-hint {
+      font-size: 12px;
+      color: var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -674,6 +926,9 @@
     <button class="tab-btn active" data-tab="media" onclick="switchTab('media')">Медиафайлы</button>
     <button class="tab-btn"        data-tab="refs"  onclick="switchTab('refs')">Эталоны</button>
     <button class="tab-btn"        data-tab="trash" id="tab-btn-trash" style="display:none" onclick="switchTab('trash')">Корзина</button>
+    {% if is_admin %}
+    <button class="tab-btn"        data-tab="admin" onclick="switchTab('admin')" style="margin-left:auto;color:#f59e0b">Администратор</button>
+    {% endif %}
   </div>
 
   <!-- ── Вкладка: Медиафайлы ── -->
@@ -713,6 +968,15 @@
       <div class="loader"><div class="spinner"></div></div>
     </div>
   </div>
+
+  {% if is_admin %}
+  <!-- ── Вкладка: Администратор ── -->
+  <div id="tab-admin" class="tab-panel">
+    <div id="admin-content">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+  </div>
+  {% endif %}
 
 </div>
 
@@ -754,6 +1018,7 @@ function logout() {
 
 let refsLoaded  = false;
 let trashLoaded = false;
+let adminLoaded = false;
 
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
@@ -766,6 +1031,10 @@ function switchTab(name) {
   if (name === 'trash' && !trashLoaded) {
     trashLoaded = true;
     loadTrash();
+  }
+  if (name === 'admin' && !adminLoaded) {
+    adminLoaded = true;
+    loadAdmin();
   }
 }
 
@@ -1162,6 +1431,235 @@ function saveField(el) {
     el.textContent = original;
   });
 }
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+
+{% if is_admin %}
+
+let _keysWithValue2 = new Set();
+
+function loadAdmin() {
+  fetch('/api/admin/prompts')
+    .then(r => r.json())
+    .then(data => {
+      _keysWithValue2 = new Set(data.keys_with_value2 || []);
+      renderAdmin(data);
+    })
+    .catch(() => {
+      document.getElementById('admin-content').innerHTML =
+        '<div class="empty"><h3>Ошибка загрузки</h3><p>Попробуйте обновить страницу.</p></div>';
+    });
+}
+
+function renderAdmin(data) {
+  const container = document.getElementById('admin-content');
+
+  const tplHTML = data.templates.map(tplCardHTML).join('');
+
+  const listKeys = Object.keys(data.lists).sort();
+  const listsHTML = listKeys.map(lk => listGroupHTML(lk, data.lists[lk])).join('');
+
+  container.innerHTML = `
+    <div class="admin-section">
+      <h2>Шаблоны промптов</h2>
+      ${tplHTML}
+      <h2>Списки элементов</h2>
+      ${listsHTML}
+      <div class="admin-invalidate">
+        <button class="btn-invalidate" onclick="adminInvalidate()">⟳ Сбросить кэш бота</button>
+        <span class="invalidate-hint">Изменения подхватываются ботом автоматически через ~10 сек.</span>
+        <span id="invalidate-status" style="font-size:12px"></span>
+      </div>
+    </div>`;
+}
+
+// ── Шаблоны ──
+
+function tplCardHTML(tpl) {
+  // Извлекаем {placeholder} из текста шаблона для подсказки
+  const placeholders = [...new Set((tpl.template.match(/\{[^}]+\}/g) || []))].join(' ');
+  return `
+    <div class="tpl-card">
+      <div class="tpl-header">
+        <span class="tpl-key">${escHtml(tpl.key)}</span>
+        <span class="tpl-desc">${escHtml(tpl.description)}</span>
+      </div>
+      ${placeholders ? `<div class="tpl-placeholders">Переменные: ${escHtml(placeholders)}</div>` : ''}
+      <textarea
+        class="tpl-textarea"
+        id="tpl-${tpl.key}"
+        data-original="${escHtml(tpl.template)}"
+        oninput="onTplInput('${tpl.key}')"
+      >${escHtml(tpl.template)}</textarea>
+      <div class="tpl-footer">
+        <button class="btn-save-tpl" id="btn-tpl-${tpl.key}" disabled onclick="saveTpl('${tpl.key}')">Сохранить</button>
+        <span class="tpl-status" id="tpl-status-${tpl.key}"></span>
+      </div>
+    </div>`;
+}
+
+function onTplInput(key) {
+  const ta  = document.getElementById(`tpl-${key}`);
+  const btn = document.getElementById(`btn-tpl-${key}`);
+  btn.disabled = ta.value.trim() === ta.dataset.original;
+}
+
+function saveTpl(key) {
+  const ta  = document.getElementById(`tpl-${key}`);
+  const btn = document.getElementById(`btn-tpl-${key}`);
+  const st  = document.getElementById(`tpl-status-${key}`);
+  const val = ta.value.trim();
+
+  btn.disabled = true;
+  fetch(`/api/admin/prompts/templates/${encodeURIComponent(key)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ template: val }),
+  })
+  .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+  .then(() => {
+    ta.dataset.original = val;
+    st.textContent = 'Сохранено';
+    st.className = 'tpl-status ok';
+    setTimeout(() => { st.textContent = ''; st.className = 'tpl-status'; }, 2500);
+  })
+  .catch(() => {
+    btn.disabled = false;
+    st.textContent = 'Ошибка';
+    st.className = 'tpl-status err';
+  });
+}
+
+// ── Списки ──
+
+function listGroupHTML(lk, items) {
+  const hasV2  = _keysWithValue2.has(lk);
+  const active = items.filter(i => i.is_active).length;
+
+  const rows = items.map(item => listRowHTML(lk, item, hasV2)).join('');
+
+  const v2Header = hasV2 ? `<th style="min-width:140px">value2</th>` : '';
+  const addV2    = hasV2 ? `<input class="list-add-input" id="add-v2-${lk}" placeholder="value2 (доп.)" style="max-width:160px">` : '';
+
+  return `
+    <div class="list-group">
+      <div class="list-group-header" onclick="toggleListGroup('${lk}')">
+        <span class="list-group-key">${lk}</span>
+        <span class="list-group-count">${active} / ${items.length} активных</span>
+        <span class="list-group-chevron">▶</span>
+      </div>
+      <div class="list-group-body" id="list-body-${lk}">
+        <table class="list-table">
+          <thead><tr>
+            <th>Активен</th>
+            <th>value</th>
+            ${v2Header}
+            <th style="width:32px"></th>
+          </tr></thead>
+          <tbody id="list-rows-${lk}">${rows}</tbody>
+        </table>
+        <div class="list-add-row">
+          <input class="list-add-input" id="add-val-${lk}" placeholder="Новый элемент (value)">
+          ${addV2}
+          <button class="btn-add-item" onclick="addListItem('${lk}')">+ Добавить</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function listRowHTML(lk, item, hasV2) {
+  const v2cell = hasV2
+    ? `<td><input class="list-input" value="${escHtml(item.value2)}" onchange="updateItem(${item.id},{value2:this.value})"></td>`
+    : '';
+  return `
+    <tr class="list-row${item.is_active ? '' : ' inactive'}" id="lrow-${item.id}">
+      <td style="width:48px;text-align:center">
+        <input type="checkbox" class="list-toggle" ${item.is_active ? 'checked' : ''}
+          onchange="updateItem(${item.id},{is_active:this.checked})">
+      </td>
+      <td><input class="list-input" value="${escHtml(item.value)}" onchange="updateItem(${item.id},{value:this.value})"></td>
+      ${v2cell}
+      <td><button class="btn-del-item" onclick="deleteItem(${item.id},'${lk}')" title="Удалить">✕</button></td>
+    </tr>`;
+}
+
+function toggleListGroup(lk) {
+  const header = document.querySelector(`#list-body-${lk}`).previousElementSibling;
+  const body   = document.getElementById(`list-body-${lk}`);
+  header.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+function updateItem(id, patch) {
+  fetch(`/api/admin/prompts/lists/items/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  .then(r => { if (!r.ok) throw new Error(); })
+  .then(() => {
+    // Обновляем стиль строки если меняли is_active
+    if ('is_active' in patch) {
+      const row = document.getElementById(`lrow-${id}`);
+      if (row) row.classList.toggle('inactive', !patch.is_active);
+    }
+  })
+  .catch(() => alert('Ошибка сохранения.'));
+}
+
+function deleteItem(id, lk) {
+  if (!confirm('Удалить элемент навсегда?')) return;
+  fetch(`/api/admin/prompts/lists/items/${id}`, { method: 'DELETE' })
+    .then(r => { if (!r.ok) throw new Error(); })
+    .then(() => {
+      const row = document.getElementById(`lrow-${id}`);
+      if (row) row.remove();
+    })
+    .catch(() => alert('Ошибка удаления.'));
+}
+
+function addListItem(lk) {
+  const valEl = document.getElementById(`add-val-${lk}`);
+  const v2El  = document.getElementById(`add-v2-${lk}`);
+  const value  = valEl.value.trim();
+  const value2 = v2El ? v2El.value.trim() : '';
+
+  if (!value) { valEl.focus(); return; }
+
+  fetch('/api/admin/prompts/lists/items', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ list_key: lk, value, value2 }),
+  })
+  .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+  .then(data => {
+    const hasV2 = _keysWithValue2.has(lk);
+    const newRow = listRowHTML(lk, {
+      id: data.id, value, value2, is_active: true, sort_order: 0,
+    }, hasV2);
+    document.getElementById(`list-rows-${lk}`).insertAdjacentHTML('beforeend', newRow);
+    valEl.value = '';
+    if (v2El) v2El.value = '';
+  })
+  .catch(() => alert('Ошибка добавления.'));
+}
+
+function adminInvalidate() {
+  const st = document.getElementById('invalidate-status');
+  fetch('/api/admin/prompts/invalidate', { method: 'POST' })
+    .then(r => r.json())
+    .then(() => {
+      st.textContent = 'Кэш сброшен — бот подхватит через ~10 сек';
+      st.style.color = '#22c55e';
+      setTimeout(() => { st.textContent = ''; }, 4000);
+    })
+    .catch(() => {
+      st.textContent = 'Ошибка';
+      st.style.color = '#ef4444';
+    });
+}
+
+{% endif %}
 
 // ── Вспомогалки ──────────────────────────────────────────────────────────────
 

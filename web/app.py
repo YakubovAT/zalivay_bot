@@ -1,17 +1,19 @@
 """
 web/app.py
 
-Простой веб-интерфейс для просмотра медиафайлов пользователя.
+Веб-интерфейс для просмотра медиафайлов и управления промптами.
 Авторизация через Telegram Login Widget.
 
 Запуск:
     uvicorn web.app:app --host 0.0.0.0 --port 8080
 
 Переменные окружения (берутся из .env):
-    BOT_TOKEN      — токен бота (для проверки подписи Telegram auth)
-    BOT_USERNAME   — username бота без @ (для виджета входа)
-    WEB_SECRET     — секрет для подписи сессионных куков (придумайте любой)
-    MEDIA_ROOT     — путь к папке media (по умолчанию ./media)
+    BOT_TOKEN        — токен бота (для проверки подписи Telegram auth)
+    BOT_USERNAME     — username бота без @ (для виджета входа)
+    WEB_SECRET       — секрет для подписи сессионных куков
+    MEDIA_ROOT       — путь к папке media (по умолчанию ./media)
+    DATABASE_URL     — строка подключения к PostgreSQL
+    ADMIN_USER_IDS   — Telegram user_id через запятую (владелец + поддержка)
 """
 
 from __future__ import annotations
@@ -46,6 +48,17 @@ THUMB_SIZE   = (400, 400)
 EDITABLE_REFERENCE_FIELDS = {
     "product_name", "product_color", "product_material",
     "product_description", "category",
+}
+
+# Telegram user_id администраторов (владелец + тех. поддержка)
+_raw_admins = os.getenv("ADMIN_USER_IDS", "")
+ADMIN_USER_IDS: set[int] = {
+    int(x.strip()) for x in _raw_admins.split(",") if x.strip().isdigit()
+}
+
+# list_key'и у которых есть поле value2 (показываем вторую колонку в UI)
+LIST_KEYS_WITH_VALUE2 = {
+    "video_locations", "video_bottom_items", "video_top_items",
 }
 
 _db_pool: asyncpg.Pool | None = None
@@ -179,18 +192,40 @@ def _db_path_to_serve_path(file_path: str | None) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Утилиты авторизации — admin
+# ---------------------------------------------------------------------------
+
+def _is_admin(session: str | None) -> bool:
+    user = _get_current_user(session)
+    if not user:
+        return False
+    return user["user_id"] in ADMIN_USER_IDS
+
+
+def _require_admin(session: str | None) -> dict:
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if user["user_id"] not in ADMIN_USER_IDS:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+# ---------------------------------------------------------------------------
 # Роуты — основные
 # ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, session: str | None = Cookie(default=None)):
     user = _get_current_user(session)
+    is_admin = bool(user and user["user_id"] in ADMIN_USER_IDS)
     return templates.TemplateResponse(
         request,
         "index.html",
         {
-            "user": user,
+            "user":         user,
             "bot_username": BOT_USERNAME,
+            "is_admin":     is_admin,
         },
     )
 
@@ -453,6 +488,156 @@ async def update_reference(
         raise HTTPException(status_code=404, detail="Reference not found")
 
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Роуты — admin (промпты)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/admin/prompts")
+async def admin_get_prompts(session: str | None = Cookie(default=None)):
+    """Возвращает все шаблоны и элементы списков для admin-панели."""
+    _require_admin(session)
+
+    template_rows = await _db_pool.fetch(
+        "SELECT key, template, description, updated_at FROM prompt_templates ORDER BY key"
+    )
+    item_rows = await _db_pool.fetch(
+        """
+        SELECT id, list_key, value, value2, is_active, sort_order, updated_at
+        FROM prompt_list_items
+        ORDER BY list_key, sort_order, id
+        """
+    )
+
+    templates_out = [
+        {
+            "key":         r["key"],
+            "template":    r["template"],
+            "description": r["description"] or "",
+            "updated_at":  r["updated_at"].isoformat() if r["updated_at"] else None,
+        }
+        for r in template_rows
+    ]
+
+    # Группируем элементы по list_key
+    lists_out: dict[str, list] = {}
+    for r in item_rows:
+        lk = r["list_key"]
+        lists_out.setdefault(lk, []).append({
+            "id":         r["id"],
+            "value":      r["value"],
+            "value2":     r["value2"] or "",
+            "is_active":  r["is_active"],
+            "sort_order": r["sort_order"],
+        })
+
+    return {
+        "templates":         templates_out,
+        "lists":             lists_out,
+        "keys_with_value2":  list(LIST_KEYS_WITH_VALUE2),
+    }
+
+
+@app.patch("/api/admin/prompts/templates/{key}")
+async def admin_update_template(
+    key: str,
+    request: Request,
+    session: str | None = Cookie(default=None),
+):
+    """Обновляет текст шаблона промпта."""
+    _require_admin(session)
+    body = await request.json()
+    template = body.get("template", "").strip()
+    if not template:
+        raise HTTPException(status_code=400, detail="template is required")
+
+    result = await _db_pool.execute(
+        "UPDATE prompt_templates SET template = $1, updated_at = NOW() WHERE key = $2",
+        template, key,
+    )
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"ok": True}
+
+
+@app.post("/api/admin/prompts/lists/items")
+async def admin_add_list_item(
+    request: Request,
+    session: str | None = Cookie(default=None),
+):
+    """Добавляет новый элемент в список промптов."""
+    _require_admin(session)
+    body = await request.json()
+    list_key   = body.get("list_key", "").strip()
+    value      = body.get("value", "").strip()
+    value2     = body.get("value2", "").strip() or None
+    sort_order = int(body.get("sort_order", 0))
+
+    if not list_key or not value:
+        raise HTTPException(status_code=400, detail="list_key and value are required")
+
+    row = await _db_pool.fetchrow(
+        """
+        INSERT INTO prompt_list_items (list_key, value, value2, sort_order)
+        VALUES ($1, $2, $3, $4) RETURNING id
+        """,
+        list_key, value, value2, sort_order,
+    )
+    return {"ok": True, "id": row["id"]}
+
+
+@app.patch("/api/admin/prompts/lists/items/{item_id}")
+async def admin_update_list_item(
+    item_id: int,
+    request: Request,
+    session: str | None = Cookie(default=None),
+):
+    """Обновляет value, value2, is_active или sort_order элемента списка."""
+    _require_admin(session)
+    body = await request.json()
+
+    allowed = {"value", "value2", "is_active", "sort_order"}
+    updates = {k: v for k, v in body.items() if k in allowed}
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+
+    set_clauses = ", ".join(f"{col} = ${i+2}" for i, col in enumerate(updates))
+    values = [item_id, *updates.values()]
+
+    result = await _db_pool.execute(
+        f"UPDATE prompt_list_items SET {set_clauses}, updated_at = NOW() WHERE id = $1",
+        *values,
+    )
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"ok": True}
+
+
+@app.delete("/api/admin/prompts/lists/items/{item_id}")
+async def admin_delete_list_item(
+    item_id: int,
+    session: str | None = Cookie(default=None),
+):
+    """Полностью удаляет элемент списка."""
+    _require_admin(session)
+    result = await _db_pool.execute(
+        "DELETE FROM prompt_list_items WHERE id = $1", item_id
+    )
+    if result == "DELETE 0":
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"ok": True}
+
+
+@app.post("/api/admin/prompts/invalidate")
+async def admin_invalidate_prompts(session: str | None = Cookie(default=None)):
+    """Сбрасывает кэш prompt_store в текущем процессе.
+    Бот подхватит изменения автоматически через TTL (≤10 сек).
+    """
+    _require_admin(session)
+    from services import prompt_store
+    await prompt_store.invalidate()
+    return {"ok": True, "ttl_seconds": 10}
 
 
 # ---------------------------------------------------------------------------

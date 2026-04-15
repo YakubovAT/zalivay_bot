@@ -18,7 +18,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-_TTL: float = 60.0  # секунды
+_TTL: float = 10.0  # секунды (в разработке; перед продом изменить на 30–60)
 
 # Структура кэша:
 # {
