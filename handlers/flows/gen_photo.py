@@ -327,7 +327,7 @@ async def cb_gen_photo_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     # Генерируем промпты
     description = ref["product_description"]
-    base_prompts = generate_photo_prompts(
+    base_prompts = await generate_photo_prompts(
         description=description,
         category=ref.get("category", "верх"),
         count=count,

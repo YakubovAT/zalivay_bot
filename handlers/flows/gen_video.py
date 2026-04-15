@@ -309,7 +309,7 @@ async def cb_gen_video_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     # Генерируем промпты
     description = ref["product_description"]
-    base_prompts = generate_video_prompts(
+    base_prompts = await generate_video_prompts(
         description=description,
         category=ref.get("category", "верх"),
         count=count,

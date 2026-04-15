@@ -131,3 +131,197 @@ CREATE TABLE IF NOT EXISTS marketplace_cache (
 
 CREATE INDEX IF NOT EXISTS idx_marketplace_cache_lookup
     ON marketplace_cache (user_id, article);
+
+-- ============================================================
+-- Промпты: шаблоны и списки элементов (редактируются через admin)
+-- ============================================================
+
+-- Шаблоны промптов — 8 записей (4 фото + 4 видео).
+-- Ключи фиксированы: менять нельзя (привязаны к коду).
+-- Значение template редактируется: текст вокруг {placeholders}.
+-- ВАЖНО: имена {placeholder} в шаблонах — контракт с кодом, переименовывать запрещено.
+CREATE TABLE IF NOT EXISTS prompt_templates (
+    key         TEXT PRIMARY KEY,
+    template    TEXT NOT NULL,
+    description TEXT,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Элементы списков: локации, одежда, цвета и т.д.
+-- list_key привязан к коду — не переименовывать.
+-- value — основное значение (текст элемента).
+-- value2 — вторичное значение: движение модели (video_locations) или цвет одежды (video_*_items).
+-- is_active = FALSE скрывает элемент без удаления.
+-- sort_order управляет порядком в admin-панели.
+CREATE TABLE IF NOT EXISTS prompt_list_items (
+    id          SERIAL PRIMARY KEY,
+    list_key    TEXT NOT NULL,
+    value       TEXT NOT NULL,
+    value2      TEXT,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_list_items_lookup
+    ON prompt_list_items (list_key, is_active, sort_order);
+
+-- Seed: вставляем только если таблицы пусты (идемпотентно)
+-- При редактировании через admin-панель данные обновляются в БД,
+-- повторный запуск schema.sql при рестарте бота их не перезатирает.
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates LIMIT 1) THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('photo_top',
+     'Professional lifestyle fashion photograph. A model wearing {description}, paired with {item_color} {bottom_item}. Location: {location}. Natural relaxed pose, high-quality e-commerce photography, realistic lighting, sharp focus on the clothing.',
+     'Фото — категория «верх». Переменные: {description}, {item_color}, {bottom_item}, {location}'),
+    ('photo_bottom',
+     'Professional lifestyle fashion photograph. A model wearing {description}, paired with {item_color} {top_item}. Location: {location}. Natural relaxed pose, high-quality e-commerce photography, realistic lighting, sharp focus on the clothing.',
+     'Фото — категория «низ». Переменные: {description}, {item_color}, {top_item}, {location}'),
+    ('photo_shoes',
+     'Professional lifestyle fashion photograph. A model wearing {description}. Outfit: {neutral_outfit}. Location: {location}. Natural relaxed pose, high-quality e-commerce photography, realistic lighting, focus on the footwear.',
+     'Фото — категория «обувь». Переменные: {description}, {neutral_outfit}, {location}'),
+    ('photo_hat',
+     'Professional lifestyle fashion photograph. A model wearing {description}. Outfit: {neutral_outfit}. Location: {location}. Natural relaxed pose, high-quality e-commerce photography, realistic lighting, focus on the headwear.',
+     'Фото — категория «головной убор». Переменные: {description}, {neutral_outfit}, {location}'),
+    ('video_top',
+     'A fashion lifestyle video. A model wearing {description}, paired with {item_color} {item}. Location: {location}. The model is {motion}. Smooth cinematic camera movement, natural lighting, sharp focus on the clothing, professional e-commerce fashion video.',
+     'Видео — категория «верх». Переменные: {description}, {item_color}, {item}, {location}, {motion}'),
+    ('video_bottom',
+     'A fashion lifestyle video. A model wearing {description}, paired with {item_color} {item}. Location: {location}. The model is {motion}. Smooth cinematic camera movement, natural lighting, sharp focus on the clothing, professional e-commerce fashion video.',
+     'Видео — категория «низ». Переменные: {description}, {item_color}, {item}, {location}, {motion}'),
+    ('video_shoes',
+     'A fashion lifestyle video. A model wearing {description}, styled with a {outfit}. Location: {location}. The model is {motion}, with camera focus on the footwear. Smooth cinematic camera movement, natural lighting, sharp focus on the shoes, professional e-commerce fashion video.',
+     'Видео — категория «обувь». Переменные: {description}, {outfit}, {location}, {motion}'),
+    ('video_hat',
+     'A fashion lifestyle video. A model wearing {description}, styled with a {outfit}. Location: {location}. The model is {motion}, with camera focus on the headwear. Smooth cinematic camera movement, natural lighting, sharp focus on the hat, professional e-commerce fashion video.',
+     'Видео — категория «головной убор». Переменные: {description}, {outfit}, {location}, {motion}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_locations' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_locations', 'city park with green trees', 0),
+    ('photo_locations', 'minimalist photo studio with soft light', 1),
+    ('photo_locations', 'city street with urban background', 2),
+    ('photo_locations', 'cozy cafe interior', 3),
+    ('photo_locations', 'sandy beach at sunset', 4),
+    ('photo_locations', 'forest path in autumn', 5),
+    ('photo_locations', 'river embankment promenade', 6),
+    ('photo_locations', 'modern office lobby', 7),
+    ('photo_locations', 'rooftop terrace with city view', 8),
+    ('photo_locations', 'shopping street with storefronts', 9),
+    ('photo_locations', 'botanical garden with flowers', 10),
+    ('photo_locations', 'loft interior with brick walls', 11);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_bottom_items' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_bottom_items', 'jeans', 0),
+    ('photo_bottom_items', 'trousers', 1),
+    ('photo_bottom_items', 'skirt', 2),
+    ('photo_bottom_items', 'shorts', 3),
+    ('photo_bottom_items', 'leggings', 4),
+    ('photo_bottom_items', 'palazzo pants', 5),
+    ('photo_bottom_items', 'straight-leg pants', 6),
+    ('photo_bottom_items', 'midi skirt', 7);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_items' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_items', 't-shirt', 0),
+    ('photo_top_items', 'shirt', 1),
+    ('photo_top_items', 'sweater', 2),
+    ('photo_top_items', 'blouse', 3),
+    ('photo_top_items', 'hoodie', 4),
+    ('photo_top_items', 'top', 5),
+    ('photo_top_items', 'cardigan', 6),
+    ('photo_top_items', 'turtleneck', 7);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_neutral_outfits' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_neutral_outfits', 'white t-shirt and blue jeans', 0),
+    ('photo_neutral_outfits', 'beige sweater and black trousers', 1),
+    ('photo_neutral_outfits', 'black blouse and white skirt', 2),
+    ('photo_neutral_outfits', 'grey hoodie and dark jeans', 3),
+    ('photo_neutral_outfits', 'striped shirt and beige trousers', 4);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_colors' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_colors', 'white', 0),
+    ('photo_colors', 'black', 1),
+    ('photo_colors', 'navy blue', 2),
+    ('photo_colors', 'beige', 3),
+    ('photo_colors', 'light grey', 4),
+    ('photo_colors', 'dark brown', 5),
+    ('photo_colors', 'olive green', 6),
+    ('photo_colors', 'pastel pink', 7),
+    ('photo_colors', 'cream', 8),
+    ('photo_colors', 'charcoal', 9);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'video_locations' LIMIT 1) THEN
+    -- value = локация, value2 = движение модели
+    INSERT INTO prompt_list_items (list_key, value, value2, sort_order) VALUES
+    ('video_locations', 'a sunny city street', 'walking confidently', 0),
+    ('video_locations', 'a modern coffee shop', 'sitting down gracefully', 1),
+    ('video_locations', 'a lush green park', 'strolling leisurely', 2),
+    ('video_locations', 'a bright minimalist studio', 'turning slowly', 3),
+    ('video_locations', 'a seaside promenade', 'walking along the waterfront', 4),
+    ('video_locations', 'a stylish rooftop terrace', 'standing and looking into the distance', 5),
+    ('video_locations', 'a cozy indoor café', 'picking up a cup', 6),
+    ('video_locations', 'a vibrant flower market', 'walking through the stalls', 7),
+    ('video_locations', 'a clean white studio backdrop', 'posing and turning', 8),
+    ('video_locations', 'an urban pedestrian bridge', 'walking toward the camera', 9),
+    ('video_locations', 'a forest path in autumn', 'walking through falling leaves', 10),
+    ('video_locations', 'a luxury hotel lobby', 'walking through the entrance', 11);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'video_bottom_items' LIMIT 1) THEN
+    -- value = название элемента одежды, value2 = цвет (для подстановки в {item_color})
+    -- Используется для категории «верх» (дополняющий низ)
+    INSERT INTO prompt_list_items (list_key, value, value2, sort_order) VALUES
+    ('video_bottom_items', 'white jeans', 'light', 0),
+    ('video_bottom_items', 'black slim trousers', 'dark', 1),
+    ('video_bottom_items', 'beige linen pants', 'neutral', 2),
+    ('video_bottom_items', 'light blue denim skirt', 'blue', 3),
+    ('video_bottom_items', 'khaki wide-leg pants', 'khaki', 4);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'video_top_items' LIMIT 1) THEN
+    -- Используется для категории «низ» (дополняющий верх)
+    INSERT INTO prompt_list_items (list_key, value, value2, sort_order) VALUES
+    ('video_top_items', 'white fitted t-shirt', 'white', 0),
+    ('video_top_items', 'light beige blouse', 'beige', 1),
+    ('video_top_items', 'soft grey knit', 'grey', 2),
+    ('video_top_items', 'pastel pink turtleneck', 'pink', 3),
+    ('video_top_items', 'navy blue shirt', 'navy', 4);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'video_neutral_outfits' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('video_neutral_outfits', 'neutral beige linen outfit', 0),
+    ('video_neutral_outfits', 'minimalist white and grey ensemble', 1),
+    ('video_neutral_outfits', 'simple monochrome look', 2);
+  END IF;
+END $$;
