@@ -15,6 +15,7 @@ from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from database import get_user_articles_with_refs, get_active_references
 from handlers.flows.flow_helpers import send_screen, safe_delete
+from handlers.keyboards import kb_my_refs_empty
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +40,7 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             "Создайте первый эталон, чтобы генерировать "
             "фото и видео для ваших товаров."
         )
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("➕ Добавить товар", callback_data="menu_new_article")],
-            [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
-        ])
+        keyboard = kb_my_refs_empty()
     else:
         text = (
             "📂 Мои эталоны (Шаг 15)\n\n"
@@ -66,6 +64,7 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if row:
             buttons.append(row)
 
+        buttons.append([InlineKeyboardButton("🌐 Перейти на сайт", url="https://media.zaliv.ai/")])
         buttons.append([InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")])
         keyboard = InlineKeyboardMarkup(buttons)
 

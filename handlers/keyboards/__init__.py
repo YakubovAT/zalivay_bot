@@ -137,6 +137,18 @@ def kb_photo_select(selected: list, current_idx: int, total: int, done: bool = F
 
 
 # ---------------------------------------------------------------------------
+# Шаг 15: Мои эталоны — пустое состояние
+# ---------------------------------------------------------------------------
+
+def kb_my_refs_empty() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ Добавить товар", callback_data="menu_new_article")],
+        [InlineKeyboardButton("🌐 Перейти на сайт", url="https://media.zaliv.ai/")],
+        [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
+    ])
+
+
+# ---------------------------------------------------------------------------
 # Flow: Генерация фото — Шаг P1 (сколько фото?)
 # ---------------------------------------------------------------------------
 
