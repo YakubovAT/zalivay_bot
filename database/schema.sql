@@ -473,3 +473,25 @@ DO $$ BEGIN
      'Шаг 10 — экран генерации фото эталона. Переменные: {category}.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_reference_ready') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_reference_ready',
+     'Шаг 11 из N: Эталон готов!
+
+📦 Артикул: <code>{article}</code>
+📸 Это ваш {reference_number}-й эталон для этого товара
+🏷 Тип товара: {category}
+
+💰 Списано: {reference_cost}₽
+💳 Ваш баланс: {new_balance}₽
+
+Эталон может немного отличаться от оригинала.
+Если отличия значительные — перегенерируйте эталон,
+заменив фотографии на шаге выбора фото.
+
+Теперь вы можете генерировать фото и видео!',
+     'Шаг 11 — экран готового эталона. Переменные: {article}, {reference_number}, {category}, {reference_cost}, {new_balance}.');
+  END IF;
+END $$;

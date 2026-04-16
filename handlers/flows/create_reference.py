@@ -47,6 +47,19 @@ _REFERENCE_GENERATING_PHOTO_TEXT_FALLBACK = (
     "Осталось немного..."
 )
 
+_REFERENCE_READY_TEXT_FALLBACK = (
+    "Шаг 11 из N: Эталон готов!\n\n"
+    "📦 Артикул: <code>{article}</code>\n"
+    "📸 Это ваш {reference_number}-й эталон для этого товара\n"
+    "🏷 Тип товара: {category}\n\n"
+    "💰 Списано: {reference_cost}₽\n"
+    "💳 Ваш баланс: {new_balance}₽\n\n"
+    "Эталон может немного отличаться от оригинала.\n"
+    "Если отличия значительные — перегенерируйте эталон,\n"
+    "заменив фотографии на шаге выбора фото.\n\n"
+    "Теперь вы можете генерировать фото и видео!"
+)
+
 
 def _kb_reference_result() -> InlineKeyboardMarkup:
     """Клавиатура после создания эталона."""
@@ -258,17 +271,13 @@ async def start_reference_generation(
                 user_id, article, reference_number, file_id)
 
     # Редактируем исходное сообщение с финальным результатом
-    final_caption = (
-        f"Шаг 11 из N: Эталон готов!\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"📸 Это ваш {reference_number}-й эталон для этого товара\n"
-        f"🏷 Тип товара: {category}\n\n"
-        f"💰 Списано: {REFERENCE_COST}₽\n"
-        f"💳 Ваш баланс: {new_balance}₽\n\n"
-        f"Эталон может немного отличаться от оригинала.\n"
-        f"Если отличия значительные — перегенерируйте эталон,\n"
-        f"заменив фотографии на шаге выбора фото.\n\n"
-        f"Теперь вы можете генерировать фото и видео!"
+    ready_text = await get_template("msg_reference_ready", fallback=_REFERENCE_READY_TEXT_FALLBACK)
+    final_caption = ready_text.format(
+        article=article,
+        reference_number=reference_number,
+        category=category,
+        reference_cost=REFERENCE_COST,
+        new_balance=new_balance,
     )
     try:
         await context.bot.edit_message_media(
