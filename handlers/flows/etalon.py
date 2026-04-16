@@ -17,11 +17,25 @@ from database import get_user_articles_with_refs, get_active_references
 from handlers.flows.flow_helpers import send_screen, safe_delete
 from handlers.flows.messages.regen_reference import msg_ref_card
 from handlers.keyboards import kb_my_refs_empty, kb_ref_card
+from services.prompt_store import get_template
 
 logger = logging.getLogger(__name__)
 
 # Храним текущий индекс эталона для каждого пользователя
 _ref_index: dict[int, int] = {}
+
+_MY_REFS_EMPTY_TEXT_FALLBACK = (
+    "📂 Мои эталоны (Шаг 15)\n\n"
+    "У вас пока нет товаров с эталонами.\n\n"
+    "Создайте первый эталон, чтобы генерировать "
+    "фото и видео для ваших товаров."
+)
+
+_MY_REFS_LIST_TEXT_FALLBACK = (
+    "📂 Мои эталоны (Шаг 15)\n\n"
+    "Ниже ваши артикулы с эталонами.\n"
+    "Нажмите на артикул — откроется меню работы с эталонами."
+)
 
 
 async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -35,19 +49,10 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     articles = await get_user_articles_with_refs(user_id)
 
     if not articles:
-        text = (
-            "📂 Мои эталоны (Шаг 15)\n\n"
-            "У вас пока нет товаров с эталонами.\n\n"
-            "Создайте первый эталон, чтобы генерировать "
-            "фото и видео для ваших товаров."
-        )
+        text = await get_template("msg_my_refs_empty", fallback=_MY_REFS_EMPTY_TEXT_FALLBACK)
         keyboard = kb_my_refs_empty()
     else:
-        text = (
-            "📂 Мои эталоны (Шаг 15)\n\n"
-            "Ниже ваши артикулы с эталонами.\n"
-            "Нажмите на артикул — откроется меню работы с эталонами."
-        )
+        text = await get_template("msg_my_refs_list", fallback=_MY_REFS_LIST_TEXT_FALLBACK)
 
         buttons = []
         row = []

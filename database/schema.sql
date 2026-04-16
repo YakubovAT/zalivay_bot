@@ -495,3 +495,28 @@ DO $$ BEGIN
      'Шаг 11 — экран готового эталона. Переменные: {article}, {reference_number}, {category}, {reference_cost}, {new_balance}.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_my_refs_empty') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_my_refs_empty',
+     '📂 Мои эталоны (Шаг 15)
+
+У вас пока нет товаров с эталонами.
+
+Создайте первый эталон, чтобы генерировать фото и видео для ваших товаров.',
+     'Шаг 15 — список эталонов пуст. Переменных нет.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_my_refs_list') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_my_refs_list',
+     '📂 Мои эталоны (Шаг 15)
+
+Ниже ваши артикулы с эталонами.
+Нажмите на артикул — откроется меню работы с эталонами.',
+     'Шаг 15 — список артикулов с эталонами. Переменных нет.');
+  END IF;
+END $$;
