@@ -393,3 +393,16 @@ DO $$ BEGIN
      'Шаг 3 — экран выбора маркетплейса. Переменных нет.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_article_input') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_article_input',
+     'Шаг 4 из N: Ввод артикула
+
+В строку сообщений введите артикул.
+
+Мы загрузим фото из карточки. Выберите 3 лучших — где ваш товар виден наиболее чётко и детально. Это станет основой для генерации фото и видео контента.',
+     'Шаг 4 — экран ввода артикула. Переменных нет.');
+  END IF;
+END $$;

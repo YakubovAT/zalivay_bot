@@ -64,7 +64,7 @@ _MARKETPLACE_TEXT_FALLBACK = (
 
 _LOCKED_TEXT = "⏳ Этот маркетплейс скоро будет доступен"
 
-_ARTICLE_INPUT_TEXT = (
+_ARTICLE_INPUT_TEXT_FALLBACK = (
     "Шаг 4 из N: Ввод артикула\n\n"
     "В строку сообщений введите артикул.\n\n"
     "Мы загрузим фото из карточки. Выберите "
@@ -95,12 +95,13 @@ async def cb_mp_wb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Пользователь выбрал WB."""
     query = update.callback_query
     await query.answer()
+    article_input_text = await get_template("msg_article_input", fallback=_ARTICLE_INPUT_TEXT_FALLBACK)
 
     await send_screen(
         context.bot,
         chat_id=query.from_user.id,
         message_id=query.message.message_id,
-        text=_ARTICLE_INPUT_TEXT,
+        text=article_input_text,
         keyboard=kb_enter_article(),
     )
     return _ARTICLE_INPUT
@@ -320,13 +321,14 @@ async def cb_product_no(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await query.answer()
     
     logger.info("PRODUCT_REJECTED | user=%s", query.from_user.id)
+    article_input_text = await get_template("msg_article_input", fallback=_ARTICLE_INPUT_TEXT_FALLBACK)
 
     # Возврат к вводу артикула
     await send_screen(
         context.bot,
         chat_id=query.from_user.id,
         message_id=query.message.message_id,
-        text=_ARTICLE_INPUT_TEXT,
+        text=article_input_text,
         keyboard=kb_enter_article(),
     )
     return _ARTICLE_INPUT
