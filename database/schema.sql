@@ -422,3 +422,14 @@ DO $$ BEGIN
      'Шаг 5 — найденный товар и подтверждение. Переменные: {name}, {brand}, {color}, {material}.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_photo_select') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_photo_select',
+     'Шаг 6 из N: Выбор фото — {current} из {total}
+
+{selection_text}',
+     'Шаг 6 — экран выбора фото. Переменные: {current}, {total}, {selection_text}.');
+  END IF;
+END $$;

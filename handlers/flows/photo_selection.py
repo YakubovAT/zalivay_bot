@@ -25,12 +25,18 @@ from handlers.flows.flow_helpers import safe_delete, animate_loading
 from handlers.keyboards import kb_confirm_reference, kb_photo_select
 from services.media_storage import ensure_article_media_dir, download_all_images
 from services.image_merger import merge_photos_horizontal
+from services.prompt_store import get_template
 
 logger = logging.getLogger(__name__)
 
 # Состояния (10-12, чтобы не пересекаться с new_article 0-2)
 _PHOTO_SELECT, _PHOTO_CONFIRM, _REFERENCE_CONFIRM = range(10, 13)
 _REFERENCE_GENERATING = 13  # Из create_reference.py
+
+_PHOTO_SELECT_TEXT_FALLBACK = (
+    "Шаг 6 из N: Выбор фото — {current} из {total}\n\n"
+    "{selection_text}"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +60,13 @@ async def _show_photo(context, chat_id, message_id, idx, paths, selected):
     selected_count = len(selected)
     done = selected_count >= 3
 
-    caption = f"Шаг 6 из N: Выбор фото — {idx + 1} из {total}\n\n{_selection_text(selected_count)}"
+    selection_text = _selection_text(selected_count)
+    template = await get_template("msg_photo_select", fallback=_PHOTO_SELECT_TEXT_FALLBACK)
+    caption = template.format(
+        current=idx + 1,
+        total=total,
+        selection_text=selection_text,
+    )
     keyboard = kb_photo_select(selected, idx, total, done)
 
     if message_id is not None:
