@@ -41,8 +41,10 @@ BOT_TOKEN    = os.getenv("BOT_TOKEN", "")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "ZalivaiBot")
 WEB_SECRET   = os.getenv("WEB_SECRET", "change-me-in-production")
 MEDIA_ROOT   = Path(os.getenv("MEDIA_ROOT", "media"))
+ASSETS_ROOT  = Path(os.getenv("ASSETS_ROOT", "assets"))
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/zalivai_db")
 THUMB_SIZE   = (400, 400)
+BANNER_EXTS  = {".png", ".jpg", ".jpeg"}
 
 # Поля, которые разрешено редактировать через веб
 EDITABLE_REFERENCE_FIELDS = {
@@ -500,7 +502,7 @@ async def admin_get_prompts(session: str | None = Cookie(default=None)):
     _require_admin(session)
 
     template_rows = await _db_pool.fetch(
-        "SELECT key, template, description, updated_at FROM prompt_templates ORDER BY key"
+        "SELECT key, template, description, banner, updated_at FROM prompt_templates ORDER BY key"
     )
     item_rows = await _db_pool.fetch(
         """
@@ -515,6 +517,7 @@ async def admin_get_prompts(session: str | None = Cookie(default=None)):
             "key":         r["key"],
             "template":    r["template"],
             "description": r["description"] or "",
+            "banner":      r["banner"] or "banner_default.png",
             "updated_at":  r["updated_at"].isoformat() if r["updated_at"] else None,
         }
         for r in template_rows
@@ -638,6 +641,68 @@ async def admin_invalidate_prompts(session: str | None = Cookie(default=None)):
     from services import prompt_store
     await prompt_store.invalidate()
     return {"ok": True, "ttl_seconds": 10}
+
+
+# ---------------------------------------------------------------------------
+# Роуты — admin (баннеры)
+# ---------------------------------------------------------------------------
+
+@app.get("/assets/{name:path}")
+async def serve_asset(name: str, session: str | None = Cookie(default=None)):
+    """Отдаёт файл из assets/ для превью в admin-панели (только admin)."""
+    _require_admin(session)
+    safe_name = Path(name).name          # защита от path traversal
+    file_path = ASSETS_ROOT / safe_name
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Asset not found")
+    return FileResponse(file_path)
+
+
+@app.get("/api/admin/banners")
+async def admin_list_banners(session: str | None = Cookie(default=None)):
+    """Список баннеров в папке assets/."""
+    _require_admin(session)
+    banners = []
+    if ASSETS_ROOT.exists():
+        for f in sorted(ASSETS_ROOT.iterdir()):
+            if f.suffix.lower() in BANNER_EXTS:
+                banners.append({
+                    "name":  f.name,
+                    "size":  f.stat().st_size,
+                    "mtime": f.stat().st_mtime,
+                })
+    return {"banners": banners}
+
+
+@app.post("/api/admin/banners/{name}")
+async def admin_upload_banner(
+    name: str,
+    request: Request,
+    session: str | None = Cookie(default=None),
+):
+    """Заменяет содержимое файла баннера. Принимает multipart с полем 'file'.
+    Создавать новые файлы нельзя — только заменять существующие.
+    """
+    _require_admin(session)
+    safe_name = Path(name).name
+    if Path(safe_name).suffix.lower() not in BANNER_EXTS:
+        raise HTTPException(status_code=400, detail="Invalid file extension")
+
+    file_path = ASSETS_ROOT / safe_name
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Banner not found — can only replace existing files")
+
+    form   = await request.form()
+    upload = form.get("file")
+    if not upload:
+        raise HTTPException(status_code=400, detail="field 'file' is required")
+
+    content = await upload.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large (max 5 MB)")
+
+    file_path.write_bytes(content)
+    return {"ok": True, "name": safe_name, "size": len(content)}
 
 
 # ---------------------------------------------------------------------------

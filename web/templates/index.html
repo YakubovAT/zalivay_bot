@@ -1048,6 +1048,64 @@
     .user-status.unreg { background: rgba(100,100,100,.12); color: var(--muted); }
 
     .user-id-cell { font-family: monospace; font-size: 12px; color: var(--muted); }
+
+    /* ── Блок баннера в карточке сообщения ── */
+    .tpl-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: #111;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .tpl-banner-preview {
+      height: 44px;
+      max-width: 180px;
+      border-radius: 4px;
+      object-fit: contain;
+      background: #0a0a0a;
+      flex-shrink: 0;
+    }
+
+    .tpl-banner-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tpl-banner-name {
+      display: block;
+      font-size: 12px;
+      font-family: monospace;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-bottom: 6px;
+    }
+
+    .btn-replace-banner {
+      display: inline-block;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+      user-select: none;
+    }
+    .btn-replace-banner:hover { border-color: var(--accent); color: var(--accent); }
+
+    .banner-upload-status {
+      font-size: 11px;
+      margin-top: 5px;
+      height: 14px;
+    }
+    .banner-upload-status.ok  { color: #22c55e; }
+    .banner-upload-status.err { color: #ef4444; }
   </style>
 </head>
 <body>
@@ -1726,14 +1784,35 @@ function renderMessages(templates) {
 // ── Шаблоны ──
 
 function tplCardHTML(tpl) {
-  // Извлекаем {placeholder} из текста шаблона для подсказки
+  const isMsg       = tpl.key.startsWith('msg_');
   const placeholders = [...new Set((tpl.template.match(/\{[^}]+\}/g) || []))].join(' ');
+  const bannerName  = tpl.banner || 'banner_default.png';
+
+  const bannerBlock = isMsg ? `
+    <div class="tpl-banner">
+      <img class="tpl-banner-preview"
+           id="banner-img-${escHtml(tpl.key)}"
+           src="/assets/${encodeURIComponent(bannerName)}"
+           alt="баннер"
+           onerror="this.style.opacity='.25'">
+      <div class="tpl-banner-meta">
+        <span class="tpl-banner-name">${escHtml(bannerName)}</span>
+        <label class="btn-replace-banner">
+          Заменить баннер
+          <input type="file" accept="image/png,image/jpeg" style="display:none"
+            onchange="uploadBanner('${escHtml(tpl.key)}','${escHtml(bannerName)}',this)">
+        </label>
+        <div class="banner-upload-status" id="banner-status-${escHtml(tpl.key)}"></div>
+      </div>
+    </div>` : '';
+
   return `
     <div class="tpl-card">
       <div class="tpl-header">
         <span class="tpl-key">${escHtml(tpl.key)}</span>
         <span class="tpl-desc">${escHtml(tpl.description)}</span>
       </div>
+      ${bannerBlock}
       ${placeholders ? `<div class="tpl-placeholders">Переменные: ${escHtml(placeholders)}</div>` : ''}
       <textarea
         class="tpl-textarea"
@@ -1892,6 +1971,39 @@ function addListItem(lk) {
     if (v2El) v2El.value = '';
   })
   .catch(() => alert('Ошибка добавления.'));
+}
+
+function uploadBanner(tplKey, bannerName, input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById(`banner-status-${tplKey}`);
+  statusEl.textContent = 'Загружаем...';
+  statusEl.className = 'banner-upload-status';
+
+  const form = new FormData();
+  form.append('file', file);
+
+  fetch(`/api/admin/banners/${encodeURIComponent(bannerName)}`, {
+    method: 'POST',
+    body: form,
+  })
+  .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+  .then(() => {
+    const img = document.getElementById(`banner-img-${tplKey}`);
+    if (img) {
+      img.style.opacity = '1';
+      img.src = `/assets/${encodeURIComponent(bannerName)}?t=${Date.now()}`;
+    }
+    statusEl.textContent = 'Баннер обновлён';
+    statusEl.className = 'banner-upload-status ok';
+    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    input.value = '';
+  })
+  .catch(() => {
+    statusEl.textContent = 'Ошибка загрузки';
+    statusEl.className = 'banner-upload-status err';
+  });
 }
 
 function adminInvalidate() {

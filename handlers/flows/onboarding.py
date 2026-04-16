@@ -20,10 +20,7 @@ from telegram.ext import (
 from database import ensure_user, get_user_stats
 from handlers.flows.flow_helpers import send_screen, clear_previous_screen
 from handlers.keyboards import kb_start, kb_main_menu
-from services.prompt_store import get_template
-
-# Баннер для первого экрана приветствия
-WELCOME_BANNER = "assets/welcom_banner_1.png"
+from services.prompt_store import get_template, get_banner
 
 logger = logging.getLogger(__name__)
 
@@ -92,12 +89,13 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await clear_previous_screen(context.bot, user.id)
 
     welcome_text = await get_template("msg_welcome", fallback=_WELCOME_TEXT_FALLBACK)
+    banner_name  = await get_banner("msg_welcome")
     await send_screen(
         context.bot,
         chat_id=user.id,
         text=welcome_text,
         keyboard=kb_start(),
-        banner_path=WELCOME_BANNER,
+        banner_path=f"assets/{banner_name}",
     )
     return _WELCOME
 

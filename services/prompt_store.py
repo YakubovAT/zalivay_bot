@@ -209,7 +209,7 @@ async def _load() -> None:
     pool = await get_pool()
     async with pool.acquire() as conn:
         template_rows = await conn.fetch(
-            "SELECT key, template FROM prompt_templates"
+            "SELECT key, template, banner FROM prompt_templates"
         )
         item_rows = await conn.fetch(
             "SELECT list_key, value, value2 FROM prompt_list_items "
@@ -217,6 +217,7 @@ async def _load() -> None:
         )
 
     templates: dict[str, str] = {r["key"]: r["template"] for r in template_rows}
+    banners:   dict[str, str] = {r["key"]: r["banner"]   for r in template_rows if r["banner"]}
 
     lists: dict[str, list[str]] = {}
     pairs: dict[str, list[tuple[str, str]]] = {}
@@ -225,7 +226,7 @@ async def _load() -> None:
         lists.setdefault(lk, []).append(row["value"])
         pairs.setdefault(lk, []).append((row["value"], row["value2"]))
 
-    _cache = {"templates": templates, "lists": lists, "pairs": pairs}
+    _cache = {"templates": templates, "lists": lists, "pairs": pairs, "banners": banners}
     _loaded_at = time.monotonic()
     logger.debug(
         "prompt_store: cache refreshed — %d templates, %d list keys",
@@ -278,6 +279,14 @@ async def get_pairs(list_key: str) -> list[tuple[str, str]]:
         return result
     logger.warning("prompt_store: пары '%s' не найдены в БД, используем fallback", list_key)
     return _FALLBACK_PAIRS.get(list_key, [])
+
+
+async def get_banner(key: str) -> str:
+    """Возвращает имя файла баннера для шаблона (без пути assets/).
+    По умолчанию — 'banner_default.png' если в БД не задан.
+    """
+    await _ensure()
+    return _cache.get("banners", {}).get(key) or "banner_default.png"
 
 
 async def invalidate() -> None:

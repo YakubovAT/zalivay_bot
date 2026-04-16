@@ -22,15 +22,30 @@ from config import BANNER_PATH
 
 logger = logging.getLogger(__name__)
 
-_banner_bytes: bytes | None = None
+# Кэш баннеров: path → (bytes, mtime). Перечитывает файл при изменении на диске.
+_banner_cache: dict[str, tuple[bytes, float]] = {}
+
+
+def _get_banner_bytes(path: str) -> bytes:
+    """Загружает байты баннера. Перечитывает если файл изменился (по mtime)."""
+    try:
+        mtime = Path(path).stat().st_mtime
+    except FileNotFoundError:
+        path = BANNER_PATH
+        mtime = Path(path).stat().st_mtime
+
+    cached = _banner_cache.get(path)
+    if cached and cached[1] == mtime:
+        return cached[0]
+
+    data = Path(path).read_bytes()
+    _banner_cache[path] = (data, mtime)
+    return data
 
 
 def _get_banner() -> bytes:
-    """Загружает баннер один раз в память."""
-    global _banner_bytes
-    if _banner_bytes is None:
-        _banner_bytes = Path(BANNER_PATH).read_bytes()
-    return _banner_bytes
+    """Загружает дефолтный баннер (BANNER_PATH). Перечитывает при изменении файла."""
+    return _get_banner_bytes(BANNER_PATH)
 
 
 async def send_screen(
@@ -50,10 +65,7 @@ async def send_screen(
     parse_mode: "HTML" (по умолчанию) или "MarkdownV2" (для цитат).
     banner_path: путь к баннеру (по умолчанию assets/banner_default.png).
     """
-    if banner_path:
-        banner = Path(banner_path).read_bytes()
-    else:
-        banner = _get_banner()
+    banner = _get_banner_bytes(banner_path) if banner_path else _get_banner()
 
     if message_id is not None:
         # Редактируем существующее сообщение

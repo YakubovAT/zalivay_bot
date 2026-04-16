@@ -144,8 +144,18 @@ CREATE TABLE IF NOT EXISTS prompt_templates (
     key         TEXT PRIMARY KEY,
     template    TEXT NOT NULL,
     description TEXT,
+    banner      TEXT,
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Добавляем banner к существующим БД (idempotent)
+ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS banner TEXT;
+
+-- Устанавливаем баннер для msg_welcome
+-- NULL = использовать banner_default.png (поведение по умолчанию)
+UPDATE prompt_templates
+    SET banner = 'welcom_banner_1.png'
+    WHERE key = 'msg_welcome' AND banner IS NULL;
 
 -- Элементы списков: локации, одежда, цвета и т.д.
 -- list_key привязан к коду — не переименовывать.
