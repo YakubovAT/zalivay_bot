@@ -406,3 +406,19 @@ DO $$ BEGIN
      'Шаг 4 — экран ввода артикула. Переменных нет.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_product_found') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_product_found',
+     'Шаг 5 из N: Найден товар
+
+📦 {name}
+🏷 Бренд: {brand}
+🎨 Цвет: {color}
+🧵 Состав: {material}
+
+Это тот товар?',
+     'Шаг 5 — найденный товар и подтверждение. Переменные: {name}, {brand}, {color}, {material}.');
+  END IF;
+END $$;

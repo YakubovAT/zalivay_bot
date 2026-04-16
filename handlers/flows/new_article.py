@@ -73,6 +73,15 @@ _ARTICLE_INPUT_TEXT_FALLBACK = (
     "для генерации фото и видео контента."
 )
 
+_PRODUCT_FOUND_TEXT_FALLBACK = (
+    "Шаг 5 из N: Найден товар\n\n"
+    "📦 {name}\n"
+    "🏷 Бренд: {brand}\n"
+    "🎨 Цвет: {color}\n"
+    "🧵 Состав: {material}\n\n"
+    "Это тот товар?"
+)
+
 
 async def cb_menu_new_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Пользователь нажал «➕ Новый артикул» в главном меню."""
@@ -232,13 +241,12 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     color = product.get("colors", ["—"])[0] if product.get("colors") else "—"
     material = product.get("material", "—")
 
-    caption = (
-        f"Шаг 5 из N: Найден товар\n\n"
-        f"📦 {name}\n"
-        f"🏷 Бренд: {brand}\n"
-        f"🎨 Цвет: {color}\n"
-        f"🧵 Состав: {material}\n\n"
-        "Это тот товар?"
+    product_found_template = await get_template("msg_product_found", fallback=_PRODUCT_FOUND_TEXT_FALLBACK)
+    caption = product_found_template.format(
+        name=name,
+        brand=brand,
+        color=color,
+        material=material,
     )
 
     # РЕДАКТИРУЕМ экран Шага 4 → Шаг 5
