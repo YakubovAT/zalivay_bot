@@ -38,6 +38,13 @@ _PHOTO_SELECT_TEXT_FALLBACK = (
     "{selection_text}"
 )
 
+_REFERENCE_CONFIRM_TEXT_FALLBACK = (
+    "Шаг 7 из N: Создание эталона\n\n"
+    "Вы выбрали 3 фото для артикула <code>{article}</code>.\n\n"
+    "Убедитесь, что на этих фото товар виден лучше всего — "
+    "по ним будет создан эталон для генерации контента."
+)
+
 
 # ---------------------------------------------------------------------------
 # Утилиты
@@ -270,12 +277,8 @@ async def cb_photos_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if not merge_ok or not Path(merged_path).exists():
         merged_path = chosen_paths[0] if chosen_paths else "assets/banner_default.png"
 
-    caption = (
-        f"Шаг 7 из N: Создание эталона\n\n"
-        f"Вы выбрали 3 фото для артикула <code>{article}</code>.\n\n"
-        f"Убедитесь, что на этих фото товар виден лучше всего — "
-        f"по ним будет создан эталон для генерации контента."
-    )
+    template = await get_template("msg_reference_create_confirm", fallback=_REFERENCE_CONFIRM_TEXT_FALLBACK)
+    caption = template.format(article=article)
 
     try:
         await context.bot.edit_message_media(

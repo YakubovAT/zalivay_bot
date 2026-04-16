@@ -433,3 +433,16 @@ DO $$ BEGIN
      'Шаг 6 — экран выбора фото. Переменные: {current}, {total}, {selection_text}.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_reference_create_confirm') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_reference_create_confirm',
+     'Шаг 7 из N: Создание эталона
+
+Вы выбрали 3 фото для артикула <code>{article}</code>.
+
+Убедитесь, что на этих фото товар виден лучше всего — по ним будет создан эталон для генерации контента.',
+     'Шаг 7 — подтверждение создания эталона после выбора 3 фото. Переменные: {article}.');
+  END IF;
+END $$;
