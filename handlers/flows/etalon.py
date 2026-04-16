@@ -13,7 +13,7 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
-from database import get_user_articles_with_refs, get_active_references
+from database import get_user_articles_with_refs, get_active_references, get_user_stats
 from handlers.flows.flow_helpers import send_screen, safe_delete
 from handlers.flows.messages.regen_reference import msg_ref_card
 from handlers.keyboards import kb_my_refs_empty, kb_ref_card
@@ -44,6 +44,7 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.answer()
 
     user_id = update.effective_user.id
+    full_name = update.effective_user.full_name or "—"
     message_id = query.message.message_id
 
     articles = await get_user_articles_with_refs(user_id)
@@ -52,7 +53,17 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         text = await get_template("msg_my_refs_empty", fallback=_MY_REFS_EMPTY_TEXT_FALLBACK)
         keyboard = kb_my_refs_empty()
     else:
-        text = await get_template("msg_my_refs_list", fallback=_MY_REFS_LIST_TEXT_FALLBACK)
+        stats = await get_user_stats(user_id)
+        list_template = await get_template("msg_my_refs_list", fallback=_MY_REFS_LIST_TEXT_FALLBACK)
+        text = list_template.format(
+            user_id=user_id,
+            full_name=full_name,
+            articles=stats.get("articles", 0),
+            references=stats.get("references", 0),
+            photos=stats.get("photos", 0),
+            videos=stats.get("videos", 0),
+            balance=stats.get("balance", 0),
+        )
 
         buttons = []
         row = []
