@@ -30,6 +30,60 @@ _PROFILE_TEXT_FALLBACK = (
     "> • Баланс: {balance}₽"
 )
 
+_GENERATION_DONE_FALLBACK = (
+    "📸 <b>{total} из {total}</b> фото готовы для <code>{article}</code>\n"
+    "Тут представлен один из вариантов, все ваши генерации хранятся здесь:\n"
+    "🖼 {web_viewer_url}\n\n"
+    "📦 Эталон: #{ref_number}\n"
+    "💰 Списано: {actual_cost}₽\n"
+    "💳 Остаток: {new_balance}₽\n"
+    "⏱ Время: {elapsed_str}\n"
+    "🆔 Задание #{job_id}"
+)
+
+_GENERATION_DONE_FAILED_LINE_FALLBACK = "⚠️ Не удалось: {failed} из {requested}"
+
+_GENERATION_FAILED_FALLBACK = (
+    "❌ Не удалось сгенерировать фото.\n\n"
+    "С вашего баланса ничего не списано.\n\n"
+    "🆔 Задание #{job_id}\n\n"
+    "При обращении в поддержку укажите номер задания."
+)
+
+_VIDEO_GENERATION_DONE_FALLBACK = (
+    "🎥 <b>{total} из {total}</b> видео готовы для <code>{article}</code>\n"
+    "Тут представлен один из вариантов, все ваши генерации хранятся здесь:\n"
+    "🖼 {web_viewer_url}\n\n"
+    "📦 Эталон: #{ref_number}\n"
+    "💰 Списано: {actual_cost}₽\n"
+    "💳 Остаток: {new_balance}₽\n"
+    "⏱ Время: {elapsed_str}\n"
+    "🆔 Задание #{job_id}"
+)
+
+_VIDEO_GENERATION_DONE_FAILED_LINE_FALLBACK = "⚠️ Не удалось: {failed} из {requested}"
+
+_VIDEO_GENERATION_FAILED_FALLBACK = (
+    "❌ Не удалось сгенерировать видео.\n\n"
+    "С вашего баланса ничего не списано.\n\n"
+    "🆔 Задание #{job_id}\n\n"
+    "При обращении в поддержку укажите номер задания."
+)
+
+_INSUFFICIENT_FUNDS_FALLBACK = (
+    "❌ Недостаточно средств.\n\n"
+    "💰 Нужно: {needed}₽\n"
+    "💳 Ваш баланс: {balance}₽\n\n"
+    "Пополните баланс и попробуйте снова."
+)
+
+_INSUFFICIENT_FUNDS_WITH_PURPOSE_FALLBACK = (
+    "❌ Недостаточно средств.\n\n"
+    "💰 {purpose}: {needed}₽\n"
+    "💳 Ваш баланс: {balance}₽\n\n"
+    "Пополните баланс и попробуйте снова."
+)
+
 
 def _escape_md_v2(text: str) -> str:
     """Экранирует спецсимволы MarkdownV2."""
@@ -52,7 +106,7 @@ async def msg_profile(user_id: int, full_name: str | None, stats: dict) -> str:
     )
 
 
-def msg_generation_done(
+async def msg_generation_done(
     article: str,
     ref_number: int,
     total: int,
@@ -63,33 +117,33 @@ def msg_generation_done(
     failed: int = 0,
 ) -> str:
     """Результат генерации фото — 1 фото из N."""
-    lines = [
-        f"📸 <b>{total} из {total}</b> фото готовы для <code>{article}</code>",
-        f"Тут представлен один из вариантов, все ваши генерации хранятся здесь:",
-        f"🖼 {WEB_VIEWER_URL}",
-        "",
-        f"📦 Эталон: #{ref_number}",
-        f"💰 Списано: {actual_cost}₽",
-        f"💳 Остаток: {new_balance}₽",
-        f"⏱ Время: {elapsed_str}",
-        f"🆔 Задание #{job_id}",
-    ]
+    template = await get_template("msg_generation_done", fallback=_GENERATION_DONE_FALLBACK)
+    lines = [template.format(
+        article=article,
+        ref_number=ref_number,
+        total=total,
+        actual_cost=actual_cost,
+        new_balance=new_balance,
+        elapsed_str=elapsed_str,
+        job_id=job_id,
+        web_viewer_url=WEB_VIEWER_URL,
+    )]
     if failed:
-        lines.append(f"⚠️ Не удалось: {failed} из {failed + total}")
+        failed_line = await get_template(
+            "msg_generation_done_failed_line",
+            fallback=_GENERATION_DONE_FAILED_LINE_FALLBACK,
+        )
+        lines.append(failed_line.format(failed=failed, requested=failed + total))
     return "\n".join(lines)
 
 
-def msg_generation_failed(job_id: int) -> str:
+async def msg_generation_failed(job_id: int) -> str:
     """Ошибка генерации — ни одного фото не вышло."""
-    return (
-        "❌ Не удалось сгенерировать фото.\n\n"
-        "С вашего баланса ничего не списано.\n\n"
-        f"🆔 Задание #{job_id}\n\n"
-        "При обращении в поддержку укажите номер задания."
-    )
+    template = await get_template("msg_generation_failed", fallback=_GENERATION_FAILED_FALLBACK)
+    return template.format(job_id=job_id)
 
 
-def msg_video_generation_done(
+async def msg_video_generation_done(
     article: str,
     ref_number: int,
     total: int,
@@ -100,44 +154,39 @@ def msg_video_generation_done(
     failed: int = 0,
 ) -> str:
     """Результат генерации видео."""
-    lines = [
-        f"🎥 <b>{total} из {total}</b> видео готовы для <code>{article}</code>",
-        f"Тут представлен один из вариантов, все ваши генерации хранятся здесь:",
-        f"🖼 {WEB_VIEWER_URL}",
-        "",
-        f"📦 Эталон: #{ref_number}",
-        f"💰 Списано: {actual_cost}₽",
-        f"💳 Остаток: {new_balance}₽",
-        f"⏱ Время: {elapsed_str}",
-        f"🆔 Задание #{job_id}",
-    ]
+    template = await get_template("msg_video_generation_done", fallback=_VIDEO_GENERATION_DONE_FALLBACK)
+    lines = [template.format(
+        article=article,
+        ref_number=ref_number,
+        total=total,
+        actual_cost=actual_cost,
+        new_balance=new_balance,
+        elapsed_str=elapsed_str,
+        job_id=job_id,
+        web_viewer_url=WEB_VIEWER_URL,
+    )]
     if failed:
-        lines.append(f"⚠️ Не удалось: {failed} из {failed + total}")
+        failed_line = await get_template(
+            "msg_video_generation_done_failed_line",
+            fallback=_VIDEO_GENERATION_DONE_FAILED_LINE_FALLBACK,
+        )
+        lines.append(failed_line.format(failed=failed, requested=failed + total))
     return "\n".join(lines)
 
 
-def msg_video_generation_failed(job_id: int) -> str:
+async def msg_video_generation_failed(job_id: int) -> str:
     """Ошибка генерации видео — ни одного не вышло."""
-    return (
-        "❌ Не удалось сгенерировать видео.\n\n"
-        "С вашего баланса ничего не списано.\n\n"
-        f"🆔 Задание #{job_id}\n\n"
-        "При обращении в поддержку укажите номер задания."
-    )
+    template = await get_template("msg_video_generation_failed", fallback=_VIDEO_GENERATION_FAILED_FALLBACK)
+    return template.format(job_id=job_id)
 
 
-def msg_insufficient_funds(needed: int, balance: int, purpose: str = "") -> str:
+async def msg_insufficient_funds(needed: int, balance: int, purpose: str = "") -> str:
     """Недостаточно средств."""
     if purpose:
-        return (
-            f"❌ Недостаточно средств.\n\n"
-            f"💰 {purpose}: {needed}₽\n"
-            f"💳 Ваш баланс: {balance}₽\n\n"
-            f"Пополните баланс и попробуйте снова."
+        template = await get_template(
+            "msg_insufficient_funds_with_purpose",
+            fallback=_INSUFFICIENT_FUNDS_WITH_PURPOSE_FALLBACK,
         )
-    return (
-        f"❌ Недостаточно средств.\n\n"
-        f"💰 Нужно: {needed}₽\n"
-        f"💳 Ваш баланс: {balance}₽\n\n"
-        f"Пополните баланс и попробуйте снова."
-    )
+        return template.format(needed=needed, balance=balance, purpose=purpose)
+    template = await get_template("msg_insufficient_funds", fallback=_INSUFFICIENT_FUNDS_FALLBACK)
+    return template.format(needed=needed, balance=balance)

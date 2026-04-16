@@ -204,7 +204,7 @@ async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
             await bot.send_photo(
                 chat_id=chat_id,
                 photo=open("assets/banner_default.png", "rb"),
-                caption=msg_generation_failed(job_id),
+                caption=await msg_generation_failed(job_id),
                 parse_mode="HTML",
                 reply_markup=kb_gen_photo_result(),
             )
@@ -217,7 +217,7 @@ async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
     actual_cost = len(file_paths) * PHOTO_COST
     new_balance = await deduct_balance(user_id, actual_cost)
 
-    caption = msg_generation_done(
+    caption = await msg_generation_done(
         article=article,
         ref_number=ref_number,
         total=len(file_paths),
@@ -393,7 +393,7 @@ async def _finish_video_job(job_id: int, bot, session: aiohttp.ClientSession) ->
             await bot.send_photo(
                 chat_id=chat_id,
                 photo=open("assets/banner_default.png", "rb"),
-                caption=msg_video_generation_failed(job_id),
+                caption=await msg_video_generation_failed(job_id),
                 parse_mode="HTML",
                 reply_markup=kb_gen_video_result(),
             )
@@ -405,7 +405,7 @@ async def _finish_video_job(job_id: int, bot, session: aiohttp.ClientSession) ->
     actual_cost = len(file_paths) * VIDEO_COST
     new_balance = await deduct_balance(user_id, actual_cost)
 
-    caption = msg_video_generation_done(
+    caption = await msg_video_generation_done(
         article=article,
         ref_number=ref_number,
         total=len(file_paths),

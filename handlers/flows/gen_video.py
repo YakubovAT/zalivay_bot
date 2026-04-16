@@ -260,7 +260,7 @@ async def _show_confirm_screen(user, context: ContextTypes.DEFAULT_TYPE) -> int:
         await context.bot.send_photo(
             chat_id=user.id,
             photo=open("assets/banner_default.png", "rb"),
-            caption=msg_insufficient_funds(needed=total_cost, balance=balance),
+            caption=await msg_insufficient_funds(needed=total_cost, balance=balance),
             parse_mode="HTML",
             reply_markup=kb_alert_close(),
         )

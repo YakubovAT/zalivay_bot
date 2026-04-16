@@ -668,3 +668,113 @@ DO $$ BEGIN
      'Шаг V4 — постановка генерации видео в очередь. Переменные: {article}, {count}.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_generation_done') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_generation_done',
+     '📸 <b>{total} из {total}</b> фото готовы для <code>{article}</code>
+Тут представлен один из вариантов, все ваши генерации хранятся здесь:
+🖼 {web_viewer_url}
+
+📦 Эталон: #{ref_number}
+💰 Списано: {actual_cost}₽
+💳 Остаток: {new_balance}₽
+⏱ Время: {elapsed_str}
+🆔 Задание #{job_id}',
+     'Результат генерации фото. Переменные: {total}, {article}, {web_viewer_url}, {ref_number}, {actual_cost}, {new_balance}, {elapsed_str}, {job_id}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_generation_done_failed_line') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_generation_done_failed_line',
+     '⚠️ Не удалось: {failed} из {requested}',
+     'Доп. строка для результата генерации фото при частичных падениях. Переменные: {failed}, {requested}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_generation_failed') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_generation_failed',
+     '❌ Не удалось сгенерировать фото.
+
+С вашего баланса ничего не списано.
+
+🆔 Задание #{job_id}
+
+При обращении в поддержку укажите номер задания.',
+     'Ошибка генерации фото. Переменные: {job_id}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_video_generation_done') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_video_generation_done',
+     '🎥 <b>{total} из {total}</b> видео готовы для <code>{article}</code>
+Тут представлен один из вариантов, все ваши генерации хранятся здесь:
+🖼 {web_viewer_url}
+
+📦 Эталон: #{ref_number}
+💰 Списано: {actual_cost}₽
+💳 Остаток: {new_balance}₽
+⏱ Время: {elapsed_str}
+🆔 Задание #{job_id}',
+     'Результат генерации видео. Переменные: {total}, {article}, {web_viewer_url}, {ref_number}, {actual_cost}, {new_balance}, {elapsed_str}, {job_id}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_video_generation_done_failed_line') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_video_generation_done_failed_line',
+     '⚠️ Не удалось: {failed} из {requested}',
+     'Доп. строка для результата генерации видео при частичных падениях. Переменные: {failed}, {requested}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_video_generation_failed') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_video_generation_failed',
+     '❌ Не удалось сгенерировать видео.
+
+С вашего баланса ничего не списано.
+
+🆔 Задание #{job_id}
+
+При обращении в поддержку укажите номер задания.',
+     'Ошибка генерации видео. Переменные: {job_id}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_insufficient_funds') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_insufficient_funds',
+     '❌ Недостаточно средств.
+
+💰 Нужно: {needed}₽
+💳 Ваш баланс: {balance}₽
+
+Пополните баланс и попробуйте снова.',
+     'Недостаточно средств (без указания purpose). Переменные: {needed}, {balance}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_insufficient_funds_with_purpose') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_insufficient_funds_with_purpose',
+     '❌ Недостаточно средств.
+
+💰 {purpose}: {needed}₽
+💳 Ваш баланс: {balance}₽
+
+Пополните баланс и попробуйте снова.',
+     'Недостаточно средств (с purpose). Переменные: {purpose}, {needed}, {balance}.');
+  END IF;
+END $$;

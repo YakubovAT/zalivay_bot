@@ -104,7 +104,7 @@ async def start_reference_generation(
         alert_msg = await context.bot.send_photo(
             chat_id=user_id,
             photo=open("assets/banner_default.png", "rb"),
-            caption=msg_insufficient_funds(
+            caption=await msg_insufficient_funds(
                 needed=REFERENCE_COST,
                 balance=balance,
                 purpose="Стоимость создания эталона",

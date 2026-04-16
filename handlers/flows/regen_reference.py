@@ -114,7 +114,7 @@ async def _run_regen(
         await context.bot.edit_message_caption(
             chat_id=user_id,
             message_id=message_id,
-            caption=msg_insufficient_funds(REFERENCE_COST, stats["balance"], "Стоимость перегенерации"),
+            caption=await msg_insufficient_funds(REFERENCE_COST, stats["balance"], "Стоимость перегенерации"),
             parse_mode="HTML",
         )
         return ConversationHandler.END
