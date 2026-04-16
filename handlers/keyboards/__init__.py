@@ -24,7 +24,7 @@ def kb_start() -> InlineKeyboardMarkup:
 def kb_main_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("➕ Новый артикул", callback_data="menu_new_article"),
+            InlineKeyboardButton("➕ Новый эталон", callback_data="menu_new_article"),
         ],
         [
             InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),

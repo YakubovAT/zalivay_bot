@@ -84,7 +84,7 @@ _PRODUCT_FOUND_TEXT_FALLBACK = (
 
 
 async def cb_menu_new_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь нажал «➕ Новый артикул» в главном меню."""
+    """Пользователь нажал «➕ Новый эталон» в главном меню."""
     query = update.callback_query
     await query.answer()
     marketplace_text = await get_template("msg_marketplace_select", fallback=_MARKETPLACE_TEXT_FALLBACK)
