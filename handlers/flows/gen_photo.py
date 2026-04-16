@@ -13,6 +13,7 @@ Flow генерации фото на основе эталона.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
