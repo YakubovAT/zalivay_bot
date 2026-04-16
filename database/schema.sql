@@ -382,3 +382,14 @@ DO $$ BEGIN
      'Шаг 2 — экран профиля/меню. Переменные: {user_id}, {full_name}, {articles}, {references}, {photos}, {videos}, {balance}.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_marketplace_select') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_marketplace_select',
+     'Шаг 3 из N: Выбор маркетплейса
+
+Выберите маркетплейс, на котором продаётся ваш товар. После мы с вами создадим фото и видео контент для последующего размещения в социальных сетях. Вам нужно будет ввести артикул товара, и мы создадим эталон вашего товара для генерации фото и видео контента.',
+     'Шаг 3 — экран выбора маркетплейса. Переменных нет.');
+  END IF;
+END $$;

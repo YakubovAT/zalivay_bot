@@ -36,6 +36,7 @@ from handlers.flows.photo_selection import (
 from handlers.flows.create_reference import _REFERENCE_GENERATING, cb_close_alert
 from handlers.flows.messages.common import msg_profile
 from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu, kb_product_confirm
+from services.prompt_store import get_template
 from services.wb_parser import get_product_info
 from services.media_storage import download_image
 
@@ -52,7 +53,7 @@ ARTICLE_RE = re.compile(r"^\d{6,9}$")
 # Шаг 3. Выбор маркетплейса
 # ---------------------------------------------------------------------------
 
-_MARKETPLACE_TEXT = (
+_MARKETPLACE_TEXT_FALLBACK = (
     "Шаг 3 из N: Выбор маркетплейса\n\n"
     "Выберите маркетплейс, на котором продаётся ваш товар. "
     "После мы с вами создадим фото и видео контент "
@@ -77,12 +78,13 @@ async def cb_menu_new_article(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Пользователь нажал «➕ Новый артикул» в главном меню."""
     query = update.callback_query
     await query.answer()
+    marketplace_text = await get_template("msg_marketplace_select", fallback=_MARKETPLACE_TEXT_FALLBACK)
 
     await send_screen(
         context.bot,
         chat_id=query.from_user.id,
         message_id=query.message.message_id,
-        text=_MARKETPLACE_TEXT,
+        text=marketplace_text,
         keyboard=kb_marketplace(),
     )
     store_msg_id(query.from_user.id, query.message.message_id)
@@ -115,12 +117,13 @@ async def cb_back_to_mp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     """Кнопка «← Назад» — возврат к выбору маркетплейса."""
     query = update.callback_query
     await query.answer()
+    marketplace_text = await get_template("msg_marketplace_select", fallback=_MARKETPLACE_TEXT_FALLBACK)
 
     await send_screen(
         context.bot,
         chat_id=query.from_user.id,
         message_id=query.message.message_id,
-        text=_MARKETPLACE_TEXT,
+        text=marketplace_text,
         keyboard=kb_marketplace(),
     )
     return _MP_SELECT
