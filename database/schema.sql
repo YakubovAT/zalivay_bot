@@ -209,10 +209,10 @@ DO $$ BEGIN
      'Видео — категория «головной убор». Переменные: {description}, {outfit}, {location}, {motion}'),
     ('photo_komplekt',
      'Fashion lifestyle editorial photograph. A stylish young woman wearing {description} as a complete outfit. Accessories: {neutral_outfit}. Setting: {location}. Full-body composition, natural confident pose. Soft diffused natural light, warm tones, shallow depth of field with blurred bokeh background. Sharp focus on the jumpsuit — fabric texture, fit, silhouette, and drape clearly visible from neckline to hem. Photorealistic commercial photography, high resolution, no distortion.',
-     'Фото — категория «комбинезон». Переменные: {description}, {neutral_outfit}, {location}'),
+     'Фото — категория «комплект». Переменные: {description}, {neutral_outfit}, {location}'),
     ('video_komplekt',
      'Smooth cinematic fashion lifestyle video. A stylish young woman wearing {description} as a complete look, finished with {outfit}. Location: {location}. The model is {motion}. Slow gliding full-body camera shot captures the silhouette, fabric drape, and movement of the jumpsuit. Warm soft natural lighting, cinematic color grading, shallow depth of field. The garment stays in sharp focus throughout the motion — from neckline to hem. Professional e-commerce fashion footage, no camera shake, fluid movement.',
-     'Видео — категория «комбинезон». Переменные: {description}, {outfit}, {location}, {motion}');
+     'Видео — категория «комплект». Переменные: {description}, {outfit}, {location}, {motion}');
   END IF;
 END $$;
 
