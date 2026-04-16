@@ -34,6 +34,7 @@ from handlers.flows.photo_selection import (
     cb_create_reference, cb_back_to_menu_from_photo,
 )
 from handlers.flows.create_reference import _REFERENCE_GENERATING, cb_close_alert
+from handlers.flows.messages.common import msg_profile
 from handlers.keyboards import kb_marketplace, kb_enter_article, kb_main_menu, kb_product_confirm
 from services.wb_parser import get_product_info
 from services.media_storage import download_image
@@ -132,21 +133,7 @@ async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     user = query.from_user
     stats = await get_user_stats(user.id)
-
-    text = (
-        f"Шаг 2: Профиль\n\n"
-        f"👤 *Профиль:*\n"
-        f"> • ID: `{user.id}`\n"
-        f"> • Имя: {user.full_name}\n\n"
-        f"📊 *Статистика:*\n"
-        f"> • Товаров: {stats['articles']}\n"
-        f"> • Эталонов: {stats['references']}\n"
-        f"> • Фото: {stats['photos']}\n"
-        f"> • Видео: {stats['videos']}\n"
-        f"> • Баланс: {stats['balance']}₽"
-    )
-
-    from handlers.keyboards import kb_main_menu
+    text = await msg_profile(user.id, user.full_name, stats)
     await send_screen(
         context.bot,
         chat_id=user.id,

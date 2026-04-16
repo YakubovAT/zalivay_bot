@@ -19,6 +19,7 @@ from telegram.ext import (
 
 from database import ensure_user, get_user_stats
 from handlers.flows.flow_helpers import send_screen, clear_previous_screen
+from handlers.flows.messages.common import msg_profile
 from handlers.keyboards import kb_start, kb_main_menu
 from services.prompt_store import get_template, get_banner
 
@@ -41,32 +42,11 @@ _WELCOME_TEXT_FALLBACK = (
 )
 
 
-def _escape_md(text: str) -> str:
-    """Экранирует спецсимволы MarkdownV2."""
-    for ch in ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']:
-        text = text.replace(ch, f'\\{ch}')
-    return text
-
-
 async def _show_profile(update, context, message_id=None):
     """Показывает профиль пользователя в формате «окошек»."""
     user = update.effective_user if hasattr(update, 'effective_user') else update.from_user
     stats = await get_user_stats(user.id)
-
-    name_md = _escape_md(user.full_name or "—")
-
-    text = (
-        f"Шаг 2: Профиль\n\n"
-        f"👤 *Профиль:*\n"
-        f"> • ID: `{user.id}`\n"
-        f"> • Имя: {name_md}\n\n"
-        f"📊 *Статистика:*\n"
-        f"> • Товаров: {stats['articles']}\n"
-        f"> • Эталонов: {stats['references']}\n"
-        f"> • Фото: {stats['photos']}\n"
-        f"> • Видео: {stats['videos']}\n"
-        f"> • Баланс: {stats['balance']}₽"
-    )
+    text = await msg_profile(user.id, user.full_name, stats)
 
     await send_screen(
         context.bot,

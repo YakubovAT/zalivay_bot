@@ -5,6 +5,7 @@ handlers/flows/messages/common.py
 """
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from services.prompt_store import get_template
 
 
 def kb_alert_close() -> InlineKeyboardMarkup:
@@ -15,6 +16,40 @@ def kb_alert_close() -> InlineKeyboardMarkup:
 
 
 WEB_VIEWER_URL = "https://media.zaliv.ai"
+
+_PROFILE_TEXT_FALLBACK = (
+    "Шаг 2: Профиль\n\n"
+    "👤 *Профиль:*\n"
+    "> • ID: `{user_id}`\n"
+    "> • Имя: {full_name}\n\n"
+    "📊 *Статистика:*\n"
+    "> • Товаров: {articles}\n"
+    "> • Эталонов: {references}\n"
+    "> • Фото: {photos}\n"
+    "> • Видео: {videos}\n"
+    "> • Баланс: {balance}₽"
+)
+
+
+def _escape_md_v2(text: str) -> str:
+    """Экранирует спецсимволы MarkdownV2."""
+    for ch in ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']:
+        text = text.replace(ch, f'\\{ch}')
+    return text
+
+
+async def msg_profile(user_id: int, full_name: str | None, stats: dict) -> str:
+    """Шаг 2: профиль пользователя (MarkdownV2)."""
+    template = await get_template("msg_profile", fallback=_PROFILE_TEXT_FALLBACK)
+    return template.format(
+        user_id=_escape_md_v2(str(user_id)),
+        full_name=_escape_md_v2(full_name or "—"),
+        articles=_escape_md_v2(str(stats.get("articles", 0))),
+        references=_escape_md_v2(str(stats.get("references", 0))),
+        photos=_escape_md_v2(str(stats.get("photos", 0))),
+        videos=_escape_md_v2(str(stats.get("videos", 0))),
+        balance=_escape_md_v2(str(stats.get("balance", 0))),
+    )
 
 
 def msg_generation_done(

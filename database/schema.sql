@@ -362,3 +362,23 @@ DO $$ BEGIN
      'Шаг 1 — экран приветствия при /start. Переменных нет.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_profile') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_profile',
+     'Шаг 2: Профиль
+
+👤 *Профиль:*
+> • ID: `{user_id}`
+> • Имя: {full_name}
+
+📊 *Статистика:*
+> • Товаров: {articles}
+> • Эталонов: {references}
+> • Фото: {photos}
+> • Видео: {videos}
+> • Баланс: {balance}₽',
+     'Шаг 2 — экран профиля/меню. Переменные: {user_id}, {full_name}, {articles}, {references}, {photos}, {videos}, {balance}.');
+  END IF;
+END $$;
