@@ -884,6 +884,170 @@
       font-size: 12px;
       color: var(--muted);
     }
+
+    /* ── Admin: layout с sidebar ── */
+    #tab-admin.active {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 106px);
+      overflow: hidden;
+    }
+
+    .admin-topbar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .btn-sidebar-toggle {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 20px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: color .15s, background .15s;
+    }
+    .btn-sidebar-toggle:hover { color: var(--text); background: #222; }
+
+    .admin-topbar-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .admin-layout {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .admin-sidebar {
+      width: 200px;
+      flex-shrink: 0;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      padding: 12px 0;
+      transition: width .22s ease;
+    }
+    .admin-sidebar.hidden {
+      width: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .admin-nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 16px;
+      background: none;
+      border: none;
+      border-left: 2px solid transparent;
+      color: var(--muted);
+      font-size: 14px;
+      cursor: pointer;
+      text-align: left;
+      white-space: nowrap;
+      transition: color .15s, background .15s, border-color .15s;
+    }
+    .admin-nav-btn:hover  { background: #1f1f1f; color: var(--text); }
+    .admin-nav-btn.active { color: var(--accent); border-left-color: var(--accent); background: rgba(42,171,238,.06); }
+
+    .admin-main {
+      flex: 1;
+      overflow-y: auto;
+      min-width: 0;
+    }
+
+    /* ── Admin: секция пользователей ── */
+    .users-section {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .users-search { margin-bottom: 16px; }
+
+    .users-search-input {
+      width: 100%;
+      max-width: 300px;
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 8px 12px;
+      transition: border-color .15s;
+    }
+    .users-search-input:focus { outline: none; border-color: var(--accent); }
+
+    .users-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .users-table { width: 100%; border-collapse: collapse; }
+
+    .users-table th {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      font-weight: 500;
+      padding: 10px 14px;
+      text-align: left;
+      background: #1f1f1f;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .users-table td {
+      padding: 9px 14px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .users-table tr:last-child td { border-bottom: none; }
+    .users-table tbody tr:hover td { background: rgba(255,255,255,.02); }
+
+    .balance-val {
+      display: inline-block;
+      min-width: 52px;
+      padding: 3px 7px;
+      border-radius: 5px;
+      border: 1px solid transparent;
+      cursor: text;
+      font-weight: 600;
+      color: #f59e0b;
+      transition: border-color .15s, background .15s;
+    }
+    .balance-val:hover   { border-color: var(--border); background: #111; }
+    .balance-val.editing { border-color: var(--accent); background: #111; outline: none; }
+
+    .user-status {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+    .user-status.reg   { background: rgba(34,197,94,.12);   color: #22c55e; }
+    .user-status.unreg { background: rgba(100,100,100,.12); color: var(--muted); }
+
+    .user-id-cell { font-family: monospace; font-size: 12px; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -972,8 +1136,23 @@
   {% if is_admin %}
   <!-- ── Вкладка: Администратор ── -->
   <div id="tab-admin" class="tab-panel">
-    <div id="admin-content">
-      <div class="loader"><div class="spinner"></div></div>
+    <div class="admin-topbar">
+      <button class="btn-sidebar-toggle" onclick="toggleAdminSidebar()" title="Меню">☰</button>
+      <span class="admin-topbar-title" id="admin-topbar-title">Промпты</span>
+    </div>
+    <div class="admin-layout">
+      <nav class="admin-sidebar" id="admin-sidebar">
+        <button class="admin-nav-btn active" data-section="prompts" onclick="adminNav('prompts')">✏️ Промпты</button>
+        <button class="admin-nav-btn"        data-section="users"   onclick="adminNav('users')">👥 Пользователи</button>
+      </nav>
+      <div class="admin-main">
+        <div id="admin-section-prompts">
+          <div class="loader"><div class="spinner"></div></div>
+        </div>
+        <div id="admin-section-users" style="display:none">
+          <div class="loader"><div class="spinner"></div></div>
+        </div>
+      </div>
     </div>
   </div>
   {% endif %}
@@ -1437,6 +1616,26 @@ function saveField(el) {
 {% if is_admin %}
 
 let _keysWithValue2 = new Set();
+let _usersLoaded    = false;
+
+function toggleAdminSidebar() {
+  document.getElementById('admin-sidebar').classList.toggle('hidden');
+}
+
+const _adminSectionTitles = { prompts: 'Промпты', users: 'Пользователи' };
+
+function adminNav(section) {
+  document.querySelectorAll('.admin-nav-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.section === section));
+  document.getElementById('admin-section-prompts').style.display = section === 'prompts' ? '' : 'none';
+  document.getElementById('admin-section-users').style.display   = section === 'users'   ? '' : 'none';
+  document.getElementById('admin-topbar-title').textContent = _adminSectionTitles[section] || '';
+
+  if (section === 'users' && !_usersLoaded) {
+    _usersLoaded = true;
+    loadUsers();
+  }
+}
 
 function loadAdmin() {
   fetch('/api/admin/prompts')
@@ -1446,13 +1645,13 @@ function loadAdmin() {
       renderAdmin(data);
     })
     .catch(() => {
-      document.getElementById('admin-content').innerHTML =
+      document.getElementById('admin-section-prompts').innerHTML =
         '<div class="empty"><h3>Ошибка загрузки</h3><p>Попробуйте обновить страницу.</p></div>';
     });
 }
 
 function renderAdmin(data) {
-  const container = document.getElementById('admin-content');
+  const container = document.getElementById('admin-section-prompts');
 
   const tplHTML = data.templates.map(tplCardHTML).join('');
 
@@ -1657,6 +1856,117 @@ function adminInvalidate() {
       st.textContent = 'Ошибка';
       st.style.color = '#ef4444';
     });
+}
+
+// ── Пользователи ─────────────────────────────────────────────────────────────
+
+function loadUsers() {
+  fetch('/api/admin/users')
+    .then(r => r.json())
+    .then(data => renderUsers(data.users))
+    .catch(() => {
+      document.getElementById('admin-section-users').innerHTML =
+        '<div class="empty"><h3>Ошибка загрузки</h3><p>Попробуйте обновить страницу.</p></div>';
+    });
+}
+
+function renderUsers(users) {
+  const container = document.getElementById('admin-section-users');
+
+  if (!users || users.length === 0) {
+    container.innerHTML = '<div class="empty"><h3>Пользователи не найдены</h3></div>';
+    return;
+  }
+
+  const rows = users.map(u => {
+    const dateStr = u.created_at
+      ? new Date(u.created_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : '—';
+    const statusClass = u.is_registered ? 'reg' : 'unreg';
+    const statusLabel = u.is_registered ? 'активен' : 'не зарег.';
+    const username    = u.username ? '@' + escHtml(u.username) : '—';
+
+    return `
+      <tr id="urow-${u.user_id}">
+        <td>${username}</td>
+        <td class="user-id-cell">${u.user_id}</td>
+        <td>
+          <span
+            class="balance-val"
+            contenteditable="true"
+            spellcheck="false"
+            data-user-id="${u.user_id}"
+            data-original="${u.balance}"
+            onkeydown="onBalanceKeydown(event, this)"
+            onblur="saveBalance(this)"
+            onfocus="this.classList.add('editing'); this.dataset.original=this.textContent.trim()"
+          >${u.balance}</span>
+        </td>
+        <td><span class="user-status ${statusClass}">${statusLabel}</span></td>
+        <td style="color:var(--muted)">${dateStr}</td>
+      </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="users-section">
+      <div class="users-search">
+        <input
+          class="users-search-input"
+          type="text"
+          placeholder="Поиск по нику или ID..."
+          oninput="filterUsers(this.value)"
+        >
+      </div>
+      <div class="users-table-wrap">
+        <table class="users-table">
+          <thead><tr>
+            <th>Пользователь</th>
+            <th>Telegram ID</th>
+            <th>Баланс</th>
+            <th>Статус</th>
+            <th>Дата регистрации</th>
+          </tr></thead>
+          <tbody id="users-tbody">${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function filterUsers(query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll('#users-tbody tr').forEach(row => {
+    row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function onBalanceKeydown(e, el) {
+  if (e.key === 'Enter')  { e.preventDefault(); el.blur(); return; }
+  if (e.key === 'Escape') { el.textContent = el.dataset.original || '0'; el.blur(); return; }
+  // Разрешаем только цифры, минус и навигационные клавиши
+  if (!/[\d\-]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'].includes(e.key)) {
+    e.preventDefault();
+  }
+}
+
+function saveBalance(el) {
+  el.classList.remove('editing');
+  const userId   = el.dataset.userId;
+  const newVal   = el.textContent.trim();
+  const original = el.dataset.original || '0';
+
+  if (newVal === original) return;
+
+  const balance = parseInt(newVal, 10);
+  if (isNaN(balance)) { el.textContent = original; return; }
+
+  fetch(`/api/admin/users/${userId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ balance }),
+  })
+  .then(r => { if (!r.ok) throw new Error(); })
+  .then(() => { el.dataset.original = String(balance); el.textContent = String(balance); })
+  .catch(() => { el.textContent = original; alert('Ошибка сохранения баланса.'); });
 }
 
 {% endif %}

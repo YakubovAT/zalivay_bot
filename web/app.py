@@ -641,6 +641,63 @@ async def admin_invalidate_prompts(session: str | None = Cookie(default=None)):
 
 
 # ---------------------------------------------------------------------------
+# Роуты — admin (пользователи)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/admin/users")
+async def admin_get_users(session: str | None = Cookie(default=None)):
+    """Возвращает список пользователей с балансами."""
+    _require_admin(session)
+
+    rows = await _db_pool.fetch(
+        """
+        SELECT user_id, username, balance, is_registered, created_at
+        FROM users
+        ORDER BY created_at DESC
+        """
+    )
+    return {
+        "users": [
+            {
+                "user_id":       r["user_id"],
+                "username":      r["username"] or "",
+                "balance":       r["balance"],
+                "is_registered": r["is_registered"],
+                "created_at":    r["created_at"].isoformat() if r["created_at"] else None,
+            }
+            for r in rows
+        ]
+    }
+
+
+@app.patch("/api/admin/users/{target_user_id}")
+async def admin_update_user(
+    target_user_id: int,
+    request: Request,
+    session: str | None = Cookie(default=None),
+):
+    """Обновляет баланс пользователя."""
+    _require_admin(session)
+    body = await request.json()
+
+    if "balance" not in body:
+        raise HTTPException(status_code=400, detail="balance is required")
+
+    try:
+        balance = int(body["balance"])
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="balance must be an integer")
+
+    result = await _db_pool.execute(
+        "UPDATE users SET balance = $1 WHERE user_id = $2",
+        balance, target_user_id,
+    )
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
 # Раздача файлов
 # ---------------------------------------------------------------------------
 
