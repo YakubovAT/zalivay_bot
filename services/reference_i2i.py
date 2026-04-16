@@ -1,7 +1,7 @@
 """
 services/reference_i2i.py
 
-Генерация изображения через Image-to-Image API (Kie.ai).
+Создание изображения через Image-to-Image API (Kie.ai).
 
 Flow:
   1. POST /api/v1/jobs/createTask  — создание задачи → taskId
@@ -22,7 +22,7 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
-# I2I модель для генерации эталона / lifestyle-фото
+# I2I модель для создания эталона / lifestyle-фото
 I2I_MODEL = "gpt-image/1.5-image-to-image"
 
 # Максимальное количество попыток polling и интервал
@@ -45,7 +45,7 @@ async def create_i2i_task(
     quality: str = "medium",
 ) -> str | None:
     """
-    Создаёт задачу генерации изображения.
+    Создаёт задачу создания изображения.
     Возвращает taskId или None при ошибке.
 
     Поле изображений в теле запроса — 'image_urls' (не 'input_urls').
@@ -106,7 +106,7 @@ async def poll_task_status(
     Polling статуса задачи через GET /api/v1/jobs/recordInfo?taskId=...
 
     Kie.ai возвращает:
-      - code 249 → задача ещё в очереди / генерируется, продолжаем ждать
+      - code 249 → задача ещё в очереди / создается, продолжаем ждать
       - code 200 + data.state == "success" → готово
       - code 200 + data.state == "fail"    → ошибка
 

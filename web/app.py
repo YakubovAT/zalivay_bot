@@ -768,7 +768,7 @@ async def admin_update_user(
 
 @app.get("/thumb/{path:path}")
 async def serve_thumb(path: str, session: str | None = Cookie(default=None)):
-    """Отдаёт превью 400×400. Генерирует и кэширует рядом с оригиналом."""
+    """Отдаёт превью 400×400. Создает и кэширует рядом с оригиналом."""
     user = _get_current_user(session)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")

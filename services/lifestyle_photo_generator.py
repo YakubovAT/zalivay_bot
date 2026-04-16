@@ -1,7 +1,7 @@
 """
 services/lifestyle_photo_generator.py
 
-Генерация lifestyle-фото для товаров на основе эталона.
+Создание lifestyle-фото для товаров на основе эталона.
 
 Отличия от reference_i2i:
   - Использует тот же Kie.ai I2I API
@@ -20,7 +20,7 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
-# I2I модель для генерации lifestyle-фото
+# I2I модель для создания lifestyle-фото
 LIFESTYLE_I2I_MODEL = "gpt-image/1.5-image-to-image"
 
 # Параметры для lifestyle-фото
@@ -46,7 +46,7 @@ async def _create_task(
     aspect_ratio: str = LIFESTYLE_ASPECT_RATIO,
     quality: str = LIFESTYLE_QUALITY,
 ) -> str | None:
-    """Создаёт задачу генерации lifestyle-фото."""
+    """Создаёт задачу создания lifestyle-фото."""
     payload = {
         "model": LIFESTYLE_I2I_MODEL,
         "input": {
@@ -160,7 +160,7 @@ async def generate_lifestyle_photo(
     prompt: str,
 ) -> str | None:
     """
-    Полный цикл генерации lifestyle-фото.
+    Полный цикл создания lifestyle-фото.
 
     Args:
         session: aiohttp.ClientSession
@@ -170,7 +170,7 @@ async def generate_lifestyle_photo(
         prompt: промпт на английском
 
     Returns:
-        URL сгенерированного фото или None
+        URL созданного фото или None
     """
     logger.info(
         "LIFESTYLE_PHOTO GENERATE | ref=%s | prompt_len=%d",

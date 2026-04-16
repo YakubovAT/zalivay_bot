@@ -27,8 +27,8 @@ def kb_main_menu() -> InlineKeyboardMarkup:
             InlineKeyboardButton("➕ Новый эталон", callback_data="menu_new_article"),
         ],
         [
-            InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
-            InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
+            InlineKeyboardButton("📸 Создать фото", callback_data="menu_gen_photo"),
+            InlineKeyboardButton("🎥 Создать видео", callback_data="menu_gen_video"),
         ],
         [
             InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
@@ -141,7 +141,7 @@ def kb_photo_select(selected: list, current_idx: int, total: int, done: bool = F
 # ---------------------------------------------------------------------------
 
 def kb_ref_card(article: str, idx: int, total: int) -> InlineKeyboardMarkup:
-    """Клавиатура карточки эталона с кнопкой перегенерации."""
+    """Клавиатура карточки эталона с кнопкой пересоздания."""
     buttons = []
     if total > 1:
         nav_row = []
@@ -151,10 +151,10 @@ def kb_ref_card(article: str, idx: int, total: int) -> InlineKeyboardMarkup:
         if idx < total - 1:
             nav_row.append(InlineKeyboardButton("След. →", callback_data=f"ref_next_{article}"))
         buttons.append(nav_row)
-    buttons.append([InlineKeyboardButton("🔄 Перегенерировать", callback_data=f"ref_regen_{article}")])
+    buttons.append([InlineKeyboardButton("🔄 Пересоздавать", callback_data=f"ref_regen_{article}")])
     buttons.append([
-        InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
-        InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
+        InlineKeyboardButton("📸 Создать фото", callback_data="menu_gen_photo"),
+        InlineKeyboardButton("🎥 Создать видео", callback_data="menu_gen_video"),
     ])
     buttons.append([
         InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
@@ -164,11 +164,11 @@ def kb_ref_card(article: str, idx: int, total: int) -> InlineKeyboardMarkup:
 
 
 # ---------------------------------------------------------------------------
-# Шаг 16а: Перегенерация — ввод пожеланий и результат
+# Шаг 16а: Пересоздание — ввод пожеланий и результат
 # ---------------------------------------------------------------------------
 
 def kb_regen_wish() -> InlineKeyboardMarkup:
-    """Клавиатура экрана ввода пожеланий перед перегенерацией."""
+    """Клавиатура экрана ввода пожеланий перед созданием."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("Пропустить", callback_data="regen_skip")],
         [
@@ -179,11 +179,11 @@ def kb_regen_wish() -> InlineKeyboardMarkup:
 
 
 def kb_regen_result() -> InlineKeyboardMarkup:
-    """Клавиатура после успешной перегенерации."""
+    """Клавиатура после успешной пересоздания."""
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
-            InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
+            InlineKeyboardButton("📸 Создать фото", callback_data="menu_gen_photo"),
+            InlineKeyboardButton("🎥 Создать видео", callback_data="menu_gen_video"),
         ],
         [
             InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
@@ -205,7 +205,7 @@ def kb_my_refs_empty() -> InlineKeyboardMarkup:
 
 
 # ---------------------------------------------------------------------------
-# Flow: Генерация фото — Шаг P1 (сколько фото?)
+# Flow: Создание фото — Шаг P1 (сколько фото?)
 # ---------------------------------------------------------------------------
 
 def kb_gen_photo_count() -> InlineKeyboardMarkup:
@@ -223,7 +223,7 @@ def kb_gen_photo_count() -> InlineKeyboardMarkup:
 
 
 # ---------------------------------------------------------------------------
-# Flow: Генерация фото — Шаг P2 (пожелания)
+# Flow: Создание фото — Шаг P2 (пожелания)
 # ---------------------------------------------------------------------------
 
 def kb_gen_photo_wish() -> InlineKeyboardMarkup:
@@ -237,12 +237,12 @@ def kb_gen_photo_wish() -> InlineKeyboardMarkup:
 
 
 # ---------------------------------------------------------------------------
-# Flow: Генерация фото — Шаг P3 (подтверждение)
+# Flow: Создание фото — Шаг P3 (подтверждение)
 # ---------------------------------------------------------------------------
 
 def kb_gen_photo_confirm() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Сгенерировать", callback_data="gen_photo_yes")],
+        [InlineKeyboardButton("✅ Ссоздавать", callback_data="gen_photo_yes")],
         [
             InlineKeyboardButton("← Назад", callback_data="back_to_p_wish"),
             InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
@@ -251,13 +251,13 @@ def kb_gen_photo_confirm() -> InlineKeyboardMarkup:
 
 
 # ---------------------------------------------------------------------------
-# Flow: Генерация фото — Результат
+# Flow: Создание фото — Результат
 # ---------------------------------------------------------------------------
 
 def kb_gen_photo_result() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📸 Генерировать ещё", callback_data="menu_gen_photo"),
+            InlineKeyboardButton("📸 Создать ещё", callback_data="menu_gen_photo"),
             InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
         ],
         [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
@@ -266,7 +266,7 @@ def kb_gen_photo_result() -> InlineKeyboardMarkup:
 
 
 # ---------------------------------------------------------------------------
-# Flow: Генерация видео — Шаг V1 (сколько видео?)
+# Flow: Создание видео — Шаг V1 (сколько видео?)
 # ---------------------------------------------------------------------------
 
 def kb_gen_video_count() -> InlineKeyboardMarkup:
@@ -284,7 +284,7 @@ def kb_gen_video_count() -> InlineKeyboardMarkup:
 
 
 # ---------------------------------------------------------------------------
-# Flow: Генерация видео — Шаг V2 (пожелания)
+# Flow: Создание видео — Шаг V2 (пожелания)
 # ---------------------------------------------------------------------------
 
 def kb_gen_video_wish() -> InlineKeyboardMarkup:
@@ -298,12 +298,12 @@ def kb_gen_video_wish() -> InlineKeyboardMarkup:
 
 
 # ---------------------------------------------------------------------------
-# Flow: Генерация видео — Шаг V3 (подтверждение)
+# Flow: Создание видео — Шаг V3 (подтверждение)
 # ---------------------------------------------------------------------------
 
 def kb_gen_video_confirm() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Сгенерировать", callback_data="gen_video_yes")],
+        [InlineKeyboardButton("✅ Ссоздавать", callback_data="gen_video_yes")],
         [
             InlineKeyboardButton("← Назад", callback_data="back_to_v_wish"),
             InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
@@ -312,13 +312,13 @@ def kb_gen_video_confirm() -> InlineKeyboardMarkup:
 
 
 # ---------------------------------------------------------------------------
-# Flow: Генерация видео — Результат
+# Flow: Создание видео — Результат
 # ---------------------------------------------------------------------------
 
 def kb_gen_video_result() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🎥 Генерировать ещё", callback_data="menu_gen_video"),
+            InlineKeyboardButton("🎥 Создать ещё", callback_data="menu_gen_video"),
             InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
         ],
         [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],

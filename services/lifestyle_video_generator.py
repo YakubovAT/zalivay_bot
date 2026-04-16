@@ -1,7 +1,7 @@
 """
 services/lifestyle_video_generator.py
 
-Генерация lifestyle-видео для товаров на основе эталона.
+Создание lifestyle-видео для товаров на основе эталона.
 
 Использует Kie.ai sora-2-image-to-video API.
 Полный цикл: create → poll → URL видео.
@@ -27,7 +27,7 @@ LIFESTYLE_VIDEO_N_FRAMES = "10"             # 10 | 15
 LIFESTYLE_VIDEO_REMOVE_WATERMARK = True
 LIFESTYLE_VIDEO_UPLOAD_METHOD = "s3"        # s3 | oss
 
-# Polling (видео генерируется дольше фото)
+# Polling (видео создается дольше фото)
 MAX_POLL_ATTEMPTS = 120
 POLL_INTERVAL = 5  # секунды
 
@@ -43,7 +43,7 @@ async def _create_video_task(
     image_url: str,
     prompt: str,
 ) -> str | None:
-    """Создаёт задачу генерации lifestyle-видео через sora-2-image-to-video."""
+    """Создаёт задачу создания lifestyle-видео через sora-2-image-to-video."""
     payload = {
         "model": LIFESTYLE_VIDEO_MODEL,
         "input": {
@@ -155,7 +155,7 @@ async def generate_lifestyle_video(
     prompt: str,
 ) -> str | None:
     """
-    Полный цикл генерации lifestyle-видео через sora-2-image-to-video.
+    Полный цикл создания lifestyle-видео через sora-2-image-to-video.
 
     Args:
         session: aiohttp.ClientSession
@@ -165,7 +165,7 @@ async def generate_lifestyle_video(
         prompt: промпт на английском (max 10000 символов)
 
     Returns:
-        URL сгенерированного видео или None
+        URL созданного видео или None
     """
     logger.info(
         "LIFESTYLE_VIDEO GENERATE | ref=%s | prompt_len=%d",

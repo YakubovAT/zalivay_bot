@@ -91,7 +91,7 @@ async def get_user_stats(user_id: int) -> dict:
         """,
         user_id,
     )
-    video_count = 0  # TODO: видео генерация не реализована
+    video_count = 0  # TODO: видео создание не реализована
 
     row = await pool.fetchrow(
         "SELECT balance FROM users WHERE user_id = $1",
@@ -197,7 +197,7 @@ async def save_article(
 ) -> int:
     """Сохраняет артикул в БД, возвращает id записи.
 
-    wb_images: список URL фото товара с WB (для I2I генерации)
+    wb_images: список URL фото товара с WB (для I2I создания)
     """
     import json
     pool = await get_pool()
@@ -236,13 +236,13 @@ async def save_reference(
 
     reference_image_url: публичный URL эталона для I2I API
     category: классификация товара (верх/низ/обувь/головной убор)
-    reference_prompt: промпт на английском для I2I генерации
-    product_description: краткое описание товара на английском (для генерации фото/видео)
+    reference_prompt: промпт на английском для I2I создания
+    product_description: краткое описание товара на английском (для создания фото/видео)
     reference_number: порядковый номер эталона для артикула
     product_name: название товара
     product_color: цвет товара
     product_material: материал товара
-    source_photo_paths: JSON-массив путей к 3 исходным фото (для перегенерации)
+    source_photo_paths: JSON-массив путей к 3 исходным фото (для пересоздания)
     """
     pool = await get_pool()
     row = await pool.fetchrow(
@@ -364,7 +364,7 @@ async def save_marketplace_cache(user_id: int, article: str, marketplace: str) -
 
 
 # ---------------------------------------------------------------------------
-# Очередь задач генерации (фото / видео)
+# Очередь задач создания (фото / видео)
 # ---------------------------------------------------------------------------
 
 async def create_task(
@@ -374,7 +374,7 @@ async def create_task(
     articul: str,
     prompt: str,
 ) -> int:
-    """Создаёт задачу генерации. Возвращает id записи."""
+    """Создаёт задачу создания. Возвращает id записи."""
     pool = await get_pool()
     row = await pool.fetchrow(
         """
@@ -463,7 +463,7 @@ async def create_generation_job(
     cost: int,
     screen_msg_id: int | None = None,
 ) -> int:
-    """Создаёт группу генерации. Возвращает job_id."""
+    """Создаёт группу создания. Возвращает job_id."""
     pool = await get_pool()
     row = await pool.fetchrow(
         """
@@ -627,7 +627,7 @@ async def fail_stuck_jobs(minutes: int = 15) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Video job — группы задач генерации видео (lifestyle_video)
+# Video job — группы задач создания видео (lifestyle_video)
 # ---------------------------------------------------------------------------
 
 async def create_video_job_task(

@@ -1,7 +1,7 @@
 """
 services/prompt_generator_cloth.py
 
-Генератор lifestyle-промптов для I2I (фото) на основе категории товара.
+Создатель lifestyle-промптов для I2I (фото) на основе категории товара.
 
 Данные (шаблоны, локации, одежда, цвета) хранятся в БД и читаются
 через services.prompt_store с TTL-кэшем 60 сек.
@@ -22,7 +22,7 @@ async def generate_photo_prompts(
     count: int,
 ) -> list[str]:
     """
-    Генерирует список из `count` уникальных lifestyle-промптов для I2I.
+    Создает список из `count` уникальных lifestyle-промптов для I2I.
 
     Args:
         description: EN-описание товара из article_references.product_description

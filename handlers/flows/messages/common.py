@@ -32,7 +32,7 @@ _PROFILE_TEXT_FALLBACK = (
 
 _GENERATION_DONE_FALLBACK = (
     "📸 <b>{total} из {total}</b> фото готовы для <code>{article}</code>\n"
-    "Тут представлен один из вариантов, все ваши генерации хранятся здесь:\n"
+    "Тут представлен один из вариантов, все ваши создания хранятся здесь:\n"
     "🖼 {web_viewer_url}\n\n"
     "📦 Эталон: #{ref_number}\n"
     "💰 Списано: {actual_cost}₽\n"
@@ -44,7 +44,7 @@ _GENERATION_DONE_FALLBACK = (
 _GENERATION_DONE_FAILED_LINE_FALLBACK = "⚠️ Не удалось: {failed} из {requested}"
 
 _GENERATION_FAILED_FALLBACK = (
-    "❌ Не удалось сгенерировать фото.\n\n"
+    "❌ Не удалось создать фото.\n\n"
     "С вашего баланса ничего не списано.\n\n"
     "🆔 Задание #{job_id}\n\n"
     "При обращении в поддержку укажите номер задания."
@@ -52,7 +52,7 @@ _GENERATION_FAILED_FALLBACK = (
 
 _VIDEO_GENERATION_DONE_FALLBACK = (
     "🎥 <b>{total} из {total}</b> видео готовы для <code>{article}</code>\n"
-    "Тут представлен один из вариантов, все ваши генерации хранятся здесь:\n"
+    "Тут представлен один из вариантов, все ваши создания хранятся здесь:\n"
     "🖼 {web_viewer_url}\n\n"
     "📦 Эталон: #{ref_number}\n"
     "💰 Списано: {actual_cost}₽\n"
@@ -64,7 +64,7 @@ _VIDEO_GENERATION_DONE_FALLBACK = (
 _VIDEO_GENERATION_DONE_FAILED_LINE_FALLBACK = "⚠️ Не удалось: {failed} из {requested}"
 
 _VIDEO_GENERATION_FAILED_FALLBACK = (
-    "❌ Не удалось сгенерировать видео.\n\n"
+    "❌ Не удалось создать видео.\n\n"
     "С вашего баланса ничего не списано.\n\n"
     "🆔 Задание #{job_id}\n\n"
     "При обращении в поддержку укажите номер задания."
@@ -116,7 +116,7 @@ async def msg_generation_done(
     job_id: int,
     failed: int = 0,
 ) -> str:
-    """Результат генерации фото — 1 фото из N."""
+    """Результат создания фото — 1 фото из N."""
     template = await get_template("msg_generation_done", fallback=_GENERATION_DONE_FALLBACK)
     lines = [template.format(
         article=article,
@@ -138,7 +138,7 @@ async def msg_generation_done(
 
 
 async def msg_generation_failed(job_id: int) -> str:
-    """Ошибка генерации — ни одного фото не вышло."""
+    """Ошибка создания — ни одного фото не вышло."""
     template = await get_template("msg_generation_failed", fallback=_GENERATION_FAILED_FALLBACK)
     return template.format(job_id=job_id)
 
@@ -153,7 +153,7 @@ async def msg_video_generation_done(
     job_id: int,
     failed: int = 0,
 ) -> str:
-    """Результат генерации видео."""
+    """Результат создания видео."""
     template = await get_template("msg_video_generation_done", fallback=_VIDEO_GENERATION_DONE_FALLBACK)
     lines = [template.format(
         article=article,
@@ -175,7 +175,7 @@ async def msg_video_generation_done(
 
 
 async def msg_video_generation_failed(job_id: int) -> str:
-    """Ошибка генерации видео — ни одного не вышло."""
+    """Ошибка создания видео — ни одного не вышло."""
     template = await get_template("msg_video_generation_failed", fallback=_VIDEO_GENERATION_FAILED_FALLBACK)
     return template.format(job_id=job_id)
 

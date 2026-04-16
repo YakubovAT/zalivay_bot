@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS articles (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_user_article
     ON articles (user_id, article_code, marketplace);
 
--- Очередь задач генерации фото и видео
+-- Очередь задач создания фото и видео
 CREATE TABLE IF NOT EXISTS generation_tasks (
     id          SERIAL PRIMARY KEY,
     user_id     BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -77,7 +77,7 @@ CREATE INDEX IF NOT EXISTS idx_generation_tasks_status
 CREATE INDEX IF NOT EXISTS idx_generation_tasks_user
     ON generation_tasks (user_id, created_at DESC);
 
--- Группа задач генерации (один запрос пользователя = N фото)
+-- Группа задач создания (один запрос пользователя = N фото)
 CREATE TABLE IF NOT EXISTS generation_jobs (
     id              SERIAL PRIMARY KEY,
     user_id         BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -360,7 +360,7 @@ DO $$ BEGIN
     ('msg_welcome',
      'Шаг 1: Приветствие
 
-Система массовой автоматизированной генерации профессионального
+Система массовой автоматизированной создания профессионального
 фото и видео контента для товаров с последующим размещением в социальных сетях.
 
 Возможно создавать фото и видео в различных форматах
@@ -395,7 +395,7 @@ DO $$ BEGIN
     ('msg_marketplace_select',
      'Шаг 3 из N: Выбор маркетплейса
 
-Выберите маркетплейс, на котором продаётся ваш товар. После мы с вами создадим фото и видео контент для последующего размещения в социальных сетях. Вам нужно будет ввести артикул товара, и мы создадим эталон вашего товара для генерации фото и видео контента.',
+Выберите маркетплейс, на котором продаётся ваш товар. После мы с вами создадим фото и видео контент для последующего размещения в социальных сетях. Вам нужно будет ввести артикул товара, и мы создадим эталон вашего товара для создания фото и видео контента.',
      'Шаг 3 — экран выбора маркетплейса. Переменных нет.');
   END IF;
 END $$;
@@ -408,7 +408,7 @@ DO $$ BEGIN
 
 В строку сообщений введите артикул.
 
-Мы загрузим фото из карточки. Выберите 3 лучших — где ваш товар виден наиболее чётко и детально. Это станет основой для генерации фото и видео контента.',
+Мы загрузим фото из карточки. Выберите 3 лучших — где ваш товар виден наиболее чётко и детально. Это станет основой для создания фото и видео контента.',
      'Шаг 4 — экран ввода артикула. Переменных нет.');
   END IF;
 END $$;
@@ -448,7 +448,7 @@ DO $$ BEGIN
 
 Вы выбрали 3 фото для артикула <code>{article}</code>.
 
-Убедитесь, что на этих фото товар виден лучше всего — по ним будет создан эталон для генерации контента.',
+Убедитесь, что на этих фото товар виден лучше всего — по ним будет создан эталон для создания контента.',
      'Шаг 7 — подтверждение создания эталона после выбора 3 фото. Переменные: {article}.');
   END IF;
 END $$;
@@ -459,7 +459,7 @@ DO $$ BEGIN
     ('msg_reference_creating',
      '⏳ Создаю эталон для артикула <code>{article}</code>...
 
-<a href="https://zaliv.ai/">Zaliv.AI</a> — сервис массовой автоматизированной генерации профессионального фото и видео контента для товаров с последующим размещением в социальных сетях.
+<a href="https://zaliv.ai/">Zaliv.AI</a> — сервис массовой автоматизированной создания профессионального фото и видео контента для товаров с последующим размещением в социальных сетях.
 
 Это займёт 1-3 минуты...',
      'Шаг 8 — экран начала создания эталона. Переменные: {article}.');
@@ -470,13 +470,13 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_reference_generating_photo') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_reference_generating_photo',
-     '⏳ Генерирую фото эталона...
+     '⏳ Создаю фото эталона...
 Тип товара: {category}
 
-Созданный эталон позволит вам массово генерировать фото и видео для любых площадок: Telegram, VK, Instagram, YouTube и других социальных сетей.
+Созданный эталон позволит вам массово создавать фото и видео для любых площадок: Telegram, VK, Instagram, YouTube и других социальных сетей.
 
 Осталось немного...',
-     'Шаг 10 — экран генерации фото эталона. Переменные: {category}.');
+     'Шаг 10 — экран создания фото эталона. Переменные: {category}.');
   END IF;
 END $$;
 
@@ -494,10 +494,10 @@ DO $$ BEGIN
 💳 Ваш баланс: {new_balance}₽
 
 Эталон может немного отличаться от оригинала.
-Если отличия значительные — перегенерируйте эталон,
+Если отличия значительные — пересоздайте эталон,
 заменив фотографии на шаге выбора фото.
 
-Теперь вы можете генерировать фото и видео!',
+Теперь вы можете создавать фото и видео!',
      'Шаг 11 — экран готового эталона. Переменные: {article}, {reference_number}, {category}, {reference_cost}, {new_balance}.');
   END IF;
 END $$;
@@ -510,7 +510,7 @@ DO $$ BEGIN
 
 У вас пока нет товаров с эталонами.
 
-Создайте первый эталон, чтобы генерировать фото и видео для ваших товаров.',
+Создайте первый эталон, чтобы создавать фото и видео для ваших товаров.',
      'Шаг 15 — список эталонов пуст. Переменных нет.');
   END IF;
 END $$;
@@ -538,9 +538,9 @@ DO $$ BEGIN
     ('msg_gen_photo_count',
      '📸 Шаг P1: Сколько фото?
 
-Сколько фото сгенерировать на основе этого эталона?
+Сколько фото создать на основе этого эталона?
 
-Вы можете сгенерировать одно или множество изображений.
+Вы можете создать одно или множество изображений.
 Каждое фото будет уникальным — разная локация, освещение, ракурс.
 
 📦 Артикул: <code>{article}</code>
@@ -550,7 +550,7 @@ DO $$ BEGIN
 💰 Стоимость: {photo_cost}₽ за фото
 
 Введите число:',
-     'Шаг P1 — ввод количества фото для генерации. Переменные: {article}, {ref_number}, {category}, {photo_cost}.');
+     'Шаг P1 — ввод количества фото для создания. Переменные: {article}, {ref_number}, {category}, {photo_cost}.');
   END IF;
 END $$;
 
@@ -560,7 +560,7 @@ DO $$ BEGIN
     ('msg_gen_video_count',
      '🎥 Шаг V1: Сколько видео?
 
-Сколько видео сгенерировать на основе этого эталона?
+Сколько видео создать на основе этого эталона?
 
 Каждое видео будет уникальным — разная локация, освещение, движение модели.
 
@@ -571,7 +571,7 @@ DO $$ BEGIN
 💰 Стоимость: {video_cost}₽ за видео
 
 Введите число (1–5) или выберите:',
-     'Шаг V1 — ввод количества видео для генерации. Переменные: {article}, {ref_number}, {category}, {video_cost}.');
+     'Шаг V1 — ввод количества видео для создания. Переменные: {article}, {ref_number}, {category}, {video_cost}.');
   END IF;
 END $$;
 
@@ -584,13 +584,13 @@ DO $$ BEGIN
 📦 Артикул: <code>{article}</code>
 📸 Эталон: #{ref_number}
 
-Будет сгенерировано: {count} фото
+Будет создано: {count} фото
 💰 Стоимость: {total_cost}₽
 
-Есть пожелания к генерации?
+Есть пожелания к создания?
 
 Например: «хочу фото на фоне моря», «сделай в студии».',
-     'Шаг P2 — пожелания к генерации фото. Переменные: {article}, {ref_number}, {count}, {total_cost}.');
+     'Шаг P2 — пожелания к создания фото. Переменные: {article}, {ref_number}, {count}, {total_cost}.');
   END IF;
 END $$;
 
@@ -600,14 +600,14 @@ DO $$ BEGIN
     ('msg_gen_photo_confirm',
      '📸 Шаг P3: Подтверждение
 
-Готов генерировать {count} фото на основе изображения представленного выше.
+Готов создавать {count} фото на основе изображения представленного выше.
 
 📦 Артикул: <code>{article}</code>
 {wish_block}💰 Стоимость: {total_cost}₽
 💳 Ваш баланс: {balance}₽
 
-Если всё устраивает, нажмите ✅ Сгенерировать и процесс запустится.',
-     'Шаг P3 — подтверждение генерации фото. Переменные: {article}, {count}, {wish_block}, {total_cost}, {balance}.');
+Если всё устраивает, нажмите ✅ Ссоздавать и процесс запустится.',
+     'Шаг P3 — подтверждение создания фото. Переменные: {article}, {count}, {wish_block}, {total_cost}, {balance}.');
   END IF;
 END $$;
 
@@ -615,13 +615,13 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_photo_generating') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_gen_photo_generating',
-     '📸 Шаг P4: Генерация
+     '📸 Шаг P4: Создание
 
 ⏳ Поставил в очередь {count} фото для артикула <code>{article}</code>.
 
-Фото генерируются параллельно.
+Фото создаются параллельно.
 Я пришлю результат когда все будут готовы.',
-     'Шаг P4 — постановка генерации фото в очередь. Переменные: {article}, {count}.');
+     'Шаг P4 — постановка создания фото в очередь. Переменные: {article}, {count}.');
   END IF;
 END $$;
 
@@ -634,13 +634,13 @@ DO $$ BEGIN
 📦 Артикул: <code>{article}</code>
 📸 Эталон: #{ref_number}
 
-Будет сгенерировано: {count} видео
+Будет создано: {count} видео
 💰 Стоимость: {total_cost}₽
 
-Есть пожелания к генерации?
+Есть пожелания к создания?
 
 Например: «модель идёт по пляжу», «съёмка в студии».',
-     'Шаг V2 — пожелания к генерации видео. Переменные: {article}, {ref_number}, {count}, {total_cost}.');
+     'Шаг V2 — пожелания к создания видео. Переменные: {article}, {ref_number}, {count}, {total_cost}.');
   END IF;
 END $$;
 
@@ -650,14 +650,14 @@ DO $$ BEGIN
     ('msg_gen_video_confirm',
      '🎥 Шаг V3: Подтверждение
 
-Готов генерировать {count} видео на основе изображения выше.
+Готов создавать {count} видео на основе изображения выше.
 
 📦 Артикул: <code>{article}</code>
 {wish_block}💰 Стоимость: {total_cost}₽
 💳 Ваш баланс: {balance}₽
 
-Если всё устраивает, нажмите ✅ Сгенерировать.',
-     'Шаг V3 — подтверждение генерации видео. Переменные: {article}, {count}, {wish_block}, {total_cost}, {balance}.');
+Если всё устраивает, нажмите ✅ Ссоздавать.',
+     'Шаг V3 — подтверждение создания видео. Переменные: {article}, {count}, {wish_block}, {total_cost}, {balance}.');
   END IF;
 END $$;
 
@@ -665,13 +665,13 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_video_generating') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_gen_video_generating',
-     '🎥 Шаг V4: Генерация
+     '🎥 Шаг V4: Создание
 
 ⏳ Поставил в очередь {count} видео для артикула <code>{article}</code>.
 
-Видео генерируются параллельно. Это занимает несколько минут.
+Видео создаются параллельно. Это занимает несколько минут.
 Я пришлю результат когда всё будет готово.',
-     'Шаг V4 — постановка генерации видео в очередь. Переменные: {article}, {count}.');
+     'Шаг V4 — постановка создания видео в очередь. Переменные: {article}, {count}.');
   END IF;
 END $$;
 
@@ -680,7 +680,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_generation_done',
      '📸 <b>{total} из {total}</b> фото готовы для <code>{article}</code>
-Тут представлен один из вариантов, все ваши генерации хранятся здесь:
+Тут представлен один из вариантов, все ваши создания хранятся здесь:
 🖼 {web_viewer_url}
 
 📦 Эталон: #{ref_number}
@@ -688,7 +688,7 @@ DO $$ BEGIN
 💳 Остаток: {new_balance}₽
 ⏱ Время: {elapsed_str}
 🆔 Задание #{job_id}',
-     'Результат генерации фото. Переменные: {total}, {article}, {web_viewer_url}, {ref_number}, {actual_cost}, {new_balance}, {elapsed_str}, {job_id}.');
+     'Результат создания фото. Переменные: {total}, {article}, {web_viewer_url}, {ref_number}, {actual_cost}, {new_balance}, {elapsed_str}, {job_id}.');
   END IF;
 END $$;
 
@@ -697,7 +697,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_generation_done_failed_line',
      '⚠️ Не удалось: {failed} из {requested}',
-     'Доп. строка для результата генерации фото при частичных падениях. Переменные: {failed}, {requested}.');
+     'Доп. строка для результата создания фото при частичных падениях. Переменные: {failed}, {requested}.');
   END IF;
 END $$;
 
@@ -705,14 +705,14 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_generation_failed') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_generation_failed',
-     '❌ Не удалось сгенерировать фото.
+     '❌ Не удалось создать фото.
 
 С вашего баланса ничего не списано.
 
 🆔 Задание #{job_id}
 
 При обращении в поддержку укажите номер задания.',
-     'Ошибка генерации фото. Переменные: {job_id}.');
+     'Ошибка создания фото. Переменные: {job_id}.');
   END IF;
 END $$;
 
@@ -721,7 +721,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_video_generation_done',
      '🎥 <b>{total} из {total}</b> видео готовы для <code>{article}</code>
-Тут представлен один из вариантов, все ваши генерации хранятся здесь:
+Тут представлен один из вариантов, все ваши создания хранятся здесь:
 🖼 {web_viewer_url}
 
 📦 Эталон: #{ref_number}
@@ -729,7 +729,7 @@ DO $$ BEGIN
 💳 Остаток: {new_balance}₽
 ⏱ Время: {elapsed_str}
 🆔 Задание #{job_id}',
-     'Результат генерации видео. Переменные: {total}, {article}, {web_viewer_url}, {ref_number}, {actual_cost}, {new_balance}, {elapsed_str}, {job_id}.');
+     'Результат создания видео. Переменные: {total}, {article}, {web_viewer_url}, {ref_number}, {actual_cost}, {new_balance}, {elapsed_str}, {job_id}.');
   END IF;
 END $$;
 
@@ -738,7 +738,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_video_generation_done_failed_line',
      '⚠️ Не удалось: {failed} из {requested}',
-     'Доп. строка для результата генерации видео при частичных падениях. Переменные: {failed}, {requested}.');
+     'Доп. строка для результата создания видео при частичных падениях. Переменные: {failed}, {requested}.');
   END IF;
 END $$;
 
@@ -746,14 +746,14 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_video_generation_failed') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_video_generation_failed',
-     '❌ Не удалось сгенерировать видео.
+     '❌ Не удалось создать видео.
 
 С вашего баланса ничего не списано.
 
 🆔 Задание #{job_id}
 
 При обращении в поддержку укажите номер задания.',
-     'Ошибка генерации видео. Переменные: {job_id}.');
+     'Ошибка создания видео. Переменные: {job_id}.');
   END IF;
 END $$;
 

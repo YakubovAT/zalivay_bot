@@ -7,7 +7,7 @@ services/task_worker.py
    (создание эталонов). Работает как раньше.
 
 2. run_job_worker — новый параллельный воркер для задач типа 'lifestyle_photo'
-   (генерация фото через gen_photo flow).
+   (создание фото через gen_photo flow).
    - Держит до MAX_CONCURRENT задач одновременно через asyncio.create_task
    - После завершения каждой задачи проверяет готовность группы (job)
    - Если группа готова — собирает альбом и отправляет пользователю
@@ -132,7 +132,7 @@ async def _process_task(task: dict, session: aiohttp.ClientSession, bot) -> None
         try:
             await bot.send_message(
                 chat_id=chat_id,
-                text=f"❌ Ошибка генерации фото для артикула <code>{articul}</code>.\n"
+                text=f"❌ Ошибка создания фото для артикула <code>{articul}</code>.\n"
                      f"Попробуйте позже.",
                 parse_mode="HTML",
             )
@@ -162,7 +162,7 @@ async def run_worker(bot, session: aiohttp.ClientSession) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Новый job-воркер — генерация lifestyle фото (параллельный, Вариант C)
+# Новый job-воркер — создание lifestyle фото (параллельный, Вариант C)
 # ---------------------------------------------------------------------------
 
 async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
@@ -186,7 +186,7 @@ async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
     completed  = status["completed"]
     failed     = status["failed"]
 
-    # Время генерации
+    # Время создания
     elapsed = datetime.now(timezone.utc) - job["created_at"]
     elapsed_min = int(elapsed.total_seconds() // 60)
     elapsed_sec = int(elapsed.total_seconds() % 60)
@@ -350,10 +350,10 @@ async def run_job_worker(bot, session: aiohttp.ClientSession) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Video job-воркер — генерация lifestyle видео (параллельный)
+# Video job-воркер — создание lifestyle видео (параллельный)
 # ---------------------------------------------------------------------------
 
-# Видео генерируется дольше — держим меньше параллельных задач
+# Видео создается дольше — держим меньше параллельных задач
 VIDEO_MAX_CONCURRENT = 5
 VIDEO_POLL_INTERVAL  = 5
 

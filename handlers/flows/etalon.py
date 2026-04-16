@@ -27,7 +27,7 @@ _ref_index: dict[int, int] = {}
 _MY_REFS_EMPTY_TEXT_FALLBACK = (
     "📂 Мои эталоны (Шаг 15)\n\n"
     "У вас пока нет товаров с эталонами.\n\n"
-    "Создайте первый эталон, чтобы генерировать "
+    "Создайте первый эталон, чтобы создавать "
     "фото и видео для ваших товаров."
 )
 
@@ -162,7 +162,7 @@ async def cb_ref_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     ref = refs[idx]
     total = len(refs)
 
-    # Запоминаем для flow генерации фото/видео и перегенерации
+    # Запоминаем для flow создания фото/видео и пересоздания
     context.user_data["article_code"] = article
     context.user_data["ref_number_for_gen"] = ref["reference_number"]
 
@@ -217,7 +217,7 @@ async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     ref = refs[idx]
     total = len(refs)
 
-    # Запоминаем для flow генерации фото/видео и перегенерации
+    # Запоминаем для flow создания фото/видео и пересоздания
     context.user_data["article_code"] = article
     context.user_data["ref_number_for_gen"] = ref["reference_number"]
 

@@ -4,7 +4,7 @@ handlers/flows/create_reference.py
 Шаг 8-11: Создание эталона товара.
   8. Проверка баланса
   9. T2T API → промпт + категория
-  10. I2I API → генерация эталона
+  10. I2I API → создание эталона
   11. Показ результата пользователю
 """
 
@@ -32,16 +32,16 @@ _REFERENCE_GENERATING = 13
 
 _REFERENCE_CREATING_TEXT_FALLBACK = (
     "⏳ Создаю эталон для артикула <code>{article}</code>...\n\n"
-    "<a href=\"https://zaliv.ai/\">Zaliv.AI</a> — сервис массовой автоматизированной генерации "
+    "<a href=\"https://zaliv.ai/\">Zaliv.AI</a> — сервис массовой автоматизированной создания "
     "профессионального фото и видео контента для товаров "
     "с последующим размещением в социальных сетях.\n\n"
     "Это займёт 1-3 минуты..."
 )
 
 _REFERENCE_GENERATING_PHOTO_TEXT_FALLBACK = (
-    "⏳ Генерирую фото эталона...\n"
+    "⏳ Создаю фото эталона...\n"
     "Тип товара: {category}\n\n"
-    "Созданный эталон позволит вам массово генерировать "
+    "Созданный эталон позволит вам массово создавать "
     "фото и видео для любых площадок: Telegram, VK, "
     "Instagram, YouTube и других социальных сетей.\n\n"
     "Осталось немного..."
@@ -55,9 +55,9 @@ _REFERENCE_READY_TEXT_FALLBACK = (
     "💰 Списано: {reference_cost}₽\n"
     "💳 Ваш баланс: {new_balance}₽\n\n"
     "Эталон может немного отличаться от оригинала.\n"
-    "Если отличия значительные — перегенерируйте эталон,\n"
+    "Если отличия значительные — пересоздайте эталон,\n"
     "заменив фотографии на шаге выбора фото.\n\n"
-    "Теперь вы можете генерировать фото и видео!"
+    "Теперь вы можете создавать фото и видео!"
 )
 
 
@@ -65,8 +65,8 @@ def _kb_reference_result() -> InlineKeyboardMarkup:
     """Клавиатура после создания эталона."""
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📸 Генерировать фото", callback_data="menu_gen_photo"),
-            InlineKeyboardButton("🎥 Генерировать видео", callback_data="menu_gen_video"),
+            InlineKeyboardButton("📸 Создать фото", callback_data="menu_gen_photo"),
+            InlineKeyboardButton("🎥 Создать видео", callback_data="menu_gen_video"),
         ],
         [
             InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
@@ -115,7 +115,7 @@ async def start_reference_generation(
         # НЕ завершаем диалог — кнопка «Создать эталон» останется активной
         return _REFERENCE_GENERATING
 
-    # 2. Показываем экран генерации
+    # 2. Показываем экран создания
     creating_text = await get_template("msg_reference_creating", fallback=_REFERENCE_CREATING_TEXT_FALLBACK)
     await context.bot.edit_message_caption(
         chat_id=user_id,
@@ -140,7 +140,7 @@ async def start_reference_generation(
         await context.bot.edit_message_caption(
             chat_id=user_id,
             message_id=message_id,
-            caption="❌ Не удалось сгенерировать промпт. Попробуйте снова или обратитесь в поддержку.",
+            caption="❌ Не удалось создать промпт. Попробуйте снова или обратитесь в поддержку.",
         )
         return ConversationHandler.END
 
@@ -195,7 +195,7 @@ async def start_reference_generation(
     except Exception:
         pass  # Игнорируем ошибки удаления
 
-    # 7. I2I → генерация эталона
+    # 7. I2I → создание эталона
     async with aiohttp.ClientSession() as session:
         result_url = await generate_reference_image(
             session=session,
@@ -209,7 +209,7 @@ async def start_reference_generation(
         await context.bot.edit_message_caption(
             chat_id=user_id,
             message_id=message_id,
-            caption="❌ Не удалось сгенерировать эталон. Средства не списаны. Попробуйте снова.",
+            caption="❌ Не удалось создать эталон. Средства не списаны. Попробуйте снова.",
         )
         return ConversationHandler.END
 

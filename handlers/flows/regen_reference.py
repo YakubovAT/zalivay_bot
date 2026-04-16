@@ -1,8 +1,8 @@
 """
 handlers/flows/regen_reference.py
 
-Шаг 16а: Перегенерация эталона с теми же исходными фотографиями.
-Запускается из карточки эталона (Шаг 16) по кнопке «🔄 Перегенерировать».
+Шаг 16а: Пересоздание эталона с теми же исходными фотографиями.
+Запускается из карточки эталона (Шаг 16) по кнопке «🔄 Пересоздавать».
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ _REGEN_WISH = 20
 
 
 async def cb_regen_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь нажал «🔄 Перегенерировать» на карточке эталона."""
+    """Пользователь нажал «🔄 Пересоздавать» на карточке эталона."""
     query = update.callback_query
     await query.answer()
 
@@ -97,7 +97,7 @@ async def _run_regen(
     message_id: int,
     wish: str | None = None,
 ) -> int:
-    """Основная логика перегенерации: T2T → I2I → сохранение в БД."""
+    """Основная логика пересоздания: T2T → I2I → сохранение в БД."""
     from database import get_article_info
 
     article = context.user_data.get("regen_article", "")
@@ -114,7 +114,7 @@ async def _run_regen(
         await context.bot.edit_message_caption(
             chat_id=user_id,
             message_id=message_id,
-            caption=await msg_insufficient_funds(REFERENCE_COST, stats["balance"], "Стоимость перегенерации"),
+            caption=await msg_insufficient_funds(REFERENCE_COST, stats["balance"], "Стоимость пересоздания"),
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -142,7 +142,7 @@ async def _run_regen(
         await context.bot.edit_message_caption(
             chat_id=user_id,
             message_id=message_id,
-            caption="❌ Не удалось сгенерировать промпт. Попробуйте снова.",
+            caption="❌ Не удалось создать промпт. Попробуйте снова.",
         )
         return ConversationHandler.END
 
@@ -169,7 +169,7 @@ async def _run_regen(
     except Exception:
         pass
 
-    # I2I → генерация нового эталона
+    # I2I → создание нового эталона
     async with aiohttp.ClientSession() as session:
         result_url = await generate_reference_image(
             session=session,
@@ -183,7 +183,7 @@ async def _run_regen(
         await context.bot.edit_message_caption(
             chat_id=user_id,
             message_id=message_id,
-            caption="❌ Не удалось сгенерировать эталон. Средства не списаны.",
+            caption="❌ Не удалось создать эталон. Средства не списаны.",
         )
         return ConversationHandler.END
 
@@ -228,7 +228,7 @@ async def _run_regen(
 
     logger.info("REGEN SAVED | user=%s article=%s ref=%d", user_id, article, reference_number)
 
-    # Обновляем ref_number для последующей генерации фото/видео
+    # Обновляем ref_number для последующей создания фото/видео
     context.user_data["ref_number_for_gen"] = reference_number
 
     final_caption = msg_regen_result(article, reference_number, category, REFERENCE_COST, new_balance)
@@ -252,7 +252,7 @@ async def _run_regen(
 
 
 async def cb_regen_skip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь пропустил ввод пожеланий — запускаем перегенерацию без корректировок."""
+    """Пользователь пропустил ввод пожеланий — запускаем пересоздание без корректировок."""
     query = update.callback_query
     await query.answer()
     return await _run_regen(context, update.effective_user.id, query.message.message_id)
@@ -307,7 +307,7 @@ async def cb_regen_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def cb_back_to_menu_from_regen(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Возврат в главное меню из flow перегенерации."""
+    """Возврат в главное меню из flow пересоздания."""
     from handlers.flows.onboarding import cb_back_to_menu
     return await cb_back_to_menu(update, context)
 

@@ -1,13 +1,13 @@
 """
 handlers/flows/gen_video.py
 
-Flow генерации видео на основе эталона.
+Flow создания видео на основе эталона.
 
 Шаги (по образу gen_photo.py):
   V1. Сколько видео? (текстовый ввод или быстрые кнопки 1/2/3)
   V2. Пожелания (текст или «Нет пожеланий»)
   V3. Проверка баланса и подтверждение
-  V4. Генерация (I2V) — поставлено в очередь
+  V4. Создание (I2V) — поставлено в очередь
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ _MAX_VIDEOS = 5
 
 _GEN_VIDEO_COUNT_TEXT_FALLBACK = (
     "🎥 Шаг V1: Сколько видео?\n\n"
-    "Сколько видео сгенерировать на основе этого эталона?\n\n"
+    "Сколько видео создать на основе этого эталона?\n\n"
     "Каждое видео будет уникальным — разная локация, освещение, движение модели.\n\n"
     "📦 Артикул: <code>{article}</code>\n"
     "📸 Эталон: #{ref_number}\n"
@@ -67,36 +67,36 @@ _GEN_VIDEO_WISH_TEXT_FALLBACK = (
     "🎥 Шаг V2: Пожелания\n\n"
     "📦 Артикул: <code>{article}</code>\n"
     "📸 Эталон: #{ref_number}\n\n"
-    "Будет сгенерировано: {count} видео\n"
+    "Будет создано: {count} видео\n"
     "💰 Стоимость: {total_cost}₽\n\n"
-    "Есть пожелания к генерации?\n\n"
+    "Есть пожелания к создания?\n\n"
     "Например: «модель идёт по пляжу», «съёмка в студии»."
 )
 
 _GEN_VIDEO_CONFIRM_TEXT_FALLBACK = (
     "🎥 Шаг V3: Подтверждение\n\n"
-    "Готов генерировать {count} видео на основе изображения выше.\n\n"
+    "Готов создавать {count} видео на основе изображения выше.\n\n"
     "📦 Артикул: <code>{article}</code>\n"
     "{wish_block}"
     "💰 Стоимость: {total_cost}₽\n"
     "💳 Ваш баланс: {balance}₽\n\n"
-    "Если всё устраивает, нажмите ✅ Сгенерировать."
+    "Если всё устраивает, нажмите ✅ Ссоздавать."
 )
 
 _GEN_VIDEO_GENERATING_TEXT_FALLBACK = (
-    "🎥 Шаг V4: Генерация\n\n"
+    "🎥 Шаг V4: Создание\n\n"
     "⏳ Поставил в очередь {count} видео для артикула <code>{article}</code>.\n\n"
-    "Видео генерируются параллельно. Это занимает несколько минут.\n"
+    "Видео создаются параллельно. Это занимает несколько минут.\n"
     "Я пришлю результат когда всё будет готово."
 )
 
 
 # ---------------------------------------------------------------------------
-# Entry point — нажали «🎥 Генерировать видео»
+# Entry point — нажали «🎥 Создать видео»
 # ---------------------------------------------------------------------------
 
 async def cb_menu_gen_video(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Вход в flow генерации видео."""
+    """Вход в flow создания видео."""
     query = update.callback_query
     await query.answer()
 
@@ -117,8 +117,8 @@ async def cb_menu_gen_video(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # Проверяем наличие product_description
     if not ref.get("product_description"):
         await query.answer(
-            "❌ Этот эталон создан до обновления системы и не поддерживает генерацию видео. "
-            "Перегенерируйте эталон.",
+            "❌ Этот эталон создан до обновления системы и не поддерживает создание видео. "
+            "Пересоздайте эталон.",
             show_alert=True,
         )
         return ConversationHandler.END
@@ -284,7 +284,7 @@ async def _show_confirm_screen(user, context: ContextTypes.DEFAULT_TYPE) -> int:
 # ---------------------------------------------------------------------------
 
 async def cb_gen_video_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь подтвердил генерацию видео."""
+    """Пользователь подтвердил создание видео."""
     query = update.callback_query
     await query.answer()
 
@@ -319,7 +319,7 @@ async def cb_gen_video_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return ConversationHandler.END
 
-    # Генерируем промпты
+    # Создаем промпты
     description = ref["product_description"]
     base_prompts = await generate_video_prompts(
         description=description,

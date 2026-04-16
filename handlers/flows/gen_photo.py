@@ -1,13 +1,13 @@
 """
 handlers/flows/gen_photo.py
 
-Flow генерации фото на основе эталона.
+Flow создания фото на основе эталона.
 
 Шаги по SCENARIO.md:
   P1. Сколько фото? (текстовый ввод)
   P2. Пожелания (текст или «Пропустить»)
   P3. Проверка баланса и подтверждение
-  P4. Генерация (I2I)
+  P4. Создание (I2I)
   P5. Результат (альбом)
 """
 
@@ -51,8 +51,8 @@ _P_COUNT, _P_WISH, _P_CONFIRM, _P_GENERATING = range(4)
 
 _GEN_PHOTO_COUNT_TEXT_FALLBACK = (
     "📸 Шаг P1: Сколько фото?\n\n"
-    "Сколько фото сгенерировать на основе этого эталона?\n\n"
-    "Вы можете сгенерировать одно или множество изображений.\n"
+    "Сколько фото создать на основе этого эталона?\n\n"
+    "Вы можете создать одно или множество изображений.\n"
     "Каждое фото будет уникальным — разная локация, освещение, ракурс.\n\n"
     "📦 Артикул: <code>{article}</code>\n"
     "📸 Эталон: #{ref_number}\n"
@@ -65,36 +65,36 @@ _GEN_PHOTO_WISH_TEXT_FALLBACK = (
     "📸 Шаг P2: Пожелания\n\n"
     "📦 Артикул: <code>{article}</code>\n"
     "📸 Эталон: #{ref_number}\n\n"
-    "Будет сгенерировано: {count} фото\n"
+    "Будет создано: {count} фото\n"
     "💰 Стоимость: {total_cost}₽\n\n"
-    "Есть пожелания к генерации?\n\n"
+    "Есть пожелания к создания?\n\n"
     "Например: «хочу фото на фоне моря», «сделай в студии»."
 )
 
 _GEN_PHOTO_CONFIRM_TEXT_FALLBACK = (
     "📸 Шаг P3: Подтверждение\n\n"
-    "Готов генерировать {count} фото на основе изображения представленного выше.\n\n"
+    "Готов создавать {count} фото на основе изображения представленного выше.\n\n"
     "📦 Артикул: <code>{article}</code>\n"
     "{wish_block}"
     "💰 Стоимость: {total_cost}₽\n"
     "💳 Ваш баланс: {balance}₽\n\n"
-    "Если всё устраивает, нажмите ✅ Сгенерировать и процесс запустится."
+    "Если всё устраивает, нажмите ✅ Ссоздавать и процесс запустится."
 )
 
 _GEN_PHOTO_GENERATING_TEXT_FALLBACK = (
-    "📸 Шаг P4: Генерация\n\n"
+    "📸 Шаг P4: Создание\n\n"
     "⏳ Поставил в очередь {count} фото для артикула <code>{article}</code>.\n\n"
-    "Фото генерируются параллельно.\n"
+    "Фото создаются параллельно.\n"
     "Я пришлю результат когда все будут готовы."
 )
 
 
 # ---------------------------------------------------------------------------
-# Entry point — нажали «📸 Генерировать фото»
+# Entry point — нажали «📸 Создать фото»
 # ---------------------------------------------------------------------------
 
 async def cb_menu_gen_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Вход в flow генерации фото."""
+    """Вход в flow создания фото."""
     query = update.callback_query
     await query.answer()
 
@@ -295,7 +295,7 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # ---------------------------------------------------------------------------
 
 async def cb_gen_photo_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь подтвердил генерацию — создаём job + tasks в БД."""
+    """Пользователь подтвердил создание — создаём job + tasks в БД."""
     query = update.callback_query
     await query.answer()
 
@@ -331,7 +331,7 @@ async def cb_gen_photo_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return ConversationHandler.END
 
-    # Генерируем промпты
+    # Создаем промпты
     description = ref["product_description"]
     base_prompts = await generate_photo_prompts(
         description=description,

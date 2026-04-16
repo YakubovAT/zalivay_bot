@@ -1,7 +1,7 @@
 """
 services/prompt_generator_video.py
 
-Генератор lifestyle-промптов для I2V (видео) на основе категории товара.
+Создатель lifestyle-промптов для I2V (видео) на основе категории товара.
 
 Данные (шаблоны, локации с движением, одежда) хранятся в БД и читаются
 через services.prompt_store с TTL-кэшем 60 сек.
@@ -22,7 +22,7 @@ async def generate_video_prompts(
     count: int,
 ) -> list[str]:
     """
-    Генерирует список уникальных EN-промптов для lifestyle-видео.
+    Создает список уникальных EN-промптов для lifestyle-видео.
 
     Args:
         description: product_description из article_references (EN)

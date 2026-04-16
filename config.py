@@ -20,11 +20,11 @@ AI_API_KEY     = os.getenv("AI_API_KEY", "cbc437104f5c302e296b8771ca523030")
 AI_API_BASE    = os.getenv("AI_API_BASE", "https://api.kie.ai")
 AI_MODEL       = os.getenv("AI_MODEL", "gpt-5-2")
 
-# I2I (генерация изображений) — реальный API KIE.ai
+# I2I (создание изображений) — реальный API KIE.ai
 I2I_API_KEY    = os.getenv("I2I_API_KEY", AI_API_KEY)  # тот же ключ что и T2T
 I2I_API_BASE   = os.getenv("I2I_API_BASE", "https://api.kie.ai")
 
-# I2V (генерация видео) — модель KIE.ai image-to-video
+# I2V (создание видео) — модель KIE.ai image-to-video
 VIDEO_I2V_MODEL = os.getenv("VIDEO_I2V_MODEL", "sora-2-image-to-video")
 
 # ---------------------------------------------------------------------------

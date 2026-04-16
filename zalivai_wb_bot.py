@@ -98,7 +98,7 @@ async def help_cmd(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "📋 Справка:\n"
         "• /start — начать работу с ботом\n"
-        "• Загружайте фото товара для генерации контента\n"
+        "• Загружайте фото товара для создания контента\n"
         "• Используйте меню ≡ для навигации"
     )
 
@@ -119,10 +119,10 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.ALL, log_message), group=-1)
     application.add_handler(CallbackQueryHandler(log_callback), group=-1)
 
-    # --- Генерация фото ---
+    # --- Создание фото ---
     application.add_handler(build_gen_photo_handler())
 
-    # --- Генерация видео ---
+    # --- Создание видео ---
     application.add_handler(build_gen_video_handler())
 
     # --- Онбординг /start ---
@@ -136,7 +136,7 @@ def main() -> None:
     application.add_handler(build_ref_article_handler())
     application.add_handler(build_ref_nav_handler())
 
-    # --- Шаг 16а: Перегенерация эталона ---
+    # --- Шаг 16а: Пересоздание эталона ---
     application.add_handler(build_regen_reference_handler())
 
     # --- Новый артикул (включает выбор фото и создание эталона) ---
@@ -181,7 +181,7 @@ def main() -> None:
 
     application.add_handler(CallbackQueryHandler(cb_close_error, pattern="^close_error$"))
 
-    # Обработчик закрытия результата генерации фото
+    # Обработчик закрытия результата создания фото
     async def cb_gen_photo_close(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
@@ -192,7 +192,7 @@ def main() -> None:
 
     application.add_handler(CallbackQueryHandler(cb_gen_photo_close, pattern="^gen_photo_close$"))
 
-    # Обработчик закрытия результата генерации видео
+    # Обработчик закрытия результата создания видео
     async def cb_gen_video_close(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
