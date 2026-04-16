@@ -114,6 +114,26 @@ _FALLBACK_TEMPLATES: dict[str, str] = {
         "Fabric texture, structure, and movement of the headwear clearly visible. "
         "Professional e-commerce fashion footage, no camera shake, fluid movement."
     ),
+    "photo_jumpsuit": (
+        "Fashion lifestyle editorial photograph. "
+        "A stylish young woman wearing {description} as a complete outfit. "
+        "Accessories: {neutral_outfit}. "
+        "Setting: {location}. "
+        "Full-body composition, natural confident pose. "
+        "Soft diffused natural light, warm tones, shallow depth of field with blurred bokeh background. "
+        "Sharp focus on the jumpsuit — fabric texture, fit, silhouette, and drape clearly visible from neckline to hem. "
+        "Photorealistic commercial photography, high resolution, no distortion."
+    ),
+    "video_jumpsuit": (
+        "Smooth cinematic fashion lifestyle video. "
+        "A stylish young woman wearing {description} as a complete look, finished with {outfit}. "
+        "Location: {location}. "
+        "The model is {motion}. "
+        "Slow gliding full-body camera shot captures the silhouette, fabric drape, and movement of the jumpsuit. "
+        "Warm soft natural lighting, cinematic color grading, shallow depth of field. "
+        "The garment stays in sharp focus throughout the motion — from neckline to hem. "
+        "Professional e-commerce fashion footage, no camera shake, fluid movement."
+    ),
 }
 
 _FALLBACK_LISTS: dict[str, list[str]] = {
