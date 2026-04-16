@@ -94,8 +94,8 @@ async def generate_video_prompts(
                 motion=motion,
             )
 
-        elif cat == "комбинезон":
-            template = await get_template("video_jumpsuit")
+        elif cat == "комплект":
+            template = await get_template("video_komplekt")
             prompt = template.format(
                 description=description,
                 outfit=random.choice(neutral_outfits),
@@ -104,8 +104,8 @@ async def generate_video_prompts(
             )
 
         else:
-            logger.warning("generate_video_prompts: неизвестная категория %r, используем video_jumpsuit", cat)
-            template = await get_template("video_jumpsuit")
+            logger.warning("generate_video_prompts: неизвестная категория %r, используем video_komplekt", cat)
+            template = await get_template("video_komplekt")
             prompt = template.format(
                 description=description,
                 outfit=random.choice(neutral_outfits),

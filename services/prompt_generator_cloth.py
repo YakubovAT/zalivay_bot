@@ -80,8 +80,8 @@ async def generate_photo_prompts(
                 location=location,
             )
 
-        elif category == "комбинезон":
-            template = await get_template("photo_jumpsuit")
+        elif category == "комплект":
+            template = await get_template("photo_komplekt")
             prompt = template.format(
                 description=description,
                 neutral_outfit=random.choice(neutral_outfits),
@@ -89,8 +89,8 @@ async def generate_photo_prompts(
             )
 
         else:
-            logger.warning("generate_photo_prompts: неизвестная категория %r, используем photo_jumpsuit", category)
-            template = await get_template("photo_jumpsuit")
+            logger.warning("generate_photo_prompts: неизвестная категория %r, используем photo_komplekt", category)
+            template = await get_template("photo_komplekt")
             prompt = template.format(
                 description=description,
                 neutral_outfit=random.choice(neutral_outfits),

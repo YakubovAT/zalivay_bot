@@ -114,7 +114,7 @@ _FALLBACK_TEMPLATES: dict[str, str] = {
         "Fabric texture, structure, and movement of the headwear clearly visible. "
         "Professional e-commerce fashion footage, no camera shake, fluid movement."
     ),
-    "photo_jumpsuit": (
+    "photo_komplekt": (
         "Fashion lifestyle editorial photograph. "
         "A stylish young woman wearing {description} as a complete outfit. "
         "Accessories: {neutral_outfit}. "
@@ -124,7 +124,7 @@ _FALLBACK_TEMPLATES: dict[str, str] = {
         "Sharp focus on the jumpsuit — fabric texture, fit, silhouette, and drape clearly visible from neckline to hem. "
         "Photorealistic commercial photography, high resolution, no distortion."
     ),
-    "video_jumpsuit": (
+    "video_komplekt": (
         "Smooth cinematic fashion lifestyle video. "
         "A stylish young woman wearing {description} as a complete look, finished with {outfit}. "
         "Location: {location}. "
