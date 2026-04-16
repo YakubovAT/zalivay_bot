@@ -568,3 +568,103 @@ DO $$ BEGIN
      'Шаг V1 — ввод количества видео для генерации. Переменные: {article}, {ref_number}, {category}, {video_cost}.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_photo_wish') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_gen_photo_wish',
+     '📸 Шаг P2: Пожелания
+
+📦 Артикул: <code>{article}</code>
+📸 Эталон: #{ref_number}
+
+Будет сгенерировано: {count} фото
+💰 Стоимость: {total_cost}₽
+
+Есть пожелания к генерации?
+
+Например: «хочу фото на фоне моря», «сделай в студии».',
+     'Шаг P2 — пожелания к генерации фото. Переменные: {article}, {ref_number}, {count}, {total_cost}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_photo_confirm') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_gen_photo_confirm',
+     '📸 Шаг P3: Подтверждение
+
+Готов генерировать {count} фото на основе изображения представленного выше.
+
+📦 Артикул: <code>{article}</code>
+{wish_block}💰 Стоимость: {total_cost}₽
+💳 Ваш баланс: {balance}₽
+
+Если всё устраивает, нажмите ✅ Сгенерировать и процесс запустится.',
+     'Шаг P3 — подтверждение генерации фото. Переменные: {article}, {count}, {wish_block}, {total_cost}, {balance}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_photo_generating') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_gen_photo_generating',
+     '📸 Шаг P4: Генерация
+
+⏳ Поставил в очередь {count} фото для артикула <code>{article}</code>.
+
+Фото генерируются параллельно.
+Я пришлю результат когда все будут готовы.',
+     'Шаг P4 — постановка генерации фото в очередь. Переменные: {article}, {count}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_video_wish') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_gen_video_wish',
+     '🎥 Шаг V2: Пожелания
+
+📦 Артикул: <code>{article}</code>
+📸 Эталон: #{ref_number}
+
+Будет сгенерировано: {count} видео
+💰 Стоимость: {total_cost}₽
+
+Есть пожелания к генерации?
+
+Например: «модель идёт по пляжу», «съёмка в студии».',
+     'Шаг V2 — пожелания к генерации видео. Переменные: {article}, {ref_number}, {count}, {total_cost}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_video_confirm') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_gen_video_confirm',
+     '🎥 Шаг V3: Подтверждение
+
+Готов генерировать {count} видео на основе изображения выше.
+
+📦 Артикул: <code>{article}</code>
+{wish_block}💰 Стоимость: {total_cost}₽
+💳 Ваш баланс: {balance}₽
+
+Если всё устраивает, нажмите ✅ Сгенерировать.',
+     'Шаг V3 — подтверждение генерации видео. Переменные: {article}, {count}, {wish_block}, {total_cost}, {balance}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_video_generating') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_gen_video_generating',
+     '🎥 Шаг V4: Генерация
+
+⏳ Поставил в очередь {count} видео для артикула <code>{article}</code>.
+
+Видео генерируются параллельно. Это занимает несколько минут.
+Я пришлю результат когда всё будет готово.',
+     'Шаг V4 — постановка генерации видео в очередь. Переменные: {article}, {count}.');
+  END IF;
+END $$;

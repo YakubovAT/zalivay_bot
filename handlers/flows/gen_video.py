@@ -63,6 +63,33 @@ _GEN_VIDEO_COUNT_TEXT_FALLBACK = (
     "Введите число (1–5) или выберите:"
 )
 
+_GEN_VIDEO_WISH_TEXT_FALLBACK = (
+    "🎥 Шаг V2: Пожелания\n\n"
+    "📦 Артикул: <code>{article}</code>\n"
+    "📸 Эталон: #{ref_number}\n\n"
+    "Будет сгенерировано: {count} видео\n"
+    "💰 Стоимость: {total_cost}₽\n\n"
+    "Есть пожелания к генерации?\n\n"
+    "Например: «модель идёт по пляжу», «съёмка в студии»."
+)
+
+_GEN_VIDEO_CONFIRM_TEXT_FALLBACK = (
+    "🎥 Шаг V3: Подтверждение\n\n"
+    "Готов генерировать {count} видео на основе изображения выше.\n\n"
+    "📦 Артикул: <code>{article}</code>\n"
+    "{wish_block}"
+    "💰 Стоимость: {total_cost}₽\n"
+    "💳 Ваш баланс: {balance}₽\n\n"
+    "Если всё устраивает, нажмите ✅ Сгенерировать."
+)
+
+_GEN_VIDEO_GENERATING_TEXT_FALLBACK = (
+    "🎥 Шаг V4: Генерация\n\n"
+    "⏳ Поставил в очередь {count} видео для артикула <code>{article}</code>.\n\n"
+    "Видео генерируются параллельно. Это занимает несколько минут.\n"
+    "Я пришлю результат когда всё будет готово."
+)
+
 
 # ---------------------------------------------------------------------------
 # Entry point — нажали «🎥 Генерировать видео»
@@ -178,15 +205,7 @@ async def _show_wish_screen(user, context: ContextTypes.DEFAULT_TYPE) -> int:
     count = context.user_data["gen_video_count"]
     total_cost = count * VIDEO_COST
 
-    text = (
-        f"🎥 Шаг V2: Пожелания\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"📸 Эталон: #{ref_number}\n\n"
-        f"Будет сгенерировано: {count} видео\n"
-        f"💰 Стоимость: {total_cost}₽\n\n"
-        "Есть пожелания к генерации?\n\n"
-        'Например: «модель идёт по пляжу», «съёмка в студии».'
-    )
+    text = await _msg_gen_video_wish(article, ref_number, count, total_cost)
 
     if screen_msg:
         await context.bot.edit_message_caption(
@@ -247,17 +266,7 @@ async def _show_confirm_screen(user, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         return _V_WISH
 
-    wish_line = f'📝 Пожелания: "{wish}"' if wish else ""
-
-    caption = (
-        f"🎥 Шаг V3: Подтверждение\n\n"
-        f"Готов генерировать {count} видео на основе изображения выше.\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"{wish_line}\n\n"
-        f"💰 Стоимость: {total_cost}₽\n"
-        f"💳 Ваш баланс: {balance}₽\n\n"
-        "Если всё устраивает, нажмите ✅ Сгенерировать."
-    )
+    caption = await _msg_gen_video_confirm(article, count, total_cost, balance, wish)
 
     if screen_msg:
         await context.bot.edit_message_caption(
@@ -347,15 +356,11 @@ async def cb_gen_video_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     logger.info("GEN_VIDEO | job_id=%d | created %d tasks", job_id, count)
 
+    generating_caption = await _msg_gen_video_generating(article, count)
     await context.bot.edit_message_caption(
         chat_id=user_id,
         message_id=screen_msg,
-        caption=(
-            f"🎥 Шаг V4: Генерация\n\n"
-            f"⏳ Поставил в очередь {count} видео для артикула <code>{article}</code>.\n\n"
-            "Видео генерируются параллельно. Это занимает несколько минут.\n"
-            "Я пришлю результат когда всё будет готово."
-        ),
+        caption=generating_caption,
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
@@ -434,6 +439,33 @@ async def _msg_gen_video_count(article: str, ref_number: int | str, category: st
         category=category or "—",
         video_cost=VIDEO_COST,
     )
+
+
+async def _msg_gen_video_wish(article: str, ref_number: int | str, count: int, total_cost: int) -> str:
+    template = await get_template("msg_gen_video_wish", fallback=_GEN_VIDEO_WISH_TEXT_FALLBACK)
+    return template.format(
+        article=article,
+        ref_number=ref_number,
+        count=count,
+        total_cost=total_cost,
+    )
+
+
+async def _msg_gen_video_confirm(article: str, count: int, total_cost: int, balance: int, wish: str | None) -> str:
+    template = await get_template("msg_gen_video_confirm", fallback=_GEN_VIDEO_CONFIRM_TEXT_FALLBACK)
+    wish_block = f'📝 Пожелания: "{wish}"\n\n' if wish else ""
+    return template.format(
+        article=article,
+        count=count,
+        wish_block=wish_block,
+        total_cost=total_cost,
+        balance=balance,
+    )
+
+
+async def _msg_gen_video_generating(article: str, count: int) -> str:
+    template = await get_template("msg_gen_video_generating", fallback=_GEN_VIDEO_GENERATING_TEXT_FALLBACK)
+    return template.format(article=article, count=count)
 
 
 # ---------------------------------------------------------------------------

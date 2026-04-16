@@ -60,6 +60,33 @@ _GEN_PHOTO_COUNT_TEXT_FALLBACK = (
     "Введите число:"
 )
 
+_GEN_PHOTO_WISH_TEXT_FALLBACK = (
+    "📸 Шаг P2: Пожелания\n\n"
+    "📦 Артикул: <code>{article}</code>\n"
+    "📸 Эталон: #{ref_number}\n\n"
+    "Будет сгенерировано: {count} фото\n"
+    "💰 Стоимость: {total_cost}₽\n\n"
+    "Есть пожелания к генерации?\n\n"
+    "Например: «хочу фото на фоне моря», «сделай в студии»."
+)
+
+_GEN_PHOTO_CONFIRM_TEXT_FALLBACK = (
+    "📸 Шаг P3: Подтверждение\n\n"
+    "Готов генерировать {count} фото на основе изображения представленного выше.\n\n"
+    "📦 Артикул: <code>{article}</code>\n"
+    "{wish_block}"
+    "💰 Стоимость: {total_cost}₽\n"
+    "💳 Ваш баланс: {balance}₽\n\n"
+    "Если всё устраивает, нажмите ✅ Сгенерировать и процесс запустится."
+)
+
+_GEN_PHOTO_GENERATING_TEXT_FALLBACK = (
+    "📸 Шаг P4: Генерация\n\n"
+    "⏳ Поставил в очередь {count} фото для артикула <code>{article}</code>.\n\n"
+    "Фото генерируются параллельно.\n"
+    "Я пришлю результат когда все будут готовы."
+)
+
 
 # ---------------------------------------------------------------------------
 # Entry point — нажали «📸 Генерировать фото»
@@ -156,15 +183,7 @@ async def msg_photo_count(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     ref = context.user_data["gen_ref"]
     total_cost = count * PHOTO_COST
 
-    text_p2 = (
-        f"📸 Шаг P2: Пожелания\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"📸 Эталон: #{ref_number}\n\n"
-        f"Будет сгенерировано: {count} фото\n"
-        f"💰 Стоимость: {total_cost}₽\n\n"
-        f"Есть пожелания к генерации?\n\n"
-        'Например: «хочу фото на фоне моря», «сделай в студии».'
-    )
+    text_p2 = await _msg_gen_photo_wish(article, ref_number, count, total_cost)
 
     if screen_msg:
         await context.bot.edit_message_caption(
@@ -204,14 +223,7 @@ async def cb_no_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         return _P_WISH
 
-    final_caption = (
-        f"📸 Шаг P3: Подтверждение\n\n"
-        f"Готов генерировать {count} фото на основе изображения представленного выше.\n\n"
-        f"📦 Артикул: <code>{article}</code>\n\n"
-        f"💰 Стоимость: {total_cost}₽\n"
-        f"💳 Ваш баланс: {balance}₽\n\n"
-        f"Если всё устраивает, нажмите ✅ Сгенерировать и процесс запустится."
-    )
+    final_caption = await _msg_gen_photo_confirm(article, count, total_cost, balance, wish=None)
 
     screen_msg = context.user_data.get("_screen_msg")
     if screen_msg:
@@ -249,8 +261,6 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     count = context.user_data["gen_count"]
     total_cost = count * PHOTO_COST
 
-    wish_line = f'📝 Пожелания: "{wish}"' if wish else ""
-
     # Проверяем баланс
     stats = await get_user_stats(user.id)
     balance = stats["balance"]
@@ -265,15 +275,7 @@ async def msg_photo_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return _P_WISH
 
-    final_caption = (
-        f"📸 Шаг P3: Подтверждение\n\n"
-        f"Готов генерировать {count} фото на основе изображения представленного выше.\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"{wish_line}\n\n"
-        f"💰 Стоимость: {total_cost}₽\n"
-        f"💳 Ваш баланс: {balance}₽\n\n"
-        f"Если всё устраивает, нажмите ✅ Сгенерировать и процесс запустится."
-    )
+    final_caption = await _msg_gen_photo_confirm(article, count, total_cost, balance, wish=wish)
 
     screen_msg = context.user_data.get("_screen_msg")
     if screen_msg:
@@ -366,15 +368,11 @@ async def cb_gen_photo_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     logger.info("GEN_PHOTO | job_id=%d | created %d tasks", job_id, count)
 
     # Показываем экран P4 — ожидание
+    generating_caption = await _msg_gen_photo_generating(article, count)
     await context.bot.edit_message_caption(
         chat_id=user_id,
         message_id=screen_msg,
-        caption=(
-            f"📸 Шаг P4: Генерация\n\n"
-            f"⏳ Поставил в очередь {count} фото для артикула <code>{article}</code>.\n\n"
-            "Фото генерируются параллельно.\n"
-            "Я пришлю результат когда все будут готовы."
-        ),
+        caption=generating_caption,
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
@@ -420,15 +418,7 @@ async def cb_quick_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     ref_number = context.user_data["gen_ref_number"]
     total_cost = count * PHOTO_COST
 
-    text_p2 = (
-        f"📸 Шаг P2: Пожелания\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"📸 Эталон: #{ref_number}\n\n"
-        f"Будет сгенерировано: {count} фото\n"
-        f"💰 Стоимость: {total_cost}₽\n\n"
-        f"Есть пожелания к генерации?\n\n"
-        'Например: «хочу фото на фоне моря», «сделай в студии».'
-    )
+    text_p2 = await _msg_gen_photo_wish(article, ref_number, count, total_cost)
 
     if screen_msg:
         await context.bot.edit_message_caption(
@@ -475,15 +465,9 @@ async def cb_back_to_p_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     article = context.user_data.get("gen_article", "")
     ref_number = context.user_data.get("gen_ref_number", "")
 
-    text = (
-        f"📸 Шаг P2: Пожелания\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"📸 Эталон: #{ref_number}\n\n"
-        f"У вас будут пожелания к генерации?\n\n"
-        'Например: «хочу фото на фоне моря», «сделай в студии».\n\n'
-        'Или напишите «Пропустить» — я сам подберу лучшие локации\n'
-        "и условия для вашего типа товара."
-    )
+    count = context.user_data.get("gen_count", 1)
+    total_cost = count * PHOTO_COST
+    text = await _msg_gen_photo_wish(article, ref_number, count, total_cost)
 
     if screen_msg:
         await context.bot.edit_message_caption(
@@ -519,6 +503,33 @@ async def _msg_gen_photo_count(article: str, ref_number: int | str, category: st
         category=category or "—",
         photo_cost=PHOTO_COST,
     )
+
+
+async def _msg_gen_photo_wish(article: str, ref_number: int | str, count: int, total_cost: int) -> str:
+    template = await get_template("msg_gen_photo_wish", fallback=_GEN_PHOTO_WISH_TEXT_FALLBACK)
+    return template.format(
+        article=article,
+        ref_number=ref_number,
+        count=count,
+        total_cost=total_cost,
+    )
+
+
+async def _msg_gen_photo_confirm(article: str, count: int, total_cost: int, balance: int, wish: str | None) -> str:
+    template = await get_template("msg_gen_photo_confirm", fallback=_GEN_PHOTO_CONFIRM_TEXT_FALLBACK)
+    wish_block = f'📝 Пожелания: "{wish}"\n\n' if wish else ""
+    return template.format(
+        article=article,
+        count=count,
+        wish_block=wish_block,
+        total_cost=total_cost,
+        balance=balance,
+    )
+
+
+async def _msg_gen_photo_generating(article: str, count: int) -> str:
+    template = await get_template("msg_gen_photo_generating", fallback=_GEN_PHOTO_GENERATING_TEXT_FALLBACK)
+    return template.format(article=article, count=count)
 
 
 # ---------------------------------------------------------------------------
