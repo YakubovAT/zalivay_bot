@@ -40,12 +40,25 @@ from handlers.keyboards import (
     kb_gen_photo_confirm,
     kb_gen_photo_result,
 )
+from services.prompt_store import get_template
 from services.prompt_generator_cloth import generate_photo_prompts
 
 logger = logging.getLogger(__name__)
 
 # Состояния
 _P_COUNT, _P_WISH, _P_CONFIRM, _P_GENERATING = range(4)
+
+_GEN_PHOTO_COUNT_TEXT_FALLBACK = (
+    "📸 Шаг P1: Сколько фото?\n\n"
+    "Сколько фото сгенерировать на основе этого эталона?\n\n"
+    "Вы можете сгенерировать одно или множество изображений.\n"
+    "Каждое фото будет уникальным — разная локация, освещение, ракурс.\n\n"
+    "📦 Артикул: <code>{article}</code>\n"
+    "📸 Эталон: #{ref_number}\n"
+    "🏷 Тип товара: {category}\n\n"
+    "💰 Стоимость: {photo_cost}₽ за фото\n\n"
+    "Введите число:"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -88,17 +101,7 @@ async def cb_menu_gen_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["gen_ref"] = dict(ref)
     context.user_data["_screen_msg"] = query.message.message_id
 
-    text = (
-        "📸 Шаг P1: Сколько фото?\n\n"
-        "Сколько фото сгенерировать на основе этого эталона?\n\n"
-        "Вы можете сгенерировать одно или множество изображений.\n"
-        "Каждое фото будет уникальным — разная локация, освещение, ракурс.\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"📸 Эталон: #{ref_number}\n"
-        f"🏷 Тип товара: {ref.get('category', '—')}\n\n"
-        f"💰 Стоимость: {PHOTO_COST}₽ за фото\n\n"
-        "Введите число:"
-    )
+    text = await _msg_gen_photo_count(article, ref_number, ref.get("category", "—"))
 
     await context.bot.edit_message_caption(
         chat_id=query.message.chat_id,
@@ -451,17 +454,7 @@ async def cb_back_to_p_count(update: Update, context: ContextTypes.DEFAULT_TYPE)
     ref_number = context.user_data.get("gen_ref_number", "")
     ref = context.user_data.get("gen_ref", {})
 
-    text = (
-        "📸 Шаг P1: Сколько фото?\n\n"
-        "Сколько фото сгенерировать на основе этого эталона?\n\n"
-        "Вы можете сгенерировать одно или множество изображений.\n"
-        "Каждое фото будет уникальным — разная локация, освещение, ракурс.\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"📸 Эталон: #{ref_number}\n"
-        f"🏷 Тип товара: {ref.get('category', '—')}\n\n"
-        f"💰 Стоимость: {PHOTO_COST}₽ за фото\n\n"
-        "Введите число:"
-    )
+    text = await _msg_gen_photo_count(article, ref_number, ref.get("category", "—"))
 
     await context.bot.edit_message_caption(
         chat_id=query.message.chat_id,
@@ -516,6 +509,16 @@ async def cb_close_alert_photo(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.message.delete()
     # Возвращаемся к P_WISH — откуда пришли (Нет пожеланий / Пожелания)
     return _P_WISH
+
+
+async def _msg_gen_photo_count(article: str, ref_number: int | str, category: str) -> str:
+    template = await get_template("msg_gen_photo_count", fallback=_GEN_PHOTO_COUNT_TEXT_FALLBACK)
+    return template.format(
+        article=article,
+        ref_number=ref_number,
+        category=category or "—",
+        photo_cost=PHOTO_COST,
+    )
 
 
 # ---------------------------------------------------------------------------

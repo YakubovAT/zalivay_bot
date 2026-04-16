@@ -41,6 +41,7 @@ from handlers.keyboards import (
     kb_gen_video_confirm,
     kb_gen_video_result,
 )
+from services.prompt_store import get_template
 from services.prompt_generator_video import generate_video_prompts
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,17 @@ _V_COUNT, _V_WISH, _V_CONFIRM, _V_GENERATING = range(4)
 
 # Максимальное количество видео за один запрос
 _MAX_VIDEOS = 5
+
+_GEN_VIDEO_COUNT_TEXT_FALLBACK = (
+    "🎥 Шаг V1: Сколько видео?\n\n"
+    "Сколько видео сгенерировать на основе этого эталона?\n\n"
+    "Каждое видео будет уникальным — разная локация, освещение, движение модели.\n\n"
+    "📦 Артикул: <code>{article}</code>\n"
+    "📸 Эталон: #{ref_number}\n"
+    "🏷 Тип товара: {category}\n\n"
+    "💰 Стоимость: {video_cost}₽ за видео\n\n"
+    "Введите число (1–5) или выберите:"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -98,16 +110,7 @@ async def cb_menu_gen_video(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["gen_video_ref"] = dict(ref)
     context.user_data["_screen_msg"] = query.message.message_id
 
-    text = (
-        "🎥 Шаг V1: Сколько видео?\n\n"
-        "Сколько видео сгенерировать на основе этого эталона?\n\n"
-        "Каждое видео будет уникальным — разная локация, освещение, движение модели.\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"📸 Эталон: #{ref_number}\n"
-        f"🏷 Тип товара: {ref.get('category', '—')}\n\n"
-        f"💰 Стоимость: {VIDEO_COST}₽ за видео\n\n"
-        "Введите число (1–5) или выберите:"
-    )
+    text = await _msg_gen_video_count(article, ref_number, ref.get("category", "—"))
 
     await context.bot.edit_message_caption(
         chat_id=query.message.chat_id,
@@ -390,16 +393,7 @@ async def cb_back_to_v_count(update: Update, context: ContextTypes.DEFAULT_TYPE)
     ref_number = context.user_data.get("gen_video_ref_number", "")
     ref = context.user_data.get("gen_video_ref", {})
 
-    text = (
-        "🎥 Шаг V1: Сколько видео?\n\n"
-        "Сколько видео сгенерировать на основе этого эталона?\n\n"
-        "Каждое видео будет уникальным — разная локация, освещение, движение модели.\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"📸 Эталон: #{ref_number}\n"
-        f"🏷 Тип товара: {ref.get('category', '—')}\n\n"
-        f"💰 Стоимость: {VIDEO_COST}₽ за видео\n\n"
-        "Введите число (1–5) или выберите:"
-    )
+    text = await _msg_gen_video_count(article, ref_number, ref.get("category", "—"))
 
     await context.bot.edit_message_caption(
         chat_id=query.message.chat_id,
@@ -430,6 +424,16 @@ async def cb_close_alert_video(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
     await query.message.delete()
     return _V_WISH
+
+
+async def _msg_gen_video_count(article: str, ref_number: int | str, category: str) -> str:
+    template = await get_template("msg_gen_video_count", fallback=_GEN_VIDEO_COUNT_TEXT_FALLBACK)
+    return template.format(
+        article=article,
+        ref_number=ref_number,
+        category=category or "—",
+        video_cost=VIDEO_COST,
+    )
 
 
 # ---------------------------------------------------------------------------

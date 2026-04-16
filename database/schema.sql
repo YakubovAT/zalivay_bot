@@ -525,3 +525,46 @@ DO $$ BEGIN
      'Шаг 15 — список артикулов с эталонами. Переменные: {user_id}, {full_name}, {articles}, {references}, {photos}, {videos}, {balance}.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_photo_count') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_gen_photo_count',
+     '📸 Шаг P1: Сколько фото?
+
+Сколько фото сгенерировать на основе этого эталона?
+
+Вы можете сгенерировать одно или множество изображений.
+Каждое фото будет уникальным — разная локация, освещение, ракурс.
+
+📦 Артикул: <code>{article}</code>
+📸 Эталон: #{ref_number}
+🏷 Тип товара: {category}
+
+💰 Стоимость: {photo_cost}₽ за фото
+
+Введите число:',
+     'Шаг P1 — ввод количества фото для генерации. Переменные: {article}, {ref_number}, {category}, {photo_cost}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_video_count') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_gen_video_count',
+     '🎥 Шаг V1: Сколько видео?
+
+Сколько видео сгенерировать на основе этого эталона?
+
+Каждое видео будет уникальным — разная локация, освещение, движение модели.
+
+📦 Артикул: <code>{article}</code>
+📸 Эталон: #{ref_number}
+🏷 Тип товара: {category}
+
+💰 Стоимость: {video_cost}₽ за видео
+
+Введите число (1–5) или выберите:',
+     'Шаг V1 — ввод количества видео для генерации. Переменные: {article}, {ref_number}, {category}, {video_cost}.');
+  END IF;
+END $$;
