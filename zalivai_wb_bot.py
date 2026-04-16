@@ -10,7 +10,7 @@ import sys
 
 import aiohttp
 from telegram import BotCommand, MenuButtonCommands, Update
-from telegram.ext import Application, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters, ContextTypes
 
 from config import BOT_TOKEN
 from database import init_db
@@ -94,6 +94,15 @@ async def on_shutdown(application: Application) -> None:
 
 
 # ---------------------------------------------------------------------------
+async def help_cmd(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(
+        "📋 Справка:\n"
+        "• /start — начать работу с ботом\n"
+        "• Загружайте фото товара для генерации контента\n"
+        "• Используйте меню ≡ для навигации"
+    )
+
+
 # Запуск
 # ---------------------------------------------------------------------------
 
@@ -194,17 +203,7 @@ def main() -> None:
 
     application.add_handler(CallbackQueryHandler(cb_gen_video_close, pattern="^gen_video_close$"))
 
-from telegram.ext import CommandHandler
-
-async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📋 Справка:\n"
-        "• /start — начать работу с ботом\n"
-        "• Загружайте фото товара для генерации контента\n"
-        "• Используйте меню ≡ для навигации"
-    )
-
-application.add_handler(CommandHandler("help", help_cmd))
+    application.add_handler(CommandHandler("help", help_cmd))
 
     logger.info("Бот запущен")
     application.run_polling()
