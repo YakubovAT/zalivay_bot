@@ -446,3 +446,30 @@ DO $$ BEGIN
      'Шаг 7 — подтверждение создания эталона после выбора 3 фото. Переменные: {article}.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_reference_creating') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_reference_creating',
+     '⏳ Создаю эталон для артикула <code>{article}</code>...
+
+<a href="https://zaliv.ai/">Zaliv.AI</a> — сервис массовой автоматизированной генерации профессионального фото и видео контента для товаров с последующим размещением в социальных сетях.
+
+Это займёт 1-3 минуты...',
+     'Шаг 8 — экран начала создания эталона. Переменные: {article}.');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_reference_generating_photo') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_reference_generating_photo',
+     '⏳ Генерирую фото эталона...
+Тип товара: {category}
+
+Созданный эталон позволит вам массово генерировать фото и видео для любых площадок: Telegram, VK, Instagram, YouTube и других социальных сетей.
+
+Осталось немного...',
+     'Шаг 10 — экран генерации фото эталона. Переменные: {category}.');
+  END IF;
+END $$;

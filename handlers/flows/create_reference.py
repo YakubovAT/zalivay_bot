@@ -30,6 +30,23 @@ logger = logging.getLogger(__name__)
 # Состояние (13, чтобы не пересекаться с new_article 0-2 и photo_selection 10-12)
 _REFERENCE_GENERATING = 13
 
+_REFERENCE_CREATING_TEXT_FALLBACK = (
+    "⏳ Создаю эталон для артикула <code>{article}</code>...\n\n"
+    "<a href=\"https://zaliv.ai/\">Zaliv.AI</a> — сервис массовой автоматизированной генерации "
+    "профессионального фото и видео контента для товаров "
+    "с последующим размещением в социальных сетях.\n\n"
+    "Это займёт 1-3 минуты..."
+)
+
+_REFERENCE_GENERATING_PHOTO_TEXT_FALLBACK = (
+    "⏳ Генерирую фото эталона...\n"
+    "Тип товара: {category}\n\n"
+    "Созданный эталон позволит вам массово генерировать "
+    "фото и видео для любых площадок: Telegram, VK, "
+    "Instagram, YouTube и других социальных сетей.\n\n"
+    "Осталось немного..."
+)
+
 
 def _kb_reference_result() -> InlineKeyboardMarkup:
     """Клавиатура после создания эталона."""
@@ -52,6 +69,7 @@ async def start_reference_generation(
 ) -> int:
     """Запускает процесс создания эталона. Вызывается из photo_selection после подтверждения."""
     from database import get_article_info
+    from services.prompt_store import get_template
 
     article = context.user_data.get("article_code", "")
     chosen_paths = context.user_data.get("chosen_photo_paths", [])
@@ -85,14 +103,11 @@ async def start_reference_generation(
         return _REFERENCE_GENERATING
 
     # 2. Показываем экран генерации
+    creating_text = await get_template("msg_reference_creating", fallback=_REFERENCE_CREATING_TEXT_FALLBACK)
     await context.bot.edit_message_caption(
         chat_id=user_id,
         message_id=message_id,
-        caption=f"⏳ Создаю эталон для артикула <code>{article}</code>...\n\n"
-                f"<a href=\"https://zaliv.ai/\">Zaliv.AI</a> — сервис массовой автоматизированной генерации "
-                f"профессионального фото и видео контента для товаров "
-                f"с последующим размещением в социальных сетях.\n\n"
-                f"Это займёт 1-3 минуты...",
+        caption=creating_text.format(article=article),
         parse_mode="HTML",
     )
 
@@ -122,15 +137,14 @@ async def start_reference_generation(
     logger.info("T2T DONE | category=%s prompt_len=%d desc_len=%d", category, len(prompt_i2i), len(description))
 
     # 4. Обновляем caption
+    generating_photo_text = await get_template(
+        "msg_reference_generating_photo",
+        fallback=_REFERENCE_GENERATING_PHOTO_TEXT_FALLBACK,
+    )
     await context.bot.edit_message_caption(
         chat_id=user_id,
         message_id=message_id,
-        caption=f"⏳ Генерирую фото эталона...\n"
-                f"Тип товара: {category}\n\n"
-                f"Созданный эталон позволит вам массово генерировать "
-                f"фото и видео для любых площадок: Telegram, VK, "
-                f"Instagram, YouTube и других социальных сетей.\n\n"
-                f"Осталось немного...",
+        caption=generating_photo_text.format(category=category),
     )
 
     # 6. Создаём коллаж для I2I (не показываем пользователю)
