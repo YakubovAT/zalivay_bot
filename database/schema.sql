@@ -174,28 +174,28 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates LIMIT 1) THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('photo_top',
-     'Professional lifestyle fashion photograph. A model wearing {description}, paired with {item_color} {bottom_item}. Location: {location}. Natural relaxed pose, high-quality e-commerce photography, realistic lighting, sharp focus on the clothing.',
+     'Fashion lifestyle editorial photograph. A stylish young woman wearing {description}, paired with {item_color} {bottom_item}. Setting: {location}. Confident, natural relaxed pose. Soft diffused natural light, warm tones, shallow depth of field with blurred bokeh background. Sharp focus on the top garment — fabric texture, fit, and drape clearly visible. Photorealistic commercial photography, high resolution, no distortion.',
      'Фото — категория «верх». Переменные: {description}, {item_color}, {bottom_item}, {location}'),
     ('photo_bottom',
-     'Professional lifestyle fashion photograph. A model wearing {description}, paired with {item_color} {top_item}. Location: {location}. Natural relaxed pose, high-quality e-commerce photography, realistic lighting, sharp focus on the clothing.',
+     'Fashion lifestyle editorial photograph. A stylish young woman wearing {description}, paired with {item_color} {top_item}. Setting: {location}. Natural relaxed stance, elongated silhouette. Soft diffused natural light, warm tones, shallow depth of field with blurred bokeh background. Sharp focus on the bottom garment — fabric texture, fit, and leg line clearly visible. Photorealistic commercial photography, high resolution, no distortion.',
      'Фото — категория «низ». Переменные: {description}, {item_color}, {top_item}, {location}'),
     ('photo_shoes',
-     'Professional lifestyle fashion photograph. A model wearing {description}. Outfit: {neutral_outfit}. Location: {location}. Natural relaxed pose, high-quality e-commerce photography, realistic lighting, focus on the footwear.',
+     'Fashion lifestyle editorial photograph. A stylish young woman wearing {description}. Outfit: {neutral_outfit}. Setting: {location}. Natural pose with footwear prominent in frame, slight low-angle view to feature the shoes. Soft side natural lighting, shallow depth of field. Sharp focus on the footwear — material texture, construction, and sole detail clearly visible. Photorealistic commercial photography, high resolution, no distortion.',
      'Фото — категория «обувь». Переменные: {description}, {neutral_outfit}, {location}'),
     ('photo_hat',
-     'Professional lifestyle fashion photograph. A model wearing {description}. Outfit: {neutral_outfit}. Location: {location}. Natural relaxed pose, high-quality e-commerce photography, realistic lighting, focus on the headwear.',
+     'Fashion lifestyle editorial photograph. A stylish young woman wearing {description}. Outfit: {neutral_outfit}. Setting: {location}. Natural confident pose, upper body and headwear in clean frame. Soft diffused natural light, warm tones. Sharp focus on the headwear — fabric, structure, and brim detail clearly visible. Photorealistic commercial photography, high resolution, no distortion.',
      'Фото — категория «головной убор». Переменные: {description}, {neutral_outfit}, {location}'),
     ('video_top',
-     'A fashion lifestyle video. A model wearing {description}, paired with {item_color} {item}. Location: {location}. The model is {motion}. Smooth cinematic camera movement, natural lighting, sharp focus on the clothing, professional e-commerce fashion video.',
+     'Smooth cinematic fashion lifestyle video. A stylish young woman wearing {description}, paired with {item_color} {item}. Location: {location}. The model is {motion}. Slow gliding camera captures the fabric drape and flow of the garment. Warm soft natural lighting, cinematic color grading, shallow depth of field. The top garment stays in sharp focus throughout the motion. Professional e-commerce fashion footage, no camera shake, fluid movement.',
      'Видео — категория «верх». Переменные: {description}, {item_color}, {item}, {location}, {motion}'),
     ('video_bottom',
-     'A fashion lifestyle video. A model wearing {description}, paired with {item_color} {item}. Location: {location}. The model is {motion}. Smooth cinematic camera movement, natural lighting, sharp focus on the clothing, professional e-commerce fashion video.',
+     'Smooth cinematic fashion lifestyle video. A stylish young woman wearing {description}, paired with {item_color} {item}. Location: {location}. The model is {motion}. Slow tracking camera at mid-height captures the drape and movement of the bottom garment. Warm soft natural lighting, cinematic color grading, shallow depth of field. The garment stays in sharp focus throughout the motion. Professional e-commerce fashion footage, no camera shake, fluid movement.',
      'Видео — категория «низ». Переменные: {description}, {item_color}, {item}, {location}, {motion}'),
     ('video_shoes',
-     'A fashion lifestyle video. A model wearing {description}, styled with a {outfit}. Location: {location}. The model is {motion}, with camera focus on the footwear. Smooth cinematic camera movement, natural lighting, sharp focus on the shoes, professional e-commerce fashion video.',
+     'Smooth cinematic fashion lifestyle video. A stylish young woman wearing {description}, styled with a {outfit}. Location: {location}. The model is {motion}. Camera alternates between full-body and waist-down close-up angles, highlighting the footwear in motion. Warm directional natural lighting, cinematic color grading. Material texture and movement of the shoes clearly visible throughout. Professional e-commerce fashion footage, no camera shake, fluid movement.',
      'Видео — категория «обувь». Переменные: {description}, {outfit}, {location}, {motion}'),
     ('video_hat',
-     'A fashion lifestyle video. A model wearing {description}, styled with a {outfit}. Location: {location}. The model is {motion}, with camera focus on the headwear. Smooth cinematic camera movement, natural lighting, sharp focus on the hat, professional e-commerce fashion video.',
+     'Smooth cinematic fashion lifestyle video. A stylish young woman wearing {description}, styled with a {outfit}. Location: {location}. The model is {motion}. Camera frames from shoulders up, with the headwear prominently featured. Soft golden-hour or studio lighting, cinematic color grading. Fabric texture, structure, and movement of the headwear clearly visible. Professional e-commerce fashion footage, no camera shake, fluid movement.',
      'Видео — категория «головной убор». Переменные: {description}, {outfit}, {location}, {motion}');
   END IF;
 END $$;
@@ -277,18 +277,20 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'video_locations' LIMIT 1) THEN
     -- value = локация, value2 = движение модели
     INSERT INTO prompt_list_items (list_key, value, value2, sort_order) VALUES
-    ('video_locations', 'a sunny city street', 'walking confidently', 0),
-    ('video_locations', 'a modern coffee shop', 'sitting down gracefully', 1),
-    ('video_locations', 'a lush green park', 'strolling leisurely', 2),
-    ('video_locations', 'a bright minimalist studio', 'turning slowly', 3),
-    ('video_locations', 'a seaside promenade', 'walking along the waterfront', 4),
-    ('video_locations', 'a stylish rooftop terrace', 'standing and looking into the distance', 5),
-    ('video_locations', 'a cozy indoor café', 'picking up a cup', 6),
-    ('video_locations', 'a vibrant flower market', 'walking through the stalls', 7),
-    ('video_locations', 'a clean white studio backdrop', 'posing and turning', 8),
-    ('video_locations', 'an urban pedestrian bridge', 'walking toward the camera', 9),
-    ('video_locations', 'a forest path in autumn', 'walking through falling leaves', 10),
-    ('video_locations', 'a luxury hotel lobby', 'walking through the entrance', 11);
+    ('video_locations', 'a sunny city street', 'walking confidently forward, hair gently moving', 0),
+    ('video_locations', 'a modern coffee shop', 'sitting gracefully and glancing up at the camera', 1),
+    ('video_locations', 'a lush green park', 'strolling leisurely, light breeze in the air', 2),
+    ('video_locations', 'a bright minimalist studio', 'rotating slowly with arms slightly extended', 3),
+    ('video_locations', 'a seaside promenade', 'walking along the waterfront with a relaxed stride', 4),
+    ('video_locations', 'a stylish rooftop terrace with city skyline', 'standing and gazing into the distance', 5),
+    ('video_locations', 'a cozy warmly lit café interior', 'reaching for a cup and smiling slightly', 6),
+    ('video_locations', 'a vibrant outdoor flower market', 'walking through the stalls, glancing at flowers', 7),
+    ('video_locations', 'a clean white studio with soft fill light', 'posing and turning to show all angles', 8),
+    ('video_locations', 'an urban pedestrian bridge', 'walking toward the camera with a confident gait', 9),
+    ('video_locations', 'a forest path with autumn foliage', 'walking through softly falling leaves', 10),
+    ('video_locations', 'an elegant marble hotel lobby', 'walking through the entrance with a graceful stride', 11),
+    ('video_locations', 'a sunlit courtyard with stone architecture', 'stepping forward and pausing naturally', 12),
+    ('video_locations', 'a glass-front boutique street', 'walking past storefronts, window reflection visible', 13);
   END IF;
 END $$;
 
@@ -322,6 +324,31 @@ DO $$ BEGIN
     INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
     ('video_neutral_outfits', 'neutral beige linen outfit', 0),
     ('video_neutral_outfits', 'minimalist white and grey ensemble', 1),
-    ('video_neutral_outfits', 'simple monochrome look', 2);
+    ('video_neutral_outfits', 'simple all-black monochrome look', 2),
+    ('video_neutral_outfits', 'soft cream knit and wide-leg ivory trousers', 3),
+    ('video_neutral_outfits', 'light denim jacket over a white linen shirt and straight trousers', 4),
+    ('video_neutral_outfits', 'camel turtleneck and tailored sand-colored trousers', 5),
+    ('video_neutral_outfits', 'pastel lavender blouse and white straight-leg pants', 6);
+  END IF;
+END $$;
+
+-- ============================================================
+-- UI-сообщения бота (редактируются через admin)
+-- Ключи начинаются с msg_ — отличие от AI-промптов.
+-- {placeholder} в тексте — переменные подставляемые кодом, не переименовывать.
+-- ============================================================
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_welcome') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_welcome',
+     'Шаг 1: Приветствие
+
+Система массовой автоматизированной генерации профессионального
+фото и видео контента для товаров с последующим размещением в социальных сетях.
+
+Возможно создавать фото и видео в различных форматах
+по заранее спроектированным промптам для ваших товаров.',
+     'Шаг 1 — экран приветствия при /start. Переменных нет.');
   END IF;
 END $$;

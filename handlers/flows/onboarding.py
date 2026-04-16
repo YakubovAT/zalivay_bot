@@ -20,6 +20,7 @@ from telegram.ext import (
 from database import ensure_user, get_user_stats
 from handlers.flows.flow_helpers import send_screen, clear_previous_screen
 from handlers.keyboards import kb_start, kb_main_menu
+from services.prompt_store import get_template
 
 # Баннер для первого экрана приветствия
 WELCOME_BANNER = "assets/welcom_banner_1.png"
@@ -34,7 +35,7 @@ _WELCOME, _MAIN_MENU = range(2)
 # Шаг 1. Приветствие
 # ---------------------------------------------------------------------------
 
-_WELCOME_TEXT = (
+_WELCOME_TEXT_FALLBACK = (
     "Шаг 1: Приветствие\n\n"
     "Система массовой автоматизированной генерации профессионального\n"
     "фото и видео контента для товаров с последующим размещением в социальных сетях.\n\n"
@@ -90,10 +91,11 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Удаляем предыдущий экран (если есть)
     await clear_previous_screen(context.bot, user.id)
 
+    welcome_text = await get_template("msg_welcome", fallback=_WELCOME_TEXT_FALLBACK)
     await send_screen(
         context.bot,
         chat_id=user.id,
-        text=_WELCOME_TEXT,
+        text=welcome_text,
         keyboard=kb_start(),
         banner_path=WELCOME_BANNER,
     )
