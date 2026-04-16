@@ -1142,11 +1142,15 @@
     </div>
     <div class="admin-layout">
       <nav class="admin-sidebar" id="admin-sidebar">
-        <button class="admin-nav-btn active" data-section="prompts" onclick="adminNav('prompts')">✏️ Промпты</button>
-        <button class="admin-nav-btn"        data-section="users"   onclick="adminNav('users')">👥 Пользователи</button>
+        <button class="admin-nav-btn active" data-section="prompts"  onclick="adminNav('prompts')">✏️ Промпты</button>
+        <button class="admin-nav-btn"        data-section="messages" onclick="adminNav('messages')">💬 Сообщения</button>
+        <button class="admin-nav-btn"        data-section="users"    onclick="adminNav('users')">👥 Пользователи</button>
       </nav>
       <div class="admin-main">
         <div id="admin-section-prompts">
+          <div class="loader"><div class="spinner"></div></div>
+        </div>
+        <div id="admin-section-messages" style="display:none">
           <div class="loader"><div class="spinner"></div></div>
         </div>
         <div id="admin-section-users" style="display:none">
@@ -1615,22 +1619,33 @@ function saveField(el) {
 
 {% if is_admin %}
 
-let _keysWithValue2 = new Set();
-let _usersLoaded    = false;
+let _keysWithValue2    = new Set();
+let _usersLoaded       = false;
+let _messagesRendered  = false;
+let _messageTemplates  = [];
 
 function toggleAdminSidebar() {
   document.getElementById('admin-sidebar').classList.toggle('hidden');
 }
 
-const _adminSectionTitles = { prompts: 'Промпты', users: 'Пользователи' };
+const _adminSectionTitles = {
+  prompts:  'Промпты',
+  messages: 'Сообщения',
+  users:    'Пользователи',
+};
 
 function adminNav(section) {
   document.querySelectorAll('.admin-nav-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.section === section));
-  document.getElementById('admin-section-prompts').style.display = section === 'prompts' ? '' : 'none';
-  document.getElementById('admin-section-users').style.display   = section === 'users'   ? '' : 'none';
+  document.getElementById('admin-section-prompts').style.display  = section === 'prompts'  ? '' : 'none';
+  document.getElementById('admin-section-messages').style.display = section === 'messages' ? '' : 'none';
+  document.getElementById('admin-section-users').style.display    = section === 'users'    ? '' : 'none';
   document.getElementById('admin-topbar-title').textContent = _adminSectionTitles[section] || '';
 
+  if (section === 'messages' && !_messagesRendered) {
+    _messagesRendered = true;
+    renderMessages(_messageTemplates);
+  }
   if (section === 'users' && !_usersLoaded) {
     _usersLoaded = true;
     loadUsers();
@@ -1651,23 +1666,59 @@ function loadAdmin() {
 }
 
 function renderAdmin(data) {
+  // Разделяем шаблоны: msg_* → раздел Сообщения, остальные → Промпты
+  const promptTpls  = data.templates.filter(t => !t.key.startsWith('msg_'));
+  const messageTpls = data.templates.filter(t =>  t.key.startsWith('msg_'));
+
+  // Сохраняем для ленивого рендера раздела Сообщения
+  _messageTemplates = messageTpls;
+
   const container = document.getElementById('admin-section-prompts');
 
-  const tplHTML = data.templates.map(tplCardHTML).join('');
-
-  const listKeys = Object.keys(data.lists).sort();
+  const tplHTML   = promptTpls.map(tplCardHTML).join('');
+  const listKeys  = Object.keys(data.lists).sort();
   const listsHTML = listKeys.map(lk => listGroupHTML(lk, data.lists[lk])).join('');
 
   container.innerHTML = `
     <div class="admin-section">
       <h2>Шаблоны промптов</h2>
-      ${tplHTML}
+      ${tplHTML || '<p style="color:var(--muted);font-size:13px">Нет шаблонов</p>'}
       <h2>Списки элементов</h2>
       ${listsHTML}
       <div class="admin-invalidate">
         <button class="btn-invalidate" onclick="adminInvalidate()">⟳ Сбросить кэш бота</button>
         <span class="invalidate-hint">Изменения подхватываются ботом автоматически через ~10 сек.</span>
         <span id="invalidate-status" style="font-size:12px"></span>
+      </div>
+    </div>`;
+}
+
+function renderMessages(templates) {
+  const container = document.getElementById('admin-section-messages');
+
+  if (!templates || templates.length === 0) {
+    container.innerHTML = `
+      <div class="empty">
+        <h3>Сообщений пока нет</h3>
+        <p>Мигрируйте первое сообщение через schema.sql — оно появится здесь автоматически.</p>
+      </div>`;
+    return;
+  }
+
+  const cardsHTML = templates.map(tplCardHTML).join('');
+
+  container.innerHTML = `
+    <div class="admin-section">
+      <h2>Сообщения бота</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Тексты, которые бот отправляет пользователям. Имена <code style="font-size:12px;color:var(--accent)">{placeholder}</code> — контракт с кодом, переименовывать запрещено.
+        Новые сообщения появляются здесь автоматически после миграции в&nbsp;БД.
+      </p>
+      ${cardsHTML}
+      <div class="admin-invalidate">
+        <button class="btn-invalidate" onclick="adminInvalidate()">⟳ Сбросить кэш бота</button>
+        <span class="invalidate-hint">Изменения подхватываются ботом автоматически через ~10 сек.</span>
+        <span id="invalidate-status-msg" style="font-size:12px"></span>
       </div>
     </div>`;
 }
@@ -1844,17 +1895,24 @@ function addListItem(lk) {
 }
 
 function adminInvalidate() {
-  const st = document.getElementById('invalidate-status');
   fetch('/api/admin/prompts/invalidate', { method: 'POST' })
     .then(r => r.json())
     .then(() => {
-      st.textContent = 'Кэш сброшен — бот подхватит через ~10 сек';
-      st.style.color = '#22c55e';
-      setTimeout(() => { st.textContent = ''; }, 4000);
+      ['invalidate-status', 'invalidate-status-msg'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = 'Кэш сброшен — бот подхватит через ~10 сек';
+        el.style.color = '#22c55e';
+        setTimeout(() => { el.textContent = ''; }, 4000);
+      });
     })
     .catch(() => {
-      st.textContent = 'Ошибка';
-      st.style.color = '#ef4444';
+      ['invalidate-status', 'invalidate-status-msg'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = 'Ошибка';
+        el.style.color = '#ef4444';
+      });
     });
 }
 
