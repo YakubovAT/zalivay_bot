@@ -80,7 +80,7 @@ _GEN_VIDEO_CONFIRM_TEXT_FALLBACK = (
     "{wish_block}"
     "💰 Стоимость: {total_cost}₽\n"
     "💳 Ваш баланс: {balance}₽\n\n"
-    "Если всё устраивает, нажмите ✅ Ссоздавать."
+    "Если всё устраивает, нажмите ✅ Создать."
 )
 
 _GEN_VIDEO_GENERATING_TEXT_FALLBACK = (

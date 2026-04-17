@@ -78,7 +78,7 @@ _GEN_PHOTO_CONFIRM_TEXT_FALLBACK = (
     "{wish_block}"
     "💰 Стоимость: {total_cost}₽\n"
     "💳 Ваш баланс: {balance}₽\n\n"
-    "Если всё устраивает, нажмите ✅ Ссоздавать и процесс запустится."
+    "Если всё устраивает, нажмите ✅ Создать и процесс запустится."
 )
 
 _GEN_PHOTO_GENERATING_TEXT_FALLBACK = (

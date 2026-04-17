@@ -242,7 +242,7 @@ def kb_gen_photo_wish() -> InlineKeyboardMarkup:
 
 def kb_gen_photo_confirm() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Ссоздавать", callback_data="gen_photo_yes")],
+        [InlineKeyboardButton("✅ Создать", callback_data="gen_photo_yes")],
         [
             InlineKeyboardButton("← Назад", callback_data="back_to_p_wish"),
             InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
@@ -303,7 +303,7 @@ def kb_gen_video_wish() -> InlineKeyboardMarkup:
 
 def kb_gen_video_confirm() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Ссоздавать", callback_data="gen_video_yes")],
+        [InlineKeyboardButton("✅ Создать", callback_data="gen_video_yes")],
         [
             InlineKeyboardButton("← Назад", callback_data="back_to_v_wish"),
             InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
