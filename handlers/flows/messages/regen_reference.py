@@ -19,17 +19,21 @@ async def msg_ref_card(ref_number: int, total: int, article: str, category: str)
     return template.format(ref_number=ref_number, total=total, article=article, category=category)
 
 
-def msg_regen_wish(article: str, ref_number: int) -> str:
+_MSG_REGEN_WISH_FALLBACK = (
+    "🔄 Шаг 16а: Пересоздание эталона\n\n"
+    "📦 Артикул: <code>{article}</code>\n"
+    "📸 Эталон: #{ref_number}\n\n"
+    "Будут использованы те же 3 фотографии, что и при создании.\n\n"
+    "Если хотите скорректировать результат — опишите, что не так "
+    "(например: <i>убери фон, товар должен быть по центру</i>).\n\n"
+    "Или нажмите <b>Пропустить</b> — эталон пересоздастся с теми же настройками."
+)
+
+
+async def msg_regen_wish(article: str, ref_number: int) -> str:
     """Шаг 16а — запрос пожеланий перед созданием."""
-    return (
-        f"🔄 Шаг 16а: Пересоздание эталона\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"📸 Эталон: #{ref_number}\n\n"
-        f"Будут использованы те же 3 фотографии, что и при создании.\n\n"
-        f"Если хотите скорректировать результат — опишите, что не так "
-        f"(например: <i>убери фон, товар должен быть по центру</i>).\n\n"
-        f"Или нажмите <b>Пропустить</b> — эталон пересоздастся с теми же настройками."
-    )
+    template = await get_template("msg_regen_wish", fallback=_MSG_REGEN_WISH_FALLBACK)
+    return template.format(article=article, ref_number=ref_number)
 
 
 def msg_regen_generating(article: str) -> str:

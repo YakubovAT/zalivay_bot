@@ -806,3 +806,21 @@ DO $$ BEGIN
      'Шаг 16а — ошибка: исходные фото не найдены. Переменные: {article}');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_regen_wish') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_regen_wish',
+     '🔄 Шаг 16а: Пересоздание эталона
+
+📦 Артикул: <code>{article}</code>
+📸 Эталон: #{ref_number}
+
+Будут использованы те же 3 фотографии, что и при создании.
+
+Если хотите скорректировать результат — опишите, что не так (например: <i>убери фон, товар должен быть по центру</i>).
+
+Или нажмите <b>Пропустить</b> — эталон пересоздастся с теми же настройками.',
+     'Шаг 16а — запрос пожеланий перед пересозданием. Переменные: {article}, {ref_number}');
+  END IF;
+END $$;

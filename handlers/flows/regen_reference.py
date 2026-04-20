@@ -84,7 +84,7 @@ async def cb_regen_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await context.bot.edit_message_caption(
         chat_id=user_id,
         message_id=query.message.message_id,
-        caption=msg_regen_wish(article, ref_number),
+        caption=await msg_regen_wish(article, ref_number),
         parse_mode="HTML",
         reply_markup=kb_regen_wish(),
     )
