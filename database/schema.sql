@@ -784,3 +784,14 @@ DO $$ BEGIN
      'Недостаточно средств (с purpose). Переменные: {purpose}, {needed}, {balance}.');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_ref_card') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_ref_card',
+     '📸 Шаг 16: Эталон #{ref_number} из {total}
+📦 Артикул: <code>{article}</code>
+🏷 Тип товара: {category}',
+     'Шаг 16 — заголовок карточки эталона. Переменные: {ref_number}, {total}, {article}, {category}');
+  END IF;
+END $$;

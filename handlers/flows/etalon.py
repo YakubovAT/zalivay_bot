@@ -109,7 +109,7 @@ async def show_ref_card(user, article: str, ref_index: int, bot, query) -> None:
 
     ref = refs[idx]
     total = len(refs)
-    caption = msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
+    caption = await msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
     keyboard = kb_ref_card(article, idx, total)
 
     try:
@@ -166,7 +166,7 @@ async def cb_ref_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data["article_code"] = article
     context.user_data["ref_number_for_gen"] = ref["reference_number"]
 
-    caption = msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
+    caption = await msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
     keyboard = kb_ref_card(article, idx, total)
 
     try:
@@ -221,7 +221,7 @@ async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     context.user_data["article_code"] = article
     context.user_data["ref_number_for_gen"] = ref["reference_number"]
 
-    caption = msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
+    caption = await msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
     keyboard = kb_ref_card(article, idx, total)
 
     try:

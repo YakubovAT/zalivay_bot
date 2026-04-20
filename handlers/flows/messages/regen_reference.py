@@ -4,14 +4,19 @@ handlers/flows/messages/regen_reference.py
 Тексты для Шага 16 (карточка эталона) и Шага 16а (пересоздание эталона).
 """
 
+from services.prompt_store import get_template
 
-def msg_ref_card(ref_number: int, total: int, article: str, category: str) -> str:
+_MSG_REF_CARD_FALLBACK = (
+    "📸 Шаг 16: Эталон #{ref_number} из {total}\n"
+    "📦 Артикул: <code>{article}</code>\n"
+    "🏷 Тип товара: {category}"
+)
+
+
+async def msg_ref_card(ref_number: int, total: int, article: str, category: str) -> str:
     """Заголовок карточки эталона (Шаг 16)."""
-    return (
-        f"📸 Шаг 16: Эталон #{ref_number} из {total}\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"🏷 Тип товара: {category}"
-    )
+    template = await get_template("msg_ref_card", fallback=_MSG_REF_CARD_FALLBACK)
+    return template.format(ref_number=ref_number, total=total, article=article, category=category)
 
 
 def msg_regen_wish(article: str, ref_number: int) -> str:
