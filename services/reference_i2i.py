@@ -23,7 +23,7 @@ import aiohttp
 logger = logging.getLogger(__name__)
 
 # I2I модель для создания эталона / lifestyle-фото
-I2I_MODEL = "gpt-image/1.5-image-to-image"
+I2I_MODEL = "nano-banana-2"
 
 # Максимальное количество попыток polling и интервал
 MAX_POLL_ATTEMPTS = 60
@@ -41,22 +41,22 @@ async def create_i2i_task(
     api_key: str,
     image_urls: list[str],
     prompt: str,
-    aspect_ratio: str = "2:3",
-    quality: str = "medium",
+    aspect_ratio: str = "9:16",
+    resolution: str = "1K",
+    output_format: str = "png",
 ) -> str | None:
     """
     Создаёт задачу создания изображения.
     Возвращает taskId или None при ошибке.
-
-    Поле изображений в теле запроса — 'image_urls' (не 'input_urls').
     """
     payload = {
         "model": I2I_MODEL,
         "input": {
-            "input_urls":    image_urls,
+            "image_input":   image_urls,
             "prompt":        prompt,
             "aspect_ratio":  aspect_ratio,
-            "quality":       quality,
+            "resolution":    resolution,
+            "output_format": output_format,
         },
     }
 
@@ -168,6 +168,9 @@ async def generate_reference_image(
     api_key: str,
     image_urls: list[str],
     prompt: str,
+    aspect_ratio: str = "9:16",
+    resolution: str = "1K",
+    output_format: str = "png",
 ) -> str | None:
     """
     Полный цикл: создание задачи → polling → возврат URL результата.
@@ -185,6 +188,9 @@ async def generate_reference_image(
         api_key=api_key,
         image_urls=image_urls,
         prompt=prompt,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        output_format=output_format,
     )
     if not task_id:
         return None
