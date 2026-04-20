@@ -48,7 +48,18 @@ async def msg_regen_generating(article: str) -> str:
     return template.format(article=article)
 
 
-def msg_regen_result(
+_MSG_REGEN_RESULT_FALLBACK = (
+    "✅ Шаг 16а: Новый эталон готов!\n\n"
+    "📦 Артикул: <code>{article}</code>\n"
+    "📸 Эталон #{ref_number}\n"
+    "🏷 Тип товара: {category}\n\n"
+    "💰 Списано: {cost}₽\n"
+    "💳 Ваш баланс: {balance}₽\n\n"
+    "Теперь вы можете создавать фото и видео!"
+)
+
+
+async def msg_regen_result(
     article: str,
     ref_number: int,
     category: str,
@@ -56,15 +67,8 @@ def msg_regen_result(
     balance: int,
 ) -> str:
     """Результат пересоздания (Шаг 16а — финал)."""
-    return (
-        f"✅ Шаг 16а: Новый эталон готов!\n\n"
-        f"📦 Артикул: <code>{article}</code>\n"
-        f"📸 Эталон #{ref_number}\n"
-        f"🏷 Тип товара: {category}\n\n"
-        f"💰 Списано: {cost}₽\n"
-        f"💳 Ваш баланс: {balance}₽\n\n"
-        f"Теперь вы можете создавать фото и видео!"
-    )
+    template = await get_template("msg_regen_result", fallback=_MSG_REGEN_RESULT_FALLBACK)
+    return template.format(article=article, ref_number=ref_number, category=category, cost=cost, balance=balance)
 
 
 _MSG_REGEN_NO_SOURCE_FALLBACK = (

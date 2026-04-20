@@ -231,7 +231,7 @@ async def _run_regen(
     # Обновляем ref_number для последующей создания фото/видео
     context.user_data["ref_number_for_gen"] = reference_number
 
-    final_caption = msg_regen_result(article, reference_number, category, REFERENCE_COST, new_balance)
+    final_caption = await msg_regen_result(article, reference_number, category, REFERENCE_COST, new_balance)
     try:
         await context.bot.edit_message_media(
             chat_id=user_id,

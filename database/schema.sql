@@ -835,3 +835,21 @@ DO $$ BEGIN
      'Шаг 16а — прогресс пересоздания. Переменные: {article}');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_regen_result') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_regen_result',
+     '✅ Шаг 16а: Новый эталон готов!
+
+📦 Артикул: <code>{article}</code>
+📸 Эталон #{ref_number}
+🏷 Тип товара: {category}
+
+💰 Списано: {cost}₽
+💳 Ваш баланс: {balance}₽
+
+Теперь вы можете создавать фото и видео!',
+     'Шаг 16а — финальный результат пересоздания. Переменные: {article}, {ref_number}, {category}, {cost}, {balance}');
+  END IF;
+END $$;
