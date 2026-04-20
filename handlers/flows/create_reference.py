@@ -136,10 +136,10 @@ async def start_reference_generation(
         )
 
     if not prompt_result:
-        await context.bot.edit_message_caption(
+        await context.bot.send_message(
             chat_id=user_id,
-            message_id=message_id,
-            caption="❌ Не удалось создать промпт. Попробуйте снова или обратитесь в поддержку.",
+            text="❌ Не удалось создать промпт. Попробуйте снова или обратитесь в поддержку.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Закрыть", callback_data="close_error")]]),
         )
         return ConversationHandler.END
 
@@ -161,10 +161,10 @@ async def start_reference_generation(
 
     # 6. Создаём коллаж для I2I (не показываем пользователю)
     if not chosen_paths:
-        await context.bot.edit_message_caption(
+        await context.bot.send_message(
             chat_id=user_id,
-            message_id=message_id,
-            caption="❌ Не найдены выбранные фото. Начните заново.",
+            text="❌ Не найдены выбранные фото. Начните заново.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Закрыть", callback_data="close_error")]]),
         )
         return ConversationHandler.END
 
@@ -193,10 +193,10 @@ async def start_reference_generation(
         )
 
     if not result_url:
-        await context.bot.edit_message_caption(
+        await context.bot.send_message(
             chat_id=user_id,
-            message_id=message_id,
-            caption="❌ Не удалось создать эталон. Средства не списаны. Попробуйте снова.",
+            text="❌ Не удалось создать эталон. Средства не списаны. Попробуйте снова.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Закрыть", callback_data="close_error")]]),
         )
         return ConversationHandler.END
 

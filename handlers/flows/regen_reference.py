@@ -12,7 +12,7 @@ import logging
 import os
 
 import aiohttp
-from telegram import Update, InputMediaPhoto
+from telegram import Update, InputMediaPhoto, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     CallbackQueryHandler,
     ConversationHandler,
@@ -67,11 +67,11 @@ async def cb_regen_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     existing_paths = [p for p in source_paths if os.path.exists(p)]
 
     if not existing_paths:
-        await context.bot.edit_message_caption(
+        await context.bot.send_message(
             chat_id=user_id,
-            message_id=query.message.message_id,
-            caption=await msg_regen_no_source_photos(article),
+            text=await msg_regen_no_source_photos(article),
             parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Закрыть", callback_data="close_error")]]),
         )
         return ConversationHandler.END
 
@@ -110,11 +110,11 @@ async def _run_regen(
     # Проверка баланса
     stats = await get_user_stats(user_id)
     if stats["balance"] < REFERENCE_COST:
-        await context.bot.edit_message_caption(
+        await context.bot.send_message(
             chat_id=user_id,
-            message_id=message_id,
-            caption=msg_insufficient_funds(REFERENCE_COST, stats["balance"], "Стоимость пересоздания"),
+            text=msg_insufficient_funds(REFERENCE_COST, stats["balance"], "Стоимость пересоздания"),
             parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Закрыть", callback_data="close_error")]]),
         )
         return ConversationHandler.END
 
@@ -138,10 +138,10 @@ async def _run_regen(
         )
 
     if not prompt_result:
-        await context.bot.edit_message_caption(
+        await context.bot.send_message(
             chat_id=user_id,
-            message_id=message_id,
-            caption="❌ Не удалось создать промпт. Попробуйте снова.",
+            text="❌ Не удалось создать промпт. Попробуйте снова или обратитесь в поддержку.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Закрыть", callback_data="close_error")]]),
         )
         return ConversationHandler.END
 
@@ -178,10 +178,10 @@ async def _run_regen(
         )
 
     if not result_url:
-        await context.bot.edit_message_caption(
+        await context.bot.send_message(
             chat_id=user_id,
-            message_id=message_id,
-            caption="❌ Не удалось создать эталон. Средства не списаны.",
+            text="❌ Не удалось создать эталон. Средства не списаны. Попробуйте снова.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Закрыть", callback_data="close_error")]]),
         )
         return ConversationHandler.END
 
