@@ -59,10 +59,14 @@ def msg_regen_result(
     )
 
 
-def msg_regen_no_source_photos(article: str) -> str:
+_MSG_REGEN_NO_SOURCE_FALLBACK = (
+    "❌ Исходные фотографии для артикула <code>{article}</code> не найдены.\n\n"
+    "Возможно, файлы были удалены с сервера. "
+    "Создайте новый эталон через «➕ Новый эталон»."
+)
+
+
+async def msg_regen_no_source_photos(article: str) -> str:
     """Ошибка — исходные фото не найдены на диске."""
-    return (
-        f"❌ Исходные фотографии для артикула <code>{article}</code> не найдены.\n\n"
-        f"Возможно, файлы были удалены с сервера. "
-        f"Создайте новый эталон через «➕ Новый эталон»."
-    )
+    template = await get_template("msg_regen_no_source_photos", fallback=_MSG_REGEN_NO_SOURCE_FALLBACK)
+    return template.format(article=article)

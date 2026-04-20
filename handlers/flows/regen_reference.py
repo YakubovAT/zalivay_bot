@@ -71,7 +71,7 @@ async def cb_regen_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await context.bot.edit_message_caption(
             chat_id=user_id,
             message_id=query.message.message_id,
-            caption=msg_regen_no_source_photos(article),
+            caption=await msg_regen_no_source_photos(article),
             parse_mode="HTML",
         )
         return ConversationHandler.END

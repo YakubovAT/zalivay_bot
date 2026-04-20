@@ -795,3 +795,14 @@ DO $$ BEGIN
      'Шаг 16 — заголовок карточки эталона. Переменные: {ref_number}, {total}, {article}, {category}');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_regen_no_source_photos') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_regen_no_source_photos',
+     '❌ Исходные фотографии для артикула <code>{article}</code> не найдены.
+
+Возможно, файлы были удалены с сервера. Создайте новый эталон через «➕ Новый эталон».',
+     'Шаг 16а — ошибка: исходные фото не найдены. Переменные: {article}');
+  END IF;
+END $$;
