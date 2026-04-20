@@ -290,7 +290,7 @@ async def cb_regen_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     ref = refs[idx]
     total = len(refs)
 
-    caption = msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
+    caption = await msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
     keyboard = kb_ref_card(article, idx, total)
 
     try:
