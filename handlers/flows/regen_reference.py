@@ -37,7 +37,6 @@ from handlers.flows.messages.regen_reference import (
 from handlers.keyboards import kb_ref_card, kb_regen_wish, kb_regen_result
 from services.reference_t2t import generate_reference_prompt
 from services.reference_i2i import generate_reference_image
-from services.image_merger import merge_photos_horizontal
 
 logger = logging.getLogger(__name__)
 
@@ -154,28 +153,27 @@ async def _run_regen(
     if wish:
         prompt_i2i = f"{prompt_i2i}. Additional notes: {wish}"
 
-    # Коллаж из исходных фото
-    merged_path = f"media/{user_id}/temp/{article}_regen_input.png"
-    merge_ok = merge_photos_horizontal(chosen_paths, merged_path, target_height=350, spacing=8)
-    if not merge_ok or not os.path.exists(merged_path):
-        merged_path = chosen_paths[0]
+    # Загружаем каждое оригинальное фото в Telegram чтобы получить публичный CDN URL
+    image_urls = []
+    temp_msg_ids = []
+    for path in chosen_paths:
+        sent = await context.bot.send_photo(chat_id=user_id, photo=open(path, "rb"))
+        temp_msg_ids.append(sent.message_id)
+        file_obj = await context.bot.get_file(sent.photo[-1].file_id)
+        image_urls.append(file_obj.file_path)
+    for msg_id in temp_msg_ids:
+        try:
+            await context.bot.delete_message(chat_id=user_id, message_id=msg_id)
+        except Exception:
+            pass
 
-    # Отправляем коллаж для получения публичного URL (Telegram CDN)
-    sent = await context.bot.send_photo(chat_id=user_id, photo=open(merged_path, "rb"))
-    file_obj = await context.bot.get_file(sent.photo[-1].file_id)
-    file_url = file_obj.file_path
-    try:
-        await context.bot.delete_message(chat_id=user_id, message_id=sent.message_id)
-    except Exception:
-        pass
-
-    # I2I → создание нового эталона
+    # I2I → создание нового эталона (передаём все оригинальные фото)
     async with aiohttp.ClientSession() as session:
         result_url = await generate_reference_image(
             session=session,
             api_base=I2I_API_BASE,
             api_key=I2I_API_KEY,
-            image_urls=[file_url],
+            image_urls=image_urls,
             prompt=prompt_i2i,
         )
 

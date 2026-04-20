@@ -23,7 +23,6 @@ from database import get_user_stats, deduct_balance, save_reference, get_referen
 from handlers.flows.messages.common import msg_insufficient_funds, kb_alert_close
 from services.reference_t2t import generate_reference_prompt
 from services.reference_i2i import generate_reference_image
-from services.image_merger import merge_photos_horizontal
 
 logger = logging.getLogger(__name__)
 
@@ -169,39 +168,27 @@ async def start_reference_generation(
         )
         return ConversationHandler.END
 
-    merged_path = f"media/{user_id}/temp/{article}_reference_input.png"
-    merge_ok = merge_photos_horizontal(chosen_paths, merged_path, target_height=350, spacing=8)
+    # Загружаем каждое оригинальное фото в Telegram чтобы получить публичный CDN URL
+    image_urls = []
+    temp_msg_ids = []
+    for path in chosen_paths:
+        sent = await context.bot.send_photo(chat_id=user_id, photo=open(path, "rb"))
+        temp_msg_ids.append(sent.message_id)
+        file_obj = await context.bot.get_file(sent.photo[-1].file_id)
+        image_urls.append(file_obj.file_path)
+    for msg_id in temp_msg_ids:
+        try:
+            await context.bot.delete_message(chat_id=user_id, message_id=msg_id)
+        except Exception:
+            pass
 
-    if not merge_ok or not os.path.exists(merged_path):
-        await context.bot.edit_message_caption(
-            chat_id=user_id,
-            message_id=message_id,
-            caption="❌ Ошибка создания коллажа. Попробуйте выбрать фото заново.",
-        )
-        return ConversationHandler.END
-
-    # Отправляем коллаж ТОЛЬКО чтобы получить Telegram file_id и URL
-    # Сразу удаляем после получения URL — пользователь не должен это видеть
-    sent_collage_msg = await context.bot.send_photo(
-        chat_id=user_id,
-        photo=open(merged_path, "rb"),
-    )
-    file_obj = await context.bot.get_file(sent_collage_msg.photo[-1].file_id)
-    file_url = file_obj.file_path
-
-    # Удаляем сообщение с коллажем
-    try:
-        await context.bot.delete_message(chat_id=user_id, message_id=sent_collage_msg.message_id)
-    except Exception:
-        pass  # Игнорируем ошибки удаления
-
-    # 7. I2I → создание эталона
+    # 7. I2I → создание эталона (передаём все оригинальные фото)
     async with aiohttp.ClientSession() as session:
         result_url = await generate_reference_image(
             session=session,
             api_base=I2I_API_BASE,
             api_key=I2I_API_KEY,
-            image_urls=[file_url],
+            image_urls=image_urls,
             prompt=prompt_i2i,
         )
 
