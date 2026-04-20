@@ -122,7 +122,7 @@ async def _run_regen(
     await context.bot.edit_message_caption(
         chat_id=user_id,
         message_id=message_id,
-        caption=msg_regen_generating(article),
+        caption=await msg_regen_generating(article),
         parse_mode="HTML",
     )
 

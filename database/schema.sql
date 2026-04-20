@@ -824,3 +824,14 @@ DO $$ BEGIN
      'Шаг 16а — запрос пожеланий перед пересозданием. Переменные: {article}, {ref_number}');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_regen_generating') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_regen_generating',
+     '⏳ Пересоздаю эталон для артикула <code>{article}</code>...
+
+Это займёт 1–3 минуты...',
+     'Шаг 16а — прогресс пересоздания. Переменные: {article}');
+  END IF;
+END $$;

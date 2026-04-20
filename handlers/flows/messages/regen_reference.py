@@ -36,12 +36,16 @@ async def msg_regen_wish(article: str, ref_number: int) -> str:
     return template.format(article=article, ref_number=ref_number)
 
 
-def msg_regen_generating(article: str) -> str:
+_MSG_REGEN_GENERATING_FALLBACK = (
+    "⏳ Пересоздаю эталон для артикула <code>{article}</code>...\n\n"
+    "Это займёт 1–3 минуты..."
+)
+
+
+async def msg_regen_generating(article: str) -> str:
     """Прогресс пересоздания."""
-    return (
-        f"⏳ Пересоздаю эталон для артикула <code>{article}</code>...\n\n"
-        f"Это займёт 1–3 минуты..."
-    )
+    template = await get_template("msg_regen_generating", fallback=_MSG_REGEN_GENERATING_FALLBACK)
+    return template.format(article=article)
 
 
 def msg_regen_result(
