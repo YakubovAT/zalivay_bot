@@ -60,9 +60,10 @@ _REFERENCE_READY_TEXT_FALLBACK = (
 )
 
 
-def _kb_reference_result() -> InlineKeyboardMarkup:
+def _kb_reference_result(article: str) -> InlineKeyboardMarkup:
     """Клавиатура после создания эталона."""
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 Переделать эталон", callback_data=f"ref_regen_{article}")],
         [
             InlineKeyboardButton("📸 Создать фото", callback_data="menu_gen_photo"),
             InlineKeyboardButton("🎥 Создать видео", callback_data="menu_gen_video"),
@@ -257,6 +258,8 @@ async def start_reference_generation(
     logger.info("REFERENCE SAVED | user=%s article=%s ref=%d file_id=%s",
                 user_id, article, reference_number, file_id)
 
+    context.user_data["ref_number_for_gen"] = reference_number
+
     # Редактируем исходное сообщение с финальным результатом
     ready_text = await get_template("msg_reference_ready", fallback=_REFERENCE_READY_TEXT_FALLBACK)
     final_caption = ready_text.format(
@@ -271,7 +274,7 @@ async def start_reference_generation(
             chat_id=user_id,
             message_id=message_id,
             media=InputMediaPhoto(media=file_id, caption=final_caption, parse_mode="HTML"),
-            reply_markup=_kb_reference_result(),
+            reply_markup=_kb_reference_result(article),
         )
     except Exception:
         # Если редактирование media не сработало — отправляем новое
@@ -280,7 +283,7 @@ async def start_reference_generation(
             photo=open(result_local, "rb"),
             caption=final_caption,
             parse_mode="HTML",
-            reply_markup=_kb_reference_result(),
+            reply_markup=_kb_reference_result(article),
         )
 
     return ConversationHandler.END
