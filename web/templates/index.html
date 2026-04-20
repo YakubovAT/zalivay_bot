@@ -705,6 +705,28 @@
     }
     .tpl-textarea:focus { outline: none; border-color: var(--accent); }
 
+    .tpl-sort-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      margin-left: auto;
+    }
+    .tpl-sort-input {
+      width: 62px;
+      padding: 2px 6px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #111;
+      color: var(--text);
+      text-align: center;
+      transition: border-color .15s;
+    }
+    .tpl-sort-input:focus { outline: none; border-color: var(--accent); }
+
     .tpl-footer {
       display: flex;
       align-items: center;
@@ -1806,11 +1828,24 @@ function tplCardHTML(tpl) {
       </div>
     </div>` : '';
 
+  const sortBlock = isMsg ? `
+    <label class="tpl-sort-label" title="Порядок отображения в списке">
+      #
+      <input type="number" class="tpl-sort-input"
+        id="sort-${escHtml(tpl.key)}"
+        value="${tpl.sort_order}"
+        data-original="${tpl.sort_order}"
+        min="0" step="10"
+        onkeydown="if(event.key==='Enter'){this.blur()} if(event.key==='Escape'){this.value=this.dataset.original;this.blur()}"
+        onblur="saveTplSortOrder('${escHtml(tpl.key)}', this)">
+    </label>` : '';
+
   return `
     <div class="tpl-card">
       <div class="tpl-header">
         <span class="tpl-key">${escHtml(tpl.key)}</span>
         <span class="tpl-desc">${escHtml(tpl.description)}</span>
+        ${sortBlock}
       </div>
       ${bannerBlock}
       ${placeholders ? `<div class="tpl-placeholders">Переменные: ${escHtml(placeholders)}</div>` : ''}
@@ -1857,6 +1892,29 @@ function saveTpl(key) {
     st.textContent = 'Ошибка';
     st.className = 'tpl-status err';
   });
+}
+
+function saveTplSortOrder(key, input) {
+  const val = parseInt(input.value, 10);
+  if (isNaN(val) || val < 0) { input.value = input.dataset.original; return; }
+  if (val === parseInt(input.dataset.original, 10)) return;
+
+  fetch(`/api/admin/prompts/templates/${encodeURIComponent(key)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sort_order: val }),
+  })
+  .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+  .then(() => {
+    input.dataset.original = val;
+    const tpl = _messageTemplates.find(t => t.key === key);
+    if (tpl) tpl.sort_order = val;
+    _messageTemplates.sort((a, b) => a.sort_order - b.sort_order || a.key.localeCompare(b.key));
+    _messagesRendered = false;
+    renderMessages(_messageTemplates);
+    _messagesRendered = true;
+  })
+  .catch(() => { input.value = input.dataset.original; });
 }
 
 // ── Списки ──

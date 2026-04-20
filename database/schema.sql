@@ -157,6 +157,56 @@ UPDATE prompt_templates
     SET banner = 'welcom_banner_1.png'
     WHERE key = 'msg_welcome' AND banner IS NULL;
 
+-- Добавляем sort_order к существующим БД (idempotent)
+ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0;
+
+-- Расставляем порядок UI-сообщений (только там где ещё 0, т.е. не задан вручную)
+UPDATE prompt_templates SET sort_order = CASE key
+    -- Основной флоу: онбординг + создание эталона
+    WHEN 'msg_welcome'                        THEN 10
+    WHEN 'msg_profile'                        THEN 20
+    WHEN 'msg_marketplace_select'             THEN 30
+    WHEN 'msg_article_input'                  THEN 40
+    WHEN 'msg_product_found'                  THEN 50
+    WHEN 'msg_photo_select'                   THEN 60
+    WHEN 'msg_reference_create_confirm'       THEN 70
+    WHEN 'msg_reference_creating'             THEN 80
+    WHEN 'msg_reference_generating_photo'     THEN 90
+    WHEN 'msg_reference_ready'                THEN 100
+    -- Список эталонов
+    WHEN 'msg_my_refs_empty'                  THEN 150
+    WHEN 'msg_my_refs_list'                   THEN 155
+    -- Карточка эталона + пересоздание
+    WHEN 'msg_ref_card'                       THEN 160
+    WHEN 'msg_regen_no_source_photos'         THEN 162
+    WHEN 'msg_regen_wish'                     THEN 164
+    WHEN 'msg_regen_generating'               THEN 166
+    WHEN 'msg_regen_result'                   THEN 168
+    -- Создание фото
+    WHEN 'msg_gen_photo_count'                THEN 200
+    WHEN 'msg_gen_photo_wish'                 THEN 210
+    WHEN 'msg_gen_photo_confirm'              THEN 220
+    WHEN 'msg_gen_photo_generating'           THEN 230
+    -- Создание видео
+    WHEN 'msg_gen_video_count'                THEN 300
+    WHEN 'msg_gen_video_wish'                 THEN 310
+    WHEN 'msg_gen_video_confirm'              THEN 320
+    WHEN 'msg_gen_video_generating'           THEN 330
+    -- Результаты фото
+    WHEN 'msg_generation_done'                THEN 400
+    WHEN 'msg_generation_done_failed_line'    THEN 410
+    WHEN 'msg_generation_failed'              THEN 420
+    -- Результаты видео
+    WHEN 'msg_video_generation_done'          THEN 430
+    WHEN 'msg_video_generation_done_failed_line' THEN 440
+    WHEN 'msg_video_generation_failed'        THEN 450
+    -- Системные
+    WHEN 'msg_insufficient_funds'             THEN 600
+    WHEN 'msg_insufficient_funds_with_purpose' THEN 610
+    ELSE sort_order
+END
+WHERE key LIKE 'msg_%' AND sort_order = 0;
+
 -- Элементы списков: локации, одежда, цвета и т.д.
 -- list_key привязан к коду — не переименовывать.
 -- value — основное значение (текст элемента).
@@ -182,7 +232,7 @@ CREATE INDEX IF NOT EXISTS idx_prompt_list_items_lookup
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates LIMIT 1) THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('photo_top',
      'Fashion lifestyle editorial photograph. A stylish young woman wearing {description}, paired with {item_color} {bottom_item}. Setting: {location}. Confident, natural relaxed pose. Soft diffused natural light, warm tones, shallow depth of field with blurred bokeh background. Sharp focus on the top garment — fabric texture, fit, and drape clearly visible. Photorealistic commercial photography, high resolution, no distortion.',
      'Фото — категория «верх». Переменные: {description}, {item_color}, {bottom_item}, {location}'),
@@ -356,7 +406,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_welcome') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_welcome',
      'Шаг 1: Приветствие
 
@@ -365,13 +415,13 @@ DO $$ BEGIN
 
 Возможно создавать фото и видео в различных форматах
 по заранее спроектированным промптам для ваших товаров.',
-     'Шаг 1 — экран приветствия при /start. Переменных нет.');
+     'Шаг 1 — экран приветствия при /start. Переменных нет.', 10);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_profile') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_profile',
      'Шаг 2: Профиль
 
@@ -385,37 +435,37 @@ DO $$ BEGIN
 > • Фото: {photos}
 > • Видео: {videos}
 > • Баланс: {balance}₽',
-     'Шаг 2 — экран профиля/меню. Переменные: {user_id}, {full_name}, {articles}, {references}, {photos}, {videos}, {balance}.');
+     'Шаг 2 — экран профиля/меню. Переменные: {user_id}, {full_name}, {articles}, {references}, {photos}, {videos}, {balance}.', 20);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_marketplace_select') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_marketplace_select',
      'Шаг 3 из N: Выбор маркетплейса
 
 Выберите маркетплейс, на котором продаётся ваш товар. После мы с вами создадим фото и видео контент для последующего размещения в социальных сетях. Вам нужно будет ввести артикул товара, и мы создадим эталон вашего товара для создания фото и видео контента.',
-     'Шаг 3 — экран выбора маркетплейса. Переменных нет.');
+     'Шаг 3 — экран выбора маркетплейса. Переменных нет.', 30);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_article_input') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_article_input',
      'Шаг 4 из N: Ввод артикула
 
 В строку сообщений введите артикул.
 
 Мы загрузим фото из карточки. Выберите 3 лучших — где ваш товар виден наиболее чётко и детально. Это станет основой для создания фото и видео контента.',
-     'Шаг 4 — экран ввода артикула. Переменных нет.');
+     'Шаг 4 — экран ввода артикула. Переменных нет.', 40);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_product_found') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_product_found',
      'Шаг 5 из N: Найден товар
 
@@ -425,50 +475,50 @@ DO $$ BEGIN
 🧵 Состав: {material}
 
 Это тот товар?',
-     'Шаг 5 — найденный товар и подтверждение. Переменные: {name}, {brand}, {color}, {material}.');
+     'Шаг 5 — найденный товар и подтверждение. Переменные: {name}, {brand}, {color}, {material}.', 50);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_photo_select') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_photo_select',
      'Шаг 6 из N: Выбор фото — {current} из {total}
 
 {selection_text}',
-     'Шаг 6 — экран выбора фото. Переменные: {current}, {total}, {selection_text}.');
+     'Шаг 6 — экран выбора фото. Переменные: {current}, {total}, {selection_text}.', 60);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_reference_create_confirm') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_reference_create_confirm',
      'Шаг 7 из N: Создание эталона
 
 Вы выбрали 3 фото для артикула <code>{article}</code>.
 
 Убедитесь, что на этих фото товар виден лучше всего — по ним будет создан эталон для создания контента.',
-     'Шаг 7 — подтверждение создания эталона после выбора 3 фото. Переменные: {article}.');
+     'Шаг 7 — подтверждение создания эталона после выбора 3 фото. Переменные: {article}.', 70);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_reference_creating') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_reference_creating',
      '⏳ Создаю эталон для артикула <code>{article}</code>...
 
 <a href="https://zaliv.ai/">Zaliv.AI</a> — сервис массовой автоматизированной создания профессионального фото и видео контента для товаров с последующим размещением в социальных сетях.
 
 Это займёт 1-3 минуты...',
-     'Шаг 8 — экран начала создания эталона. Переменные: {article}.');
+     'Шаг 8 — экран начала создания эталона. Переменные: {article}.', 80);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_reference_generating_photo') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_reference_generating_photo',
      '⏳ Создаю фото эталона...
 Тип товара: {category}
@@ -476,13 +526,13 @@ DO $$ BEGIN
 Созданный эталон позволит вам массово создавать фото и видео для любых площадок: Telegram, VK, Instagram, YouTube и других социальных сетей.
 
 Осталось немного...',
-     'Шаг 10 — экран создания фото эталона. Переменные: {category}.');
+     'Шаг 10 — экран создания фото эталона. Переменные: {category}.', 90);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_reference_ready') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_reference_ready',
      'Шаг 11 из N: Эталон готов!
 
@@ -498,26 +548,26 @@ DO $$ BEGIN
 заменив фотографии на шаге выбора фото.
 
 Теперь вы можете создавать фото и видео!',
-     'Шаг 11 — экран готового эталона. Переменные: {article}, {reference_number}, {category}, {reference_cost}, {new_balance}.');
+     'Шаг 11 — экран готового эталона. Переменные: {article}, {reference_number}, {category}, {reference_cost}, {new_balance}.', 100);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_my_refs_empty') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_my_refs_empty',
      '📂 Мои эталоны (Шаг 15)
 
 У вас пока нет товаров с эталонами.
 
 Создайте первый эталон, чтобы создавать фото и видео для ваших товаров.',
-     'Шаг 15 — список эталонов пуст. Переменных нет.');
+     'Шаг 15 — список эталонов пуст. Переменных нет.', 150);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_my_refs_list') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_my_refs_list',
      '📂 Мои эталоны (Шаг 15)
 
@@ -528,13 +578,13 @@ DO $$ BEGIN
 
 Ниже ваши артикулы с эталонами.
 Нажмите на артикул — откроется меню работы с эталонами.',
-     'Шаг 15 — список артикулов с эталонами. Переменные: {user_id}, {full_name}, {articles}, {references}, {photos}, {videos}, {balance}.');
+     'Шаг 15 — список артикулов с эталонами. Переменные: {user_id}, {full_name}, {articles}, {references}, {photos}, {videos}, {balance}.', 155);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_photo_count') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_gen_photo_count',
      '📸 Шаг P1: Сколько фото?
 
@@ -550,13 +600,13 @@ DO $$ BEGIN
 💰 Стоимость: {photo_cost}₽ за фото
 
 Введите число:',
-     'Шаг P1 — ввод количества фото для создания. Переменные: {article}, {ref_number}, {category}, {photo_cost}.');
+     'Шаг P1 — ввод количества фото для создания. Переменные: {article}, {ref_number}, {category}, {photo_cost}.', 200);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_video_count') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_gen_video_count',
      '🎥 Шаг V1: Сколько видео?
 
@@ -571,13 +621,13 @@ DO $$ BEGIN
 💰 Стоимость: {video_cost}₽ за видео
 
 Введите число (1–5) или выберите:',
-     'Шаг V1 — ввод количества видео для создания. Переменные: {article}, {ref_number}, {category}, {video_cost}.');
+     'Шаг V1 — ввод количества видео для создания. Переменные: {article}, {ref_number}, {category}, {video_cost}.', 300);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_photo_wish') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_gen_photo_wish',
      '📸 Шаг P2: Пожелания
 
@@ -590,13 +640,13 @@ DO $$ BEGIN
 Есть пожелания к создания?
 
 Например: «хочу фото на фоне моря», «сделай в студии».',
-     'Шаг P2 — пожелания к создания фото. Переменные: {article}, {ref_number}, {count}, {total_cost}.');
+     'Шаг P2 — пожелания к создания фото. Переменные: {article}, {ref_number}, {count}, {total_cost}.', 210);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_photo_confirm') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_gen_photo_confirm',
      '📸 Шаг P3: Подтверждение
 
@@ -607,13 +657,13 @@ DO $$ BEGIN
 💳 Ваш баланс: {balance}₽
 
 Если всё устраивает, нажмите ✅ Создать и процесс запустится.',
-     'Шаг P3 — подтверждение создания фото. Переменные: {article}, {count}, {wish_block}, {total_cost}, {balance}.');
+     'Шаг P3 — подтверждение создания фото. Переменные: {article}, {count}, {wish_block}, {total_cost}, {balance}.', 220);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_photo_generating') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_gen_photo_generating',
      '📸 Шаг P4: Создание
 
@@ -621,13 +671,13 @@ DO $$ BEGIN
 
 Фото создаются параллельно.
 Я пришлю результат когда все будут готовы.',
-     'Шаг P4 — постановка создания фото в очередь. Переменные: {article}, {count}.');
+     'Шаг P4 — постановка создания фото в очередь. Переменные: {article}, {count}.', 230);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_video_wish') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_gen_video_wish',
      '🎥 Шаг V2: Пожелания
 
@@ -640,13 +690,13 @@ DO $$ BEGIN
 Есть пожелания к создания?
 
 Например: «модель идёт по пляжу», «съёмка в студии».',
-     'Шаг V2 — пожелания к создания видео. Переменные: {article}, {ref_number}, {count}, {total_cost}.');
+     'Шаг V2 — пожелания к создания видео. Переменные: {article}, {ref_number}, {count}, {total_cost}.', 310);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_video_confirm') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_gen_video_confirm',
      '🎥 Шаг V3: Подтверждение
 
@@ -657,13 +707,13 @@ DO $$ BEGIN
 💳 Ваш баланс: {balance}₽
 
 Если всё устраивает, нажмите ✅ Создать.',
-     'Шаг V3 — подтверждение создания видео. Переменные: {article}, {count}, {wish_block}, {total_cost}, {balance}.');
+     'Шаг V3 — подтверждение создания видео. Переменные: {article}, {count}, {wish_block}, {total_cost}, {balance}.', 320);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_gen_video_generating') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_gen_video_generating',
      '🎥 Шаг V4: Создание
 
@@ -671,13 +721,13 @@ DO $$ BEGIN
 
 Видео создаются параллельно. Это занимает несколько минут.
 Я пришлю результат когда всё будет готово.',
-     'Шаг V4 — постановка создания видео в очередь. Переменные: {article}, {count}.');
+     'Шаг V4 — постановка создания видео в очередь. Переменные: {article}, {count}.', 330);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_generation_done') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_generation_done',
      '📸 <b>{total} из {total}</b> фото готовы для <code>{article}</code>
 Тут представлен один из вариантов, все ваши создания хранятся здесь:
@@ -688,22 +738,22 @@ DO $$ BEGIN
 💳 Остаток: {new_balance}₽
 ⏱ Время: {elapsed_str}
 🆔 Задание #{job_id}',
-     'Результат создания фото. Переменные: {total}, {article}, {web_viewer_url}, {ref_number}, {actual_cost}, {new_balance}, {elapsed_str}, {job_id}.');
+     'Результат создания фото. Переменные: {total}, {article}, {web_viewer_url}, {ref_number}, {actual_cost}, {new_balance}, {elapsed_str}, {job_id}.', 400);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_generation_done_failed_line') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_generation_done_failed_line',
      '⚠️ Не удалось: {failed} из {requested}',
-     'Доп. строка для результата создания фото при частичных падениях. Переменные: {failed}, {requested}.');
+     'Доп. строка для результата создания фото при частичных падениях. Переменные: {failed}, {requested}.', 410);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_generation_failed') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_generation_failed',
      '❌ Не удалось создать фото.
 
@@ -712,13 +762,13 @@ DO $$ BEGIN
 🆔 Задание #{job_id}
 
 При обращении в поддержку укажите номер задания.',
-     'Ошибка создания фото. Переменные: {job_id}.');
+     'Ошибка создания фото. Переменные: {job_id}.', 420);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_video_generation_done') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_video_generation_done',
      '🎥 <b>{total} из {total}</b> видео готовы для <code>{article}</code>
 Тут представлен один из вариантов, все ваши создания хранятся здесь:
@@ -729,22 +779,22 @@ DO $$ BEGIN
 💳 Остаток: {new_balance}₽
 ⏱ Время: {elapsed_str}
 🆔 Задание #{job_id}',
-     'Результат создания видео. Переменные: {total}, {article}, {web_viewer_url}, {ref_number}, {actual_cost}, {new_balance}, {elapsed_str}, {job_id}.');
+     'Результат создания видео. Переменные: {total}, {article}, {web_viewer_url}, {ref_number}, {actual_cost}, {new_balance}, {elapsed_str}, {job_id}.', 430);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_video_generation_done_failed_line') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_video_generation_done_failed_line',
      '⚠️ Не удалось: {failed} из {requested}',
-     'Доп. строка для результата создания видео при частичных падениях. Переменные: {failed}, {requested}.');
+     'Доп. строка для результата создания видео при частичных падениях. Переменные: {failed}, {requested}.', 440);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_video_generation_failed') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_video_generation_failed',
      '❌ Не удалось создать видео.
 
@@ -753,13 +803,13 @@ DO $$ BEGIN
 🆔 Задание #{job_id}
 
 При обращении в поддержку укажите номер задания.',
-     'Ошибка создания видео. Переменные: {job_id}.');
+     'Ошибка создания видео. Переменные: {job_id}.', 450);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_insufficient_funds') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_insufficient_funds',
      '❌ Недостаточно средств.
 
@@ -767,13 +817,13 @@ DO $$ BEGIN
 💳 Ваш баланс: {balance}₽
 
 Пополните баланс и попробуйте снова.',
-     'Недостаточно средств (без указания purpose). Переменные: {needed}, {balance}.');
+     'Недостаточно средств (без указания purpose). Переменные: {needed}, {balance}.', 600);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_insufficient_funds_with_purpose') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_insufficient_funds_with_purpose',
      '❌ Недостаточно средств.
 
@@ -781,35 +831,35 @@ DO $$ BEGIN
 💳 Ваш баланс: {balance}₽
 
 Пополните баланс и попробуйте снова.',
-     'Недостаточно средств (с purpose). Переменные: {purpose}, {needed}, {balance}.');
+     'Недостаточно средств (с purpose). Переменные: {purpose}, {needed}, {balance}.', 610);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_ref_card') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_ref_card',
      '📸 Шаг 16: Эталон #{ref_number} из {total}
 📦 Артикул: <code>{article}</code>
 🏷 Тип товара: {category}',
-     'Шаг 16 — заголовок карточки эталона. Переменные: {ref_number}, {total}, {article}, {category}');
+     'Шаг 16 — заголовок карточки эталона. Переменные: {ref_number}, {total}, {article}, {category}', 160);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_regen_no_source_photos') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_regen_no_source_photos',
      '❌ Исходные фотографии для артикула <code>{article}</code> не найдены.
 
 Возможно, файлы были удалены с сервера. Создайте новый эталон через «➕ Новый эталон».',
-     'Шаг 16а — ошибка: исходные фото не найдены. Переменные: {article}');
+     'Шаг 16а — ошибка: исходные фото не найдены. Переменные: {article}', 162);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_regen_wish') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_regen_wish',
      '🔄 Шаг 16а: Пересоздание эталона
 
@@ -821,24 +871,24 @@ DO $$ BEGIN
 Если хотите скорректировать результат — опишите, что не так (например: <i>убери фон, товар должен быть по центру</i>).
 
 Или нажмите <b>Пропустить</b> — эталон пересоздастся с теми же настройками.',
-     'Шаг 16а — запрос пожеланий перед пересозданием. Переменные: {article}, {ref_number}');
+     'Шаг 16а — запрос пожеланий перед пересозданием. Переменные: {article}, {ref_number}', 164);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_regen_generating') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_regen_generating',
      '⏳ Пересоздаю эталон для артикула <code>{article}</code>...
 
 Это займёт 1–3 минуты...',
-     'Шаг 16а — прогресс пересоздания. Переменные: {article}');
+     'Шаг 16а — прогресс пересоздания. Переменные: {article}', 166);
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_regen_result') THEN
-    INSERT INTO prompt_templates (key, template, description) VALUES
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
     ('msg_regen_result',
      '✅ Шаг 16а: Новый эталон готов!
 
@@ -850,6 +900,6 @@ DO $$ BEGIN
 💳 Ваш баланс: {balance}₽
 
 Теперь вы можете создавать фото и видео!',
-     'Шаг 16а — финальный результат пересоздания. Переменные: {article}, {ref_number}, {category}, {cost}, {balance}');
+     'Шаг 16а — финальный результат пересоздания. Переменные: {article}, {ref_number}, {category}, {cost}, {balance}', 168);
   END IF;
 END $$;

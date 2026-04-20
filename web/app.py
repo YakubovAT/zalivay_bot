@@ -502,7 +502,13 @@ async def admin_get_prompts(session: str | None = Cookie(default=None)):
     _require_admin(session)
 
     template_rows = await _db_pool.fetch(
-        "SELECT key, template, description, banner, updated_at FROM prompt_templates ORDER BY key"
+        """
+        SELECT key, template, description, banner, sort_order, updated_at
+        FROM prompt_templates
+        ORDER BY
+            CASE WHEN key LIKE 'msg_%' THEN sort_order ELSE 0 END,
+            key
+        """
     )
     item_rows = await _db_pool.fetch(
         """
@@ -518,6 +524,7 @@ async def admin_get_prompts(session: str | None = Cookie(default=None)):
             "template":    r["template"],
             "description": r["description"] or "",
             "banner":      r["banner"] or "banner_default.png",
+            "sort_order":  r["sort_order"],
             "updated_at":  r["updated_at"].isoformat() if r["updated_at"] else None,
         }
         for r in template_rows
@@ -548,16 +555,26 @@ async def admin_update_template(
     request: Request,
     session: str | None = Cookie(default=None),
 ):
-    """Обновляет текст шаблона промпта."""
+    """Обновляет текст шаблона и/или sort_order."""
     _require_admin(session)
     body = await request.json()
-    template = body.get("template", "").strip()
-    if not template:
-        raise HTTPException(status_code=400, detail="template is required")
 
+    updates: dict = {}
+    if "template" in body:
+        t = body["template"].strip()
+        if not t:
+            raise HTTPException(status_code=400, detail="template cannot be empty")
+        updates["template"] = t
+    if "sort_order" in body:
+        updates["sort_order"] = int(body["sort_order"])
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+
+    set_clauses = ", ".join(f"{col} = ${i+2}" for i, col in enumerate(updates))
     result = await _db_pool.execute(
-        "UPDATE prompt_templates SET template = $1, updated_at = NOW() WHERE key = $2",
-        template, key,
+        f"UPDATE prompt_templates SET {set_clauses}, updated_at = NOW() WHERE key = $1",
+        key, *updates.values(),
     )
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail="Template not found")
