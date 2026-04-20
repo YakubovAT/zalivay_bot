@@ -2,7 +2,7 @@
 handlers/flows/regen_reference.py
 
 Шаг 16а: Пересоздание эталона с теми же исходными фотографиями.
-Запускается из карточки эталона (Шаг 16) по кнопке «🔄 Пересоздавать».
+Запускается из карточки эталона (Шаг 16) по кнопке «🔄 Переделать эталон».
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ _REGEN_WISH = 20
 
 
 async def cb_regen_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь нажал «🔄 Пересоздавать» на карточке эталона."""
+    """Пользователь нажал «🔄 Переделать эталон» на карточке эталона."""
     query = update.callback_query
     await query.answer()
 
@@ -237,7 +237,7 @@ async def _run_regen(
             chat_id=user_id,
             message_id=message_id,
             media=InputMediaPhoto(media=file_id, caption=final_caption, parse_mode="HTML"),
-            reply_markup=kb_regen_result(),
+            reply_markup=kb_regen_result(article),
         )
     except Exception:
         await context.bot.send_photo(
@@ -245,7 +245,7 @@ async def _run_regen(
             photo=open(result_local, "rb"),
             caption=final_caption,
             parse_mode="HTML",
-            reply_markup=kb_regen_result(),
+            reply_markup=kb_regen_result(article),
         )
 
     return ConversationHandler.END

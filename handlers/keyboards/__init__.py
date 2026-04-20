@@ -151,7 +151,7 @@ def kb_ref_card(article: str, idx: int, total: int) -> InlineKeyboardMarkup:
         if idx < total - 1:
             nav_row.append(InlineKeyboardButton("След. →", callback_data=f"ref_next_{article}"))
         buttons.append(nav_row)
-    buttons.append([InlineKeyboardButton("🔄 Пересоздавать", callback_data=f"ref_regen_{article}")])
+    buttons.append([InlineKeyboardButton("🔄 Переделать эталон", callback_data=f"ref_regen_{article}")])
     buttons.append([
         InlineKeyboardButton("📸 Создать фото", callback_data="menu_gen_photo"),
         InlineKeyboardButton("🎥 Создать видео", callback_data="menu_gen_video"),
@@ -178,9 +178,10 @@ def kb_regen_wish() -> InlineKeyboardMarkup:
     ])
 
 
-def kb_regen_result() -> InlineKeyboardMarkup:
-    """Клавиатура после успешной пересоздания."""
+def kb_regen_result(article: str) -> InlineKeyboardMarkup:
+    """Клавиатура после успешного пересоздания."""
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 Переделать эталон", callback_data=f"ref_regen_{article}")],
         [
             InlineKeyboardButton("📸 Создать фото", callback_data="menu_gen_photo"),
             InlineKeyboardButton("🎥 Создать видео", callback_data="menu_gen_video"),
