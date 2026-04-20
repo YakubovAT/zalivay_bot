@@ -233,7 +233,11 @@ async def msg_video_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     wish = None if text.lower() in ("пропустить", "пропуск", "skip", "нет") else text
     context.user_data["gen_video_wish"] = wish
-    return await _show_confirm_screen(user, context)
+    try:
+        await _show_confirm_screen(user, context)
+    except Exception:
+        logger.exception("msg_video_wish: _show_confirm_screen failed")
+    return _V_CONFIRM
 
 
 async def cb_no_video_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -241,7 +245,11 @@ async def cb_no_video_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     query = update.callback_query
     await query.answer()
     context.user_data["gen_video_wish"] = None
-    return await _show_confirm_screen(update.effective_user, context)
+    try:
+        await _show_confirm_screen(update.effective_user, context)
+    except Exception:
+        logger.exception("cb_no_video_wish: _show_confirm_screen failed")
+    return _V_CONFIRM
 
 
 async def _show_confirm_screen(user, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -269,13 +277,24 @@ async def _show_confirm_screen(user, context: ContextTypes.DEFAULT_TYPE) -> int:
     caption = await _msg_gen_video_confirm(article, count, total_cost, balance, wish)
 
     if screen_msg:
-        await context.bot.edit_message_caption(
-            chat_id=user.id,
-            message_id=screen_msg,
-            caption=caption,
-            parse_mode="HTML",
-            reply_markup=kb_gen_video_confirm(),
-        )
+        from telegram.error import BadRequest as TgBadRequest
+        try:
+            await context.bot.edit_message_caption(
+                chat_id=user.id,
+                message_id=screen_msg,
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=kb_gen_video_confirm(),
+            )
+        except TgBadRequest:
+            sent = await context.bot.send_photo(
+                chat_id=user.id,
+                photo=open("assets/banner_default.png", "rb"),
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=kb_gen_video_confirm(),
+            )
+            context.user_data["_screen_msg"] = sent.message_id
     return _V_CONFIRM
 
 
