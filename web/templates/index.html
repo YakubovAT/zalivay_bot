@@ -1559,35 +1559,48 @@ function cardHTML(f, i) {
 
 const _vthumbCache = new Map();
 
+function _extractFrame(src, img) {
+  const v = document.createElement('video');
+  v.muted    = true;
+  v.preload  = 'metadata';
+  // НЕ ставим crossOrigin — видео same-origin, crossOrigin делает canvas tainted
+
+  const done = () => {
+    const w = v.videoWidth  || 400;
+    const h = v.videoHeight || 300;
+    const c = document.createElement('canvas');
+    c.width  = Math.min(w, 480);
+    c.height = Math.round(h * c.width / w);
+    c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+    const dataUrl = c.toDataURL('image/jpeg', 0.82);
+    _vthumbCache.set(src, dataUrl);
+    img.src = dataUrl;
+    v.src = '';   // освобождаем ресурс
+  };
+
+  v.addEventListener('seeked', done, { once: true });
+  v.addEventListener('loadedmetadata', () => {
+    // seek к 10% длины, но не более 2 сек — чтобы видеть реальный кадр
+    v.currentTime = Math.min(v.duration * 0.1, 2);
+  }, { once: true });
+  v.addEventListener('error', () => { v.src = ''; }, { once: true });
+
+  v.src = src;
+}
+
 const _vthumbObserver = new IntersectionObserver(entries => {
   entries.forEach(entry => {
     if (!entry.isIntersecting) return;
     const img = entry.target;
     _vthumbObserver.unobserve(img);
     const src = img.dataset.videoSrc;
-    if (_vthumbCache.has(src)) { img.src = _vthumbCache.get(src); return; }
-    const v = document.createElement('video');
-    v.src = src;
-    v.muted = true;
-    v.preload = 'metadata';
-    v.crossOrigin = 'anonymous';
-    v.addEventListener('loadeddata', () => { v.currentTime = 0.5; });
-    v.addEventListener('seeked', () => {
-      try {
-        const c = document.createElement('canvas');
-        const maxW = 400;
-        c.width  = Math.min(v.videoWidth, maxW);
-        c.height = Math.round(c.width * v.videoHeight / v.videoWidth);
-        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
-        const dataUrl = c.toDataURL('image/jpeg', 0.85);
-        _vthumbCache.set(src, dataUrl);
-        img.src = dataUrl;
-      } catch (_) {}
-      v.src = '';
-    });
-    v.load();
+    if (_vthumbCache.has(src)) {
+      img.src = _vthumbCache.get(src);
+    } else {
+      _extractFrame(src, img);
+    }
   });
-}, { rootMargin: '150px' });
+}, { rootMargin: '200px' });
 
 function observeVideoThumbs() {
   document.querySelectorAll('.video-thumb:not([src])').forEach(img => {
