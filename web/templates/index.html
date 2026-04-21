@@ -211,6 +211,12 @@
     .card:hover img,
     .card:hover video { transform: scale(1.03); }
 
+    .video-thumb:not([src]),
+    .video-thumb[src=""] {
+      aspect-ratio: 9/16;
+      background: #111;
+    }
+
     .card-overlay {
       position: absolute;
       inset: 0;
@@ -1529,13 +1535,13 @@ function render() {
 
   lbFiles = files;
   content.innerHTML = `<div class="grid">${files.map((f, i) => cardHTML(f, i)).join('')}</div>`;
+  observeVideoThumbs();
 }
 
 function cardHTML(f, i) {
-  const thumb = f.type === 'photo' ? `/thumb/${f.path}` : `/files/${f.path}`;
   const media = f.type === 'photo'
-    ? `<img src="${thumb}" loading="lazy" alt="${f.articul}">`
-    : `<video src="${thumb}" muted preload="none"></video>`;
+    ? `<img src="/thumb/${f.path}" loading="lazy" alt="${f.articul}">`
+    : `<img class="video-thumb" data-video-src="/files/${f.path}" alt="${f.articul}">`;
 
   return `
     <div class="card" onclick="openLightbox(${i})">
@@ -1547,6 +1553,46 @@ function cardHTML(f, i) {
         <span class="card-name">${f.name}</span>
       </div>
     </div>`;
+}
+
+// ── Превью видео (canvas, lazy) ───────────────────────────────────────────────
+
+const _vthumbCache = new Map();
+
+const _vthumbObserver = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    const img = entry.target;
+    _vthumbObserver.unobserve(img);
+    const src = img.dataset.videoSrc;
+    if (_vthumbCache.has(src)) { img.src = _vthumbCache.get(src); return; }
+    const v = document.createElement('video');
+    v.src = src;
+    v.muted = true;
+    v.preload = 'metadata';
+    v.crossOrigin = 'anonymous';
+    v.addEventListener('loadeddata', () => { v.currentTime = 0.5; });
+    v.addEventListener('seeked', () => {
+      try {
+        const c = document.createElement('canvas');
+        const maxW = 400;
+        c.width  = Math.min(v.videoWidth, maxW);
+        c.height = Math.round(c.width * v.videoHeight / v.videoWidth);
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+        const dataUrl = c.toDataURL('image/jpeg', 0.85);
+        _vthumbCache.set(src, dataUrl);
+        img.src = dataUrl;
+      } catch (_) {}
+      v.src = '';
+    });
+    v.load();
+  });
+}, { rootMargin: '150px' });
+
+function observeVideoThumbs() {
+  document.querySelectorAll('.video-thumb:not([src])').forEach(img => {
+    _vthumbObserver.observe(img);
+  });
 }
 
 // ── Лайтбокс ─────────────────────────────────────────────────────────────────
