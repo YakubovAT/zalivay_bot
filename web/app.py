@@ -824,3 +824,20 @@ async def serve_file(path: str, session: str | None = Cookie(default=None)):
         raise HTTPException(status_code=404, detail="File not found")
 
     return FileResponse(file_path)
+
+
+# SPA fallback — все «красивые» URL отдают тот же index.html
+_SPA_PATHS = {"/mediafiles", "/etalons", "/trash", "/admin",
+              "/admin/prompts", "/admin/messages", "/admin/users"}
+
+@app.get("/{path:path}", response_class=HTMLResponse)
+async def spa_fallback(path: str, request: Request, session: str | None = Cookie(default=None)):
+    if "/" + path not in _SPA_PATHS:
+        raise HTTPException(status_code=404)
+    user = _get_current_user(session)
+    is_admin = bool(user and user["user_id"] in ADMIN_USER_IDS)
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {"user": user, "bot_username": BOT_USERNAME, "is_admin": is_admin},
+    )

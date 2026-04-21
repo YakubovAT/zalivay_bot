@@ -1283,9 +1283,16 @@ let refsLoaded  = false;
 let trashLoaded = false;
 let adminLoaded = false;
 
-function switchTab(name) {
+const _TAB_URL   = { media: '/mediafiles', refs: '/etalons', trash: '/trash', admin: '/admin' };
+const _URL_TAB   = Object.fromEntries(Object.entries(_TAB_URL).map(([k,v]) => [v, k]));
+const _SECTION_URL = { prompts: '/admin/prompts', messages: '/admin/messages', users: '/admin/users' };
+const _URL_SECTION = Object.fromEntries(Object.entries(_SECTION_URL).map(([k,v]) => [v, k]));
+
+function switchTab(name, push = true) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+
+  if (push) history.pushState({ tab: name }, '', _TAB_URL[name] || '/');
 
   if (name === 'refs' && !refsLoaded) {
     refsLoaded = true;
@@ -1301,6 +1308,14 @@ function switchTab(name) {
   }
 }
 
+window.addEventListener('popstate', e => {
+  const path = location.pathname;
+  const section = _URL_SECTION[path];
+  const tab     = section ? 'admin' : (_URL_TAB[path] || 'media');
+  switchTab(tab, false);
+  if (section) adminNav(section, false);
+});
+
 // ── Медиафайлы: состояние фильтров ───────────────────────────────────────────
 
 let allFiles   = [];
@@ -1308,6 +1323,20 @@ let activeType = 'all';
 let activeArt  = 'all';
 let lbIndex    = 0;
 let lbFiles    = [];
+
+// Инициализация по текущему URL (прямой заход или обновление страницы)
+;(function initFromURL() {
+  const path    = location.pathname;
+  const section = _URL_SECTION[path];
+  const tab     = section ? 'admin' : (_URL_TAB[path] || 'media');
+  if (tab !== 'media') switchTab(tab, false);
+  if (section) {
+    // adminNav вызовется после loadAdmin → renderAdmin, поэтому сохраняем
+    window._initAdminSection = section;
+  }
+  // Заменяем исходный URL на «красивый» если зашли с /
+  if (path === '/') history.replaceState({ tab: 'media' }, '', '/mediafiles');
+})();
 
 fetch('/api/files')
   .then(r => r.json())
@@ -1714,13 +1743,15 @@ const _adminSectionTitles = {
   users:    'Пользователи',
 };
 
-function adminNav(section) {
+function adminNav(section, push = true) {
   document.querySelectorAll('.admin-nav-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.section === section));
   document.getElementById('admin-section-prompts').style.display  = section === 'prompts'  ? '' : 'none';
   document.getElementById('admin-section-messages').style.display = section === 'messages' ? '' : 'none';
   document.getElementById('admin-section-users').style.display    = section === 'users'    ? '' : 'none';
   document.getElementById('admin-topbar-title').textContent = _adminSectionTitles[section] || '';
+
+  if (push) history.pushState({ tab: 'admin', section }, '', _SECTION_URL[section] || '/admin');
 
   if (section === 'messages' && !_messagesRendered) {
     _messagesRendered = true;
@@ -1738,6 +1769,10 @@ function loadAdmin() {
     .then(data => {
       _keysWithValue2 = new Set(data.keys_with_value2 || []);
       renderAdmin(data);
+      if (window._initAdminSection) {
+        adminNav(window._initAdminSection, false);
+        delete window._initAdminSection;
+      }
     })
     .catch(() => {
       document.getElementById('admin-section-prompts').innerHTML =
