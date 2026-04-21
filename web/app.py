@@ -263,12 +263,66 @@ async def logout():
 
 @app.get("/api/files")
 async def list_files(session: str | None = Cookie(default=None)):
-    """Возвращает список файлов текущего пользователя."""
+    """Возвращает список файлов текущего пользователя с метаданными из БД."""
     user = _get_current_user(session)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     files = _list_user_files(user["user_id"])
+    if not files:
+        return {"files": [], "articuls": []}
+
+    # Получаем метаданные из БД одним запросом для всех файлов
+    file_paths = ["media/" + f["path"] for f in files]
+    meta_rows = await _db_pool.fetch(
+        """
+        SELECT
+            gt.file_path,
+            gt.prompt,
+            gt.task_type,
+            gj.ref_number,
+            gj.wish,
+            gj.cost,
+            gj.count        AS job_count,
+            gj.id           AS job_id,
+            ar.category,
+            ar.product_name,
+            ar.product_color,
+            ar.product_material
+        FROM generation_tasks gt
+        JOIN generation_jobs gj
+          ON gj.id = gt.job_id
+        LEFT JOIN article_references ar
+          ON ar.user_id = gt.user_id
+         AND ar.articul = gt.articul
+         AND ar.reference_number = gj.ref_number
+         AND ar.is_active = TRUE
+        WHERE gt.user_id = $1
+          AND gt.status   = 'completed'
+          AND gt.file_path = ANY($2::text[])
+        """,
+        user["user_id"], file_paths,
+    )
+    meta_by_path = {r["file_path"]: dict(r) for r in meta_rows}
+
+    for f in files:
+        m = meta_by_path.get("media/" + f["path"])
+        if m:
+            f["meta"] = {
+                "ref_number":       m["ref_number"],
+                "job_id":           m["job_id"],
+                "task_type":        m["task_type"],
+                "wish":             m["wish"] or "",
+                "prompt":           m["prompt"] or "",
+                "cost":             round(m["cost"] / m["job_count"]) if m["job_count"] else m["cost"],
+                "category":         m["category"] or "",
+                "product_name":     m["product_name"] or "",
+                "product_color":    m["product_color"] or "",
+                "product_material": m["product_material"] or "",
+            }
+        else:
+            f["meta"] = None
+
     articuls = sorted({f["articul"] for f in files})
     return {"files": files, "articuls": articuls}
 

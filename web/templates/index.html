@@ -255,6 +255,119 @@
       color: #fff;
     }
 
+    /* ── Кнопка ⓘ на карточке ── */
+    .card-info-btn {
+      position: absolute;
+      top: 7px;
+      left: 8px;
+      z-index: 3;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(0,0,0,.55);
+      border: none;
+      color: rgba(255,255,255,.85);
+      font-size: 13px;
+      line-height: 22px;
+      text-align: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity .15s, background .15s;
+      padding: 0;
+    }
+    .card:hover .card-info-btn { opacity: 1; }
+    .card-info-btn:hover { background: rgba(42,171,238,.75); color: #fff; }
+
+    /* ── Info drawer (снизу экрана) ── */
+    .info-drawer-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0,0,0,.5);
+    }
+    .info-drawer-overlay.open { display: block; }
+
+    .info-drawer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 201;
+      background: #1a1a1a;
+      border-top: 1px solid var(--border);
+      border-radius: 14px 14px 0 0;
+      padding: 20px 20px 30px;
+      max-height: 70vh;
+      overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform .25s cubic-bezier(.4,0,.2,1);
+    }
+    .info-drawer.open { transform: translateY(0); }
+
+    .info-drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .info-drawer-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .info-drawer-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 4px;
+    }
+    .info-drawer-close:hover { color: var(--text); }
+
+    .info-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 9px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .info-icon { width: 18px; flex-shrink: 0; text-align: center; }
+    .info-label { color: var(--muted); flex-shrink: 0; }
+    .info-value { color: var(--text); word-break: break-word; }
+
+    .info-prompt-block {
+      margin-top: 14px;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+    .info-prompt-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 6px;
+    }
+    .info-prompt-text {
+      font-size: 12px;
+      color: #aaa;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 160px;
+      overflow-y: auto;
+      background: #111;
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .info-no-meta {
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
     /* ── Пустой экран ── */
     .empty {
       text-align: center;
@@ -1254,6 +1367,16 @@
   <button class="lightbox-nav" id="lb-next" onclick="navLightbox(1)">›</button>
 </div>
 
+<!-- Info drawer -->
+<div class="info-drawer-overlay" id="info-overlay" onclick="closeInfoDrawer()"></div>
+<div class="info-drawer" id="info-drawer">
+  <div class="info-drawer-header">
+    <span class="info-drawer-title" id="info-drawer-title">Информация о файле</span>
+    <button class="info-drawer-close" onclick="closeInfoDrawer()">✕</button>
+  </div>
+  <div id="info-drawer-body"></div>
+</div>
+
 {% endif %}
 
 <script>
@@ -1418,6 +1541,7 @@ function cardHTML(f, i) {
     <div class="card" onclick="openLightbox(${i})">
       ${media}
       ${f.type === 'video' ? '<span class="badge-video">▶ видео</span>' : ''}
+      <button class="card-info-btn" onclick="showInfoDrawer(event,${i})" title="Информация">ⓘ</button>
       <div class="card-overlay">
         <span class="card-articul">${f.articul}</span>
         <span class="card-name">${f.name}</span>
@@ -1463,9 +1587,72 @@ function showLightboxItem() {
 }
 
 function onKeyDown(e) {
-  if (e.key === 'Escape')       closeLightbox();
+  if (e.key === 'Escape') { closeLightbox(); closeInfoDrawer(); }
   if (e.key === 'ArrowLeft')    navLightbox(-1);
   if (e.key === 'ArrowRight')   navLightbox(1);
+}
+
+// ── Info drawer ───────────────────────────────────────────────────────────────
+
+const _TYPE_LABEL = {
+  photo: 'Фото', video: 'Видео',
+  lifestyle_photo: 'Лайфстайл фото', lifestyle_video: 'Лайфстайл видео',
+};
+
+function showInfoDrawer(e, i) {
+  e.stopPropagation();
+  const f = lbFiles[i];
+  const m = f.meta;
+  const date = new Date(f.mtime * 1000).toLocaleString('ru-RU', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  document.getElementById('info-drawer-title').textContent =
+    (f.type === 'video' ? '▶ Видео' : '📷 Фото') + ' · ' + f.articul;
+
+  let body = '';
+  if (!m) {
+    body = `<p class="info-no-meta">Метаданные недоступны — файл создан до введения истории.</p>`;
+  } else {
+    const rows = [
+      ['📅', 'Создан',      date],
+      ['📦', 'Артикул',     f.articul],
+      m.ref_number   ? ['📸', 'Эталон',      `#${m.ref_number}`]                          : null,
+      m.category     ? ['🏷', 'Категория',   m.category]                                   : null,
+      m.product_name ? ['🛍', 'Товар',       m.product_name]                               : null,
+      m.product_color? ['🎨', 'Цвет',        m.product_color]                              : null,
+      m.wish         ? ['💬', 'Пожелание',   m.wish]                                       : null,
+      m.task_type    ? ['⚙️', 'Тип задачи',  _TYPE_LABEL[m.task_type] || m.task_type]     : null,
+      m.cost         ? ['💰', 'Стоимость',   `${m.cost}₽`]                                 : null,
+                       ['📁', 'Размер',      fmtSize(f.size)],
+    ].filter(Boolean);
+
+    body = rows.map(([icon, label, val]) => `
+      <div class="info-row">
+        <span class="info-icon">${icon}</span>
+        <span class="info-label">${label}:</span>
+        <span class="info-value">${escHtml(String(val))}</span>
+      </div>`).join('');
+
+    if (m.prompt) {
+      body += `
+        <div class="info-prompt-block">
+          <div class="info-prompt-label">Промпт</div>
+          <div class="info-prompt-text">${escHtml(m.prompt)}</div>
+        </div>`;
+    }
+  }
+
+  document.getElementById('info-drawer-body').innerHTML = body;
+  document.getElementById('info-overlay').classList.add('open');
+  document.getElementById('info-drawer').classList.add('open');
+  document.addEventListener('keydown', onKeyDown);
+}
+
+function closeInfoDrawer() {
+  document.getElementById('info-overlay').classList.remove('open');
+  document.getElementById('info-drawer').classList.remove('open');
 }
 
 // ── Эталоны ──────────────────────────────────────────────────────────────────
