@@ -139,11 +139,15 @@ async def generate_pinterest_csv(
                 title = f"{base_title} {suffix}"
                 suffix += 1
             used_titles.add(title)
+            title = title[:100]
 
-            thumbnail = random.choices(_THUMBNAILS, weights=_THUMBNAIL_WEIGHTS, k=1)[0]
-            description = _build_description(name, color, settings.get("hashtags") or [])
+            # Thumbnail только для видео
+            is_video = mf["file_type"] == "video"
+            thumbnail = random.choices(_THUMBNAILS[:-1], weights=_THUMBNAIL_WEIGHTS[:-1], k=1)[0] if is_video else ""
+            description = _build_description(name, color, settings.get("hashtags") or [])[:500]
             link = _build_link(settings.get("link_template"), article_code, index)
-            board = settings.get("board") or ""
+            # Board обязателен для Pinterest; fallback — название товара
+            board = settings.get("board") or name or article_code
 
             step_minutes = random.randint(30, 120)
             publish_dt += timedelta(minutes=step_minutes)
