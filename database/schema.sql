@@ -1662,3 +1662,560 @@ DO $$ BEGIN
     ('photo_bottom_street_lighting', 'Cloudy diffused light, cool neutral tones, flat even exposure', 3);
   END IF;
 END $$;
+
+-- ============================================================
+-- Lifestyle-фото: сцены и переменные для «верх» (photo_top)
+-- ============================================================
+
+-- Список сцен
+DO $$ BEGIN
+  INSERT INTO prompt_list_items (list_key, value, sort_order)
+  SELECT v.list_key, v.value, v.sort_order
+  FROM (VALUES
+    ('photo_top_scenes'::text, 'room_mirror'::text,  0::integer),
+    ('photo_top_scenes'::text, 'fitting_room'::text, 1::integer),
+    ('photo_top_scenes'::text, 'flat_lay'::text,     2::integer),
+    ('photo_top_scenes'::text, 'hotel'::text,        3::integer),
+    ('photo_top_scenes'::text, 'mall'::text,         4::integer),
+    ('photo_top_scenes'::text, 'sitting'::text,      5::integer),
+    ('photo_top_scenes'::text, 'street'::text,       6::integer)
+  ) AS v(list_key, value, sort_order)
+  WHERE NOT EXISTS (
+    SELECT 1 FROM prompt_list_items p
+    WHERE p.list_key = v.list_key AND p.value = v.value
+  );
+END $$;
+
+-- Общие переменные нижнего гардероба
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_shared_lower_color' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_shared_lower_color', 'white',      0),
+    ('photo_shared_lower_color', 'black',      1),
+    ('photo_shared_lower_color', 'beige',      2),
+    ('photo_shared_lower_color', 'light blue', 3),
+    ('photo_shared_lower_color', 'dark blue',  4),
+    ('photo_shared_lower_color', 'khaki',      5),
+    ('photo_shared_lower_color', 'grey',       6),
+    ('photo_shared_lower_color', 'brown',      7),
+    ('photo_shared_lower_color', 'cream',      8),
+    ('photo_shared_lower_color', 'olive',      9);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_shared_lower_garment' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_shared_lower_garment', 'mini skirt',         0),
+    ('photo_shared_lower_garment', 'midi skirt',         1),
+    ('photo_shared_lower_garment', 'straight-leg jeans', 2),
+    ('photo_shared_lower_garment', 'skinny jeans',       3),
+    ('photo_shared_lower_garment', 'shorts',             4),
+    ('photo_shared_lower_garment', 'tailored trousers',  5),
+    ('photo_shared_lower_garment', 'wide-leg pants',     6),
+    ('photo_shared_lower_garment', 'fitted trousers',    7),
+    ('photo_shared_lower_garment', 'cargo trousers',     8),
+    ('photo_shared_lower_garment', 'linen trousers',     9),
+    ('photo_shared_lower_garment', 'sweatpants',         10),
+    ('photo_shared_lower_garment', 'flowy skirt',        11);
+  END IF;
+END $$;
+
+-- Шаблон: комната с зеркалом
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'photo_top_room_mirror') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('photo_top_room_mirror',
+     'Generate an image of a young Slavic woman with {photo_shared_skin_tone} skin
+taking a mirror selfie.
+She holds a {photo_shared_smartphone_color} smartphone at cheek level,
+partially revealing her face.
+She has {photo_shared_hair_length} {photo_shared_hair_texture} {photo_shared_hair_color} hair
+and wears a {photo_shared_lower_color} {photo_shared_lower_garment}.
+
+Use Image A as the exact top garment she is wearing —
+reproduce its silhouette, fabric, color, texture, and pattern precisely.
+Do not invent or substitute the top garment.
+
+The setting is a bright minimalist room with {photo_top_room_mirror_walls_color} walls,
+{photo_top_room_mirror_flooring_material} hardwood floor, and a {photo_top_room_mirror_mirror_style} full-length mirror.
+The room includes {photo_top_room_mirror_interior_details}.
+
+{photo_shared_camera_block}
+
+Keep the full body visible from head to toe.
+No watermark. No text overlay. No extra people.',
+     'Lifestyle-фото «верх» — комната с зеркалом. Плейсхолдеры: photo_shared_skin_tone, photo_shared_hair_*, photo_shared_smartphone_color, photo_shared_lower_color, photo_shared_lower_garment, photo_shared_camera_block, photo_top_room_mirror_walls_color, photo_top_room_mirror_flooring_material, photo_top_room_mirror_mirror_style, photo_top_room_mirror_interior_details.',
+     2000);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_room_mirror_walls_color' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_room_mirror_walls_color', 'light gray',     0),
+    ('photo_top_room_mirror_walls_color', 'white',          1),
+    ('photo_top_room_mirror_walls_color', 'beige',          2),
+    ('photo_top_room_mirror_walls_color', 'pale blue',      3),
+    ('photo_top_room_mirror_walls_color', 'soft pink',      4),
+    ('photo_top_room_mirror_walls_color', 'cream',          5),
+    ('photo_top_room_mirror_walls_color', 'light taupe',    6),
+    ('photo_top_room_mirror_walls_color', 'off-white',      7),
+    ('photo_top_room_mirror_walls_color', 'light lavender', 8);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_room_mirror_flooring_material' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_room_mirror_flooring_material', 'oak',    0),
+    ('photo_top_room_mirror_flooring_material', 'maple',  1),
+    ('photo_top_room_mirror_flooring_material', 'walnut', 2),
+    ('photo_top_room_mirror_flooring_material', 'cherry', 3),
+    ('photo_top_room_mirror_flooring_material', 'bamboo', 4),
+    ('photo_top_room_mirror_flooring_material', 'hickory',5),
+    ('photo_top_room_mirror_flooring_material', 'pine',   6),
+    ('photo_top_room_mirror_flooring_material', 'ash',    7),
+    ('photo_top_room_mirror_flooring_material', 'beech',  8);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_room_mirror_mirror_style' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_room_mirror_mirror_style', 'wooden-framed', 0),
+    ('photo_top_room_mirror_mirror_style', 'ornate',        1),
+    ('photo_top_room_mirror_mirror_style', 'rustic',        2),
+    ('photo_top_room_mirror_mirror_style', 'modern',        3),
+    ('photo_top_room_mirror_mirror_style', 'vintage',       4),
+    ('photo_top_room_mirror_mirror_style', 'minimalist',    5),
+    ('photo_top_room_mirror_mirror_style', 'carved',        6),
+    ('photo_top_room_mirror_mirror_style', 'gilded',        7),
+    ('photo_top_room_mirror_mirror_style', 'simple',        8);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_room_mirror_interior_details' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_room_mirror_interior_details', 'a small white bedside table with a potted plant and a scented candle',                   0),
+    ('photo_top_room_mirror_interior_details', 'a light wooden shelf with folded towels and a small vase of dried flowers',             1),
+    ('photo_top_room_mirror_interior_details', 'a minimal desk with a laptop and a ceramic mug in the background',                      2),
+    ('photo_top_room_mirror_interior_details', 'a soft beige armchair with a folded throw blanket in the corner',                       3),
+    ('photo_top_room_mirror_interior_details', 'a low wooden bench with a woven basket and a few books beside the mirror',               4),
+    ('photo_top_room_mirror_interior_details', 'a windowsill with sheer curtains, soft daylight casting gentle shadows',                 5),
+    ('photo_top_room_mirror_interior_details', 'a coat rack near the wall with a tote bag and a light jacket hanging',                   6),
+    ('photo_top_room_mirror_interior_details', 'a small round rug and a floor lamp with a warm-toned shade beside the mirror',           7);
+  END IF;
+END $$;
+
+-- Шаблон: примерочная
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'photo_top_fitting_room') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('photo_top_fitting_room',
+     'Generate an image of a young Slavic woman with {photo_shared_skin_tone} skin
+taking a mirror selfie inside a fitting room.
+She holds a {photo_shared_smartphone_color} smartphone at cheek level,
+partially revealing her face.
+She has {photo_shared_hair_length} {photo_shared_hair_texture} {photo_shared_hair_color} hair.
+
+Use Image A as the exact top garment she is wearing —
+reproduce its silhouette, fabric, color, texture, and pattern precisely.
+Do not invent or substitute the top garment.
+
+She wears a {photo_top_fitting_room_lower_garment}.
+
+The setting is a compact fitting room cubicle with white walls,
+a {photo_top_fitting_room_curtain_color} curtain partially drawn, a small bench,
+metal hooks on the wall with {photo_top_fitting_room_hanging_items} hanging on them.
+A frameless mirror on the wall reflects the scene.
+
+{photo_shared_camera_block}
+
+Keep the full body visible from head to toe.
+No watermark. No text overlay. No extra people.',
+     'Lifestyle-фото «верх» — примерочная. Плейсхолдеры: photo_shared_skin_tone, photo_shared_hair_*, photo_shared_smartphone_color, photo_shared_camera_block, photo_top_fitting_room_lower_garment, photo_top_fitting_room_curtain_color, photo_top_fitting_room_hanging_items.',
+     2001);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_fitting_room_lower_garment' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_fitting_room_lower_garment', 'white pleated mini skirt',      0),
+    ('photo_top_fitting_room_lower_garment', 'black A-line midi skirt',       1),
+    ('photo_top_fitting_room_lower_garment', 'light blue straight-leg jeans', 2),
+    ('photo_top_fitting_room_lower_garment', 'dark blue skinny jeans',        3),
+    ('photo_top_fitting_room_lower_garment', 'denim shorts',                  4),
+    ('photo_top_fitting_room_lower_garment', 'beige tailored trousers',       5),
+    ('photo_top_fitting_room_lower_garment', 'white wide-leg pants',          6),
+    ('photo_top_fitting_room_lower_garment', 'black fitted trousers',         7),
+    ('photo_top_fitting_room_lower_garment', 'flowy floral midi skirt',       8),
+    ('photo_top_fitting_room_lower_garment', 'khaki cargo trousers',          9),
+    ('photo_top_fitting_room_lower_garment', 'light grey sweatpants',         10),
+    ('photo_top_fitting_room_lower_garment', 'white linen trousers',          11);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_fitting_room_curtain_color' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_fitting_room_curtain_color', 'purple',    0),
+    ('photo_top_fitting_room_curtain_color', 'white',     1),
+    ('photo_top_fitting_room_curtain_color', 'beige',     2),
+    ('photo_top_fitting_room_curtain_color', 'gray',      3),
+    ('photo_top_fitting_room_curtain_color', 'black',     4),
+    ('photo_top_fitting_room_curtain_color', 'dusty pink',5),
+    ('photo_top_fitting_room_curtain_color', 'navy',      6);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_fitting_room_hanging_items' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_fitting_room_hanging_items', 'a denim jacket and a tote bag',              0),
+    ('photo_top_fitting_room_hanging_items', 'two pairs of jeans and a small handbag',     1),
+    ('photo_top_fitting_room_hanging_items', 'a light trench coat and a shopping bag',     2),
+    ('photo_top_fitting_room_hanging_items', 'one skirt and a crossbody bag',              3),
+    ('photo_top_fitting_room_hanging_items', 'just a shopping bag, hooks otherwise empty', 4);
+  END IF;
+END $$;
+
+-- Шаблон: флэтлэй
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'photo_top_flat_lay') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('photo_top_flat_lay',
+     'Generate a flat lay photo shot from directly above.
+Image A is the central garment of the composition —
+reproduce its silhouette, fabric, color, texture, and pattern precisely.
+Do not substitute or alter the garment.
+
+The flat lay also includes a {photo_shared_lower_color} {photo_shared_lower_garment} neatly
+folded or arranged beside the main garment. {photo_top_flat_lay_accessories}
+
+{photo_top_flat_lay_surface_and_palette}
+
+{photo_top_flat_lay_composition_style}
+
+{photo_top_flat_lay_props}
+
+Overhead shot, straight top-down angle, no human subject.
+{photo_top_flat_lay_lighting}
+No watermark. No text overlay.',
+     'Lifestyle-фото «верх» — флэтлэй. Плейсхолдеры: photo_shared_lower_color, photo_shared_lower_garment, photo_top_flat_lay_accessories, photo_top_flat_lay_surface_and_palette, photo_top_flat_lay_composition_style, photo_top_flat_lay_props, photo_top_flat_lay_lighting. Без модели.',
+     2002);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_flat_lay_accessories' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_flat_lay_accessories', 'A pair of white sneakers and a small white mini bag placed nearby',  0),
+    ('photo_top_flat_lay_accessories', 'A pair of beige sandals and a beige tote bag placed nearby',        1),
+    ('photo_top_flat_lay_accessories', 'A pair of nude heels and a black shoulder bag placed nearby',       2),
+    ('photo_top_flat_lay_accessories', 'A pair of white ballet flats and a small red crossbody bag nearby', 3),
+    ('photo_top_flat_lay_accessories', 'No shoes, only a delicate gold chain necklace and small earrings',  4),
+    ('photo_top_flat_lay_accessories', 'No shoes, only a pearl necklace and stud earrings arranged neatly', 5);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_flat_lay_surface_and_palette' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_flat_lay_surface_and_palette', 'Laid on a white marble surface with soft grey veining — light pastel and white tones, clean and fresh palette',  0),
+    ('photo_top_flat_lay_surface_and_palette', 'Laid on a light oak wooden surface with natural grain — warm neutral tones, cream and beige palette',           1),
+    ('photo_top_flat_lay_surface_and_palette', 'Laid on a white linen bedsheet with subtle fabric texture — soft white and ivory tones, airy minimal palette',  2),
+    ('photo_top_flat_lay_surface_and_palette', 'Laid on a light beige linen fabric surface — warm pastel tones, soft and natural palette',                      3),
+    ('photo_top_flat_lay_surface_and_palette', 'Laid on a pale pink surface with smooth matte finish — blush and rose tones, feminine soft palette',            4),
+    ('photo_top_flat_lay_surface_and_palette', 'Laid on a light grey concrete surface with fine texture — cool neutral tones, clean modern palette',            5);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_flat_lay_composition_style' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_flat_lay_composition_style', 'Neatly arranged in a symmetrical flat lay, items evenly spaced with clear negative space around each piece', 0),
+    ('photo_top_flat_lay_composition_style', 'Casually arranged in a relaxed organic layout, items slightly overlapping, natural effortless feel',          1),
+    ('photo_top_flat_lay_composition_style', 'Styled in a structured grid composition, each item in its own visual zone, clean editorial look',            2),
+    ('photo_top_flat_lay_composition_style', 'Arranged in a diagonal flowing composition, items leading the eye from top-left to bottom-right',            3);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_flat_lay_props' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_flat_lay_props', 'A small glass perfume bottle, two or three fresh white flowers, and a pair of delicate gold earrings scattered naturally', 0),
+    ('photo_top_flat_lay_props', 'A few dried flowers, a small ceramic candle, and a folded kraft paper shopping bag',                                      1),
+    ('photo_top_flat_lay_props', 'An open paperback book, a simple gold ring, and a small sprig of eucalyptus',                                             2),
+    ('photo_top_flat_lay_props', 'A pair of sunglasses, a tube of lip gloss, and a few loose petals from a white flower',                                   3),
+    ('photo_top_flat_lay_props', 'Minimal props — only a single fresh flower and one small earring, clean and uncluttered composition',                     4),
+    ('photo_top_flat_lay_props', 'A small woven pouch, a thin gold bracelet, and two or three small smooth stones',                                         5);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_flat_lay_lighting' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_flat_lay_lighting', 'Soft diffused natural daylight from a nearby window, no harsh shadows, even and clean', 0),
+    ('photo_top_flat_lay_lighting', 'Bright studio-style overhead light, crisp and high-key, white and airy feel',           1),
+    ('photo_top_flat_lay_lighting', 'Warm soft ambient light, gentle shadows, cozy and intimate tone',                       2);
+  END IF;
+END $$;
+
+-- Шаблон: отель
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'photo_top_hotel') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('photo_top_hotel',
+     'Generate an image of a young Slavic woman with {photo_shared_skin_tone} skin
+taking a mirror selfie in a hotel lobby.
+She holds a {photo_shared_smartphone_color} smartphone at cheek level,
+partially revealing her face.
+She has {photo_shared_hair_length} {photo_shared_hair_texture} {photo_shared_hair_color} hair.
+
+Use Image A as the exact top garment she is wearing —
+reproduce its silhouette, fabric, color, texture, and pattern precisely.
+Do not invent or substitute the top garment.
+
+She wears a {photo_shared_lower_color} {photo_shared_lower_garment}.
+
+She is standing in front of a {photo_top_hotel_mirror_style} full-length mirror.
+{photo_top_hotel_lobby_details}
+
+{photo_top_hotel_lighting}
+
+{photo_shared_camera_block}
+
+Keep the full body visible from head to toe.
+No watermark. No text overlay. No extra people.',
+     'Lifestyle-фото «верх» — отель. Плейсхолдеры: photo_shared_skin_tone, photo_shared_hair_*, photo_shared_smartphone_color, photo_shared_lower_color, photo_shared_lower_garment, photo_shared_camera_block, photo_top_hotel_mirror_style, photo_top_hotel_lobby_details, photo_top_hotel_lighting.',
+     2003);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_hotel_mirror_style' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_hotel_mirror_style', 'gilded ornate',      0),
+    ('photo_top_hotel_mirror_style', 'sleek frameless',    1),
+    ('photo_top_hotel_mirror_style', 'black metal framed', 2),
+    ('photo_top_hotel_mirror_style', 'marble-trimmed',     3),
+    ('photo_top_hotel_mirror_style', 'brass-framed',       4),
+    ('photo_top_hotel_mirror_style', 'minimalist wooden',  5);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_hotel_lobby_details' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_hotel_lobby_details', 'Luxury five-star hotel lobby with polished white marble flooring. In the mirror reflection: tall marble columns, crystal chandelier overhead, fresh white flower arrangement on a gold console table nearby',                         0),
+    ('photo_top_hotel_lobby_details', 'Luxury five-star hotel lobby with black and white checkered marble flooring. In the mirror reflection: grand curved staircase with brass railings, ornate ceiling moldings, warm ambient wall sconces',                             1),
+    ('photo_top_hotel_lobby_details', 'Boutique designer hotel lobby with dark herringbone parquet flooring. In the mirror reflection: eclectic velvet armchairs in rich jewel tones, abstract art on textured walls, sculptural floor lamp nearby',                       2),
+    ('photo_top_hotel_lobby_details', 'Boutique designer hotel lobby with warm oak hardwood flooring. In the mirror reflection: exposed brick accent wall, hanging Edison bulbs, low designer sofa and curated coffee table books',                                        3),
+    ('photo_top_hotel_lobby_details', 'Modern business hotel lobby with large format stone tile flooring. In the mirror reflection: sleek reception desk with backlit panels, minimalist seating area, large potted tropical plant in the corner',                         4),
+    ('photo_top_hotel_lobby_details', 'Modern business hotel lobby with polished white marble flooring. In the mirror reflection: floor-to-ceiling windows with city view, clean concrete walls, geometric pendant lights overhead',                                       5);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_hotel_lighting' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_hotel_lighting', 'Warm ambient hotel lighting, soft golden glow from wall sconces, no harsh shadows, intimate atmosphere', 0),
+    ('photo_top_hotel_lighting', 'Bright even lobby lighting, clean white light, crisp and airy feel',                                     1),
+    ('photo_top_hotel_lighting', 'Mixed natural and artificial light, soft daylight from nearby windows blending with warm interior lights',2);
+  END IF;
+END $$;
+
+-- Шаблон: торговый центр
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'photo_top_mall') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('photo_top_mall',
+     'Generate an image of a young Slavic woman with {photo_shared_skin_tone} skin
+{photo_top_mall_shot_type}.
+She has {photo_shared_hair_length} {photo_shared_hair_texture} {photo_shared_hair_color} hair
+and wears a {photo_shared_lower_color} {photo_shared_lower_garment}.
+
+Use Image A as the exact top garment she is wearing —
+reproduce its silhouette, fabric, color, texture, and pattern precisely.
+Do not invent or substitute the top garment.
+
+She wears {photo_shared_shoes} and carries {photo_shared_bag}. {photo_shared_jewelry}
+
+{photo_top_mall_location} of a {photo_top_mall_style} shopping mall.
+{photo_top_mall_details}
+
+{photo_top_mall_lighting}
+
+{photo_shared_camera_block}
+
+Keep the full body visible from head to toe.
+No watermark. No text overlay. No extra people.',
+     'Lifestyle-фото «верх» — ТЦ. Плейсхолдеры: photo_shared_skin_tone, photo_shared_hair_*, photo_shared_lower_color, photo_shared_lower_garment, photo_shared_shoes, photo_shared_bag, photo_shared_jewelry, photo_shared_camera_block, photo_top_mall_shot_type, photo_top_mall_location, photo_top_mall_style, photo_top_mall_details, photo_top_mall_lighting.',
+     2004);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_mall_shot_type' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_mall_shot_type', 'taking a mirror selfie in a fitting room, holding a black smartphone at cheek level, partially revealing her face', 0),
+    ('photo_top_mall_shot_type', 'walking through the mall in a candid shot, looking ahead naturally',                                                 1),
+    ('photo_top_mall_shot_type', 'standing relaxed, looking slightly to the side',                                                                     2);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_mall_location' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_mall_location', 'inside a bright fitting room with a full-length mirror',               0),
+    ('photo_top_mall_location', 'in the main corridor',                                                 1),
+    ('photo_top_mall_location', 'near a glass balustrade overlooking the atrium',                       2),
+    ('photo_top_mall_location', 'on an escalator landing with open mall floors visible behind her',     3),
+    ('photo_top_mall_location', 'in front of a large store entrance',                                   4);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_mall_style' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_mall_style', 'mass-market with clean bright interiors, white walls, and simple signage',  0),
+    ('photo_top_mall_style', 'premium luxury with marble floors, gold accents, and designer storefronts', 1),
+    ('photo_top_mall_style', 'modern minimalist with concrete, glass, and monochrome palette',            2);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_mall_details' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_mall_details', 'Clean neutral walls, soft warm lighting from above, hook on the wall, shopping bags on the floor beside her',                                  0),
+    ('photo_top_mall_details', 'Soft pink walls, ring light reflection visible in the mirror, branded hangers and tissue paper visible in background',                         1),
+    ('photo_top_mall_details', 'Wide bright corridor, blurred shoppers in the far background, polished floor reflecting ceiling lights, store windows on both sides',          2),
+    ('photo_top_mall_details', 'Quiet section of the mall, no people, clean sightlines, large potted plants and a bench visible in background',                               3),
+    ('photo_top_mall_details', 'Open multi-level atrium visible behind her, soft skylight from above, glass railings and hanging planters on upper floors',                   4),
+    ('photo_top_mall_details', 'Escalator mid-ride, blurred mall floors above and below, warm ambient ceiling lights creating soft depth',                                    5);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_mall_lighting' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_mall_lighting', 'Bright even mall lighting, clean white artificial light, crisp and airy', 0),
+    ('photo_top_mall_lighting', 'Warm ambient lighting, soft golden tones, intimate feel',                  1),
+    ('photo_top_mall_lighting', 'Mixed natural skylight and artificial light, soft balanced exposure',      2);
+  END IF;
+END $$;
+
+-- Шаблон: сидя
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'photo_top_sitting') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('photo_top_sitting',
+     'Generate an image of a young Slavic woman with {photo_shared_skin_tone} skin
+sitting in a candid lifestyle photo.
+She has {photo_shared_hair_length} {photo_shared_hair_texture} {photo_shared_hair_color} hair
+and wears a {photo_shared_lower_color} {photo_shared_lower_garment}.
+
+Use Image A as the exact top garment she is wearing —
+reproduce its silhouette, fabric, color, texture, and pattern precisely.
+Do not invent or substitute the top garment.
+
+She wears {photo_shared_shoes} and carries {photo_shared_bag}. {photo_shared_jewelry}
+
+{photo_top_sitting_pose_location}
+
+{photo_top_sitting_lighting}
+
+{photo_shared_camera_block}
+
+Keep the full body visible from head to toe.
+No watermark. No text overlay. No extra people.',
+     'Lifestyle-фото «верх» — сидя. Плейсхолдеры: photo_shared_skin_tone, photo_shared_hair_*, photo_shared_lower_color, photo_shared_lower_garment, photo_shared_shoes, photo_shared_bag, photo_shared_jewelry, photo_shared_camera_block, photo_top_sitting_pose_location, photo_top_sitting_lighting.',
+     2005);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_sitting_pose_location' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_sitting_pose_location', 'She is sitting on stone steps with legs together, slightly angled to the side, hands resting on her knees, looking softly ahead — at the steps of a neoclassical building with large white columns',         0),
+    ('photo_top_sitting_pose_location', 'She is sitting on a wooden park bench with one leg crossed over the other, leaning back slightly, relaxed natural expression — on a shaded park path under tall trees with dappled light',                 1),
+    ('photo_top_sitting_pose_location', 'She is sitting on the edge of a low stone wall, legs dangling, hands resting beside her, looking down softly — along a quiet cobblestone European street with old facades',                               2),
+    ('photo_top_sitting_pose_location', 'She is sitting cross-legged on the ground, back straight, looking slightly to the side with a relaxed expression — in a botanical garden surrounded by lush greenery and soft light',                     3),
+    ('photo_top_sitting_pose_location', 'She is perched on a windowsill with legs to one side, leaning gently against the frame, looking outside — by a large window with sheer curtains and soft indoor daylight',                               4),
+    ('photo_top_sitting_pose_location', 'She is sitting on a low cafe ledge or step, legs together, relaxed candid pose, looking slightly away — at a bright cafe terrace with small round tables nearby',                                         5),
+    ('photo_top_sitting_pose_location', 'She is sitting on a stone ledge of a city bridge, legs to the side, one hand resting on the railing, gazing at the view — on a city bridge with iron railings and soft river light behind her',           6);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_sitting_lighting' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_sitting_lighting', 'Overcast soft daylight, no harsh shadows, even diffused light',     0),
+    ('photo_top_sitting_lighting', 'Golden hour warm sidelight, long soft shadows, rich warm tones',    1),
+    ('photo_top_sitting_lighting', 'Bright midday sun, crisp light, slight high-contrast shadows',      2),
+    ('photo_top_sitting_lighting', 'Soft natural window light, warm and diffused, indoor setting',      3);
+  END IF;
+END $$;
+
+-- Шаблон: улица
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'photo_top_street') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('photo_top_street',
+     'Generate an image of a young Slavic woman with {photo_shared_skin_tone} skin
+in a candid street style photo.
+She has {photo_shared_hair_length} {photo_shared_hair_texture} {photo_shared_hair_color} hair.
+She wears a {photo_shared_lower_color} {photo_shared_lower_garment} and uses Image A as her exact
+top garment — reproduce its silhouette, fabric, color, texture,
+and pattern precisely. Do not invent or substitute the top garment.
+She wears {photo_shared_shoes} and carries {photo_shared_bag}. {photo_shared_jewelry}
+
+She is {photo_top_street_pose} at {photo_top_street_location}.
+
+{photo_top_street_lighting}
+
+{photo_shared_camera_block}
+
+No watermark. No text overlay. No extra people.',
+     'Lifestyle-фото «верх» — улица. Плейсхолдеры: photo_shared_skin_tone, photo_shared_hair_*, photo_shared_lower_color, photo_shared_lower_garment, photo_shared_shoes, photo_shared_bag, photo_shared_jewelry, photo_shared_camera_block, photo_top_street_pose, photo_top_street_location, photo_top_street_lighting.',
+     2006);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_street_pose' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_street_pose', 'standing slightly turned looking away from the camera', 0),
+    ('photo_top_street_pose', 'walking naturally looking ahead',                       1),
+    ('photo_top_street_pose', 'leaning against a wall with a relaxed pose',            2),
+    ('photo_top_street_pose', 'sitting on steps looking down softly',                  3),
+    ('photo_top_street_pose', 'standing looking over her shoulder',                    4);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_street_location' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_street_location', 'the steps of a neoclassical building with large white classical columns', 0),
+    ('photo_top_street_location', 'a cobblestone European street with old facades and warm storefronts',     1),
+    ('photo_top_street_location', 'a shaded park alley with tall trees and dappled light on the path',       2),
+    ('photo_top_street_location', 'a sunlit cafe terrace with small round tables and wicker chairs',         3),
+    ('photo_top_street_location', 'an arched stone courtyard with climbing plants and warm stone walls',     4),
+    ('photo_top_street_location', 'a city bridge with iron railings and soft river light in the background', 5),
+    ('photo_top_street_location', 'a botanical garden path surrounded by lush greenery and soft light',      6),
+    ('photo_top_street_location', 'an old European street with colorful building facades and flower boxes',  7);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_top_street_lighting' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_top_street_lighting', 'Overcast soft daylight, no harsh shadows, even diffused light',     0),
+    ('photo_top_street_lighting', 'Golden hour warm sidelight, long soft shadows, rich warm tones',    1),
+    ('photo_top_street_lighting', 'Bright midday sun, crisp light, slight high-contrast shadows',      2),
+    ('photo_top_street_lighting', 'Cloudy diffused light, cool neutral tones, flat even exposure',     3);
+  END IF;
+END $$;
