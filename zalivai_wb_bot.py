@@ -27,6 +27,7 @@ from handlers import (
     build_noop_handler,
     build_photo_handler,
     build_video_handler,
+    build_pinterest_handler,
     log_message,
     log_callback,
 )
@@ -66,6 +67,7 @@ async def on_startup(application: Application) -> None:
     await application.bot.set_my_commands([
         BotCommand("start", "Запустить бота"),
         BotCommand("help", "Помощь"),
+        BotCommand("pinterest", "Создать CSV для Pinterest"),
     ])
     await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
     logger.info("MenuButton настроен")
@@ -118,6 +120,9 @@ def main() -> None:
     # --- Глобальное логирование (group=-1) ---
     application.add_handler(MessageHandler(filters.ALL, log_message), group=-1)
     application.add_handler(CallbackQueryHandler(log_callback), group=-1)
+
+    # --- Pinterest CSV ---
+    application.add_handler(build_pinterest_handler())
 
     # --- Создание фото ---
     application.add_handler(build_gen_photo_handler())

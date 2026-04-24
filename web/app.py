@@ -884,6 +884,38 @@ async def serve_file(path: str, session: str | None = Cookie(default=None)):
 _SPA_PATHS = {"/mediafiles", "/etalons", "/trash", "/admin",
               "/admin/prompts", "/admin/messages", "/admin/users"}
 
+@app.post("/api/pinterest/generate")
+async def pinterest_generate(request: Request, session: str | None = Cookie(default=None)) -> Response:
+    """Генерирует Pinterest CSV для указанных артикулов пользователя."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    body = await request.json()
+    user_id: int = body.get("user_id") or user["user_id"]
+    rows_count: int = int(body.get("rows_count", 200))
+    output_format: str = body.get("output_format", "csv")
+
+    if user_id != user["user_id"] and user["user_id"] not in ADMIN_USER_IDS:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if rows_count < 1 or rows_count > 200:
+        raise HTTPException(status_code=400, detail="rows_count must be between 1 and 200")
+
+    from services.pinterest_csv_generator import generate_pinterest_csv
+    result = await generate_pinterest_csv(user_id, rows_count, output_format)
+
+    if output_format == "csv":
+        return Response(
+            content=result["content"].encode("utf-8"),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f"attachment; filename=pinterest_{result['batch_id']}.csv"
+            },
+        )
+    return JSONResponse(result)
+
+
 @app.get("/{path:path}", response_class=HTMLResponse)
 async def spa_fallback(path: str, request: Request, session: str | None = Cookie(default=None)):
     if "/" + path not in _SPA_PATHS:

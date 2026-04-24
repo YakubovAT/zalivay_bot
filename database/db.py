@@ -685,3 +685,126 @@ async def fail_stuck_video_jobs(minutes: int = 30) -> int:
         str(minutes),
     )
     return int(result.split()[-1])
+
+
+# ---------------------------------------------------------------------------
+# media_files — реестр сгенерированных медиафайлов
+# ---------------------------------------------------------------------------
+
+async def register_media_file(
+    user_id: int,
+    article_code: str,
+    task_id: int | None,
+    file_path: str,
+    result_url: str | None,
+    file_type: str,
+) -> int:
+    """Регистрирует медиафайл в реестре. Возвращает id записи."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        INSERT INTO media_files (user_id, article_code, task_id, file_path, result_url, file_type)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id
+        """,
+        user_id, article_code, task_id, file_path, result_url, file_type,
+    )
+    return row["id"] if row else -1
+
+
+async def get_unexported_media_files(user_id: int, article_code: str) -> list[asyncpg.Record]:
+    """Возвращает файлы артикула, ещё не экспортированные в Pinterest."""
+    pool = await get_pool()
+    return await pool.fetch(
+        """
+        SELECT * FROM media_files
+        WHERE user_id = $1 AND article_code = $2 AND pinterest_exported_at IS NULL
+        ORDER BY created_at
+        """,
+        user_id, article_code,
+    )
+
+
+async def get_all_unexported_media_files(user_id: int) -> list[asyncpg.Record]:
+    """Возвращает все файлы пользователя, ещё не экспортированные в Pinterest."""
+    pool = await get_pool()
+    return await pool.fetch(
+        """
+        SELECT * FROM media_files
+        WHERE user_id = $1 AND pinterest_exported_at IS NULL
+        ORDER BY created_at
+        """,
+        user_id,
+    )
+
+
+async def mark_pinterest_exported(file_ids: list[int]) -> None:
+    """Помечает файлы как экспортированные в Pinterest."""
+    if not file_ids:
+        return
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE media_files SET pinterest_exported_at = NOW() WHERE id = ANY($1::int[])",
+        file_ids,
+    )
+
+
+# ---------------------------------------------------------------------------
+# pinterest_settings — настройки Pinterest
+# ---------------------------------------------------------------------------
+
+async def get_pinterest_settings(user_id: int, article_code: str) -> dict:
+    """Возвращает настройки Pinterest с fallback: артикул → пользователь → пусто."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT * FROM pinterest_settings
+        WHERE user_id = $1 AND (article_code = $2 OR article_code IS NULL)
+        ORDER BY article_code NULLS LAST
+        """,
+        user_id, article_code,
+    )
+    result: dict = {"board": None, "link_template": None, "hashtags": []}
+    for row in reversed(rows):  # user-level первый, article переопределяет
+        if row["board"]:
+            result["board"] = row["board"]
+        if row["link_template"]:
+            result["link_template"] = row["link_template"]
+        if row["hashtags"]:
+            result["hashtags"] = list(row["hashtags"])
+    return result
+
+
+async def save_pinterest_settings(
+    user_id: int,
+    article_code: str | None,
+    board: str | None = None,
+    link_template: str | None = None,
+    hashtags: list[str] | None = None,
+) -> None:
+    """Сохраняет настройки Pinterest. article_code=None → уровень пользователя."""
+    pool = await get_pool()
+    if article_code is not None:
+        await pool.execute(
+            """
+            INSERT INTO pinterest_settings (user_id, article_code, board, link_template, hashtags)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (user_id, article_code) WHERE article_code IS NOT NULL
+            DO UPDATE SET board = EXCLUDED.board,
+                          link_template = EXCLUDED.link_template,
+                          hashtags = EXCLUDED.hashtags
+            """,
+            user_id, article_code, board, link_template, hashtags,
+        )
+    else:
+        await pool.execute(
+            """
+            INSERT INTO pinterest_settings (user_id, article_code, board, link_template, hashtags)
+            VALUES ($1, NULL, $2, $3, $4)
+            ON CONFLICT (user_id) WHERE article_code IS NULL
+            DO UPDATE SET board = EXCLUDED.board,
+                          link_template = EXCLUDED.link_template,
+                          hashtags = EXCLUDED.hashtags
+            """,
+            user_id, board, link_template, hashtags,
+        )

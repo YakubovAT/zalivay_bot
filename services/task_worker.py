@@ -44,6 +44,7 @@ from database import (
     deduct_balance,
     get_pending_video_job_tasks,
     fail_stuck_video_jobs,
+    register_media_file,
 )
 from services.reference_i2i import generate_reference_image
 from services.lifestyle_photo_generator import generate_lifestyle_photo
@@ -294,6 +295,7 @@ async def _process_job_task(
                     raise RuntimeError(f"Скачивание упало: HTTP {resp.status}")
 
             await complete_job_task(task_id, result_url, save_path)
+            await register_media_file(user_id, articul, task_id, save_path, result_url, "photo")
             logger.info("JOB_WORKER | task_id=%d | completed | path=%s", task_id, save_path)
 
         except Exception as e:
@@ -482,6 +484,7 @@ async def _process_video_job_task(
                     raise RuntimeError(f"Скачивание упало: HTTP {resp.status}")
 
             await complete_job_task(task_id, result_url, save_path)
+            await register_media_file(user_id, articul, task_id, save_path, result_url, "video")
             logger.info("VIDEO_JOB_WORKER | task_id=%d | completed | path=%s", task_id, save_path)
 
         except Exception as e:

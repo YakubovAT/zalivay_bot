@@ -43,6 +43,14 @@ from .db import (
     create_video_job_task,
     get_pending_video_job_tasks,
     fail_stuck_video_jobs,
+    # media_files
+    register_media_file,
+    get_unexported_media_files,
+    get_all_unexported_media_files,
+    mark_pinterest_exported,
+    # pinterest_settings
+    get_pinterest_settings,
+    save_pinterest_settings,
 )
 
 __all__ = [
@@ -90,4 +98,12 @@ __all__ = [
     "create_video_job_task",
     "get_pending_video_job_tasks",
     "fail_stuck_video_jobs",
+    # media_files
+    "register_media_file",
+    "get_unexported_media_files",
+    "get_all_unexported_media_files",
+    "mark_pinterest_exported",
+    # pinterest_settings
+    "get_pinterest_settings",
+    "save_pinterest_settings",
 ]

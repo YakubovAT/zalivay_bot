@@ -226,6 +226,42 @@ CREATE TABLE IF NOT EXISTS prompt_list_items (
 CREATE INDEX IF NOT EXISTS idx_prompt_list_items_lookup
     ON prompt_list_items (list_key, is_active, sort_order);
 
+-- ============================================================
+-- media_files — реестр сгенерированных медиафайлов
+-- ============================================================
+CREATE TABLE IF NOT EXISTS media_files (
+    id                    SERIAL PRIMARY KEY,
+    user_id               BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    article_code          TEXT NOT NULL,
+    task_id               INTEGER REFERENCES generation_tasks(id) ON DELETE SET NULL,
+    file_path             TEXT NOT NULL,
+    result_url            TEXT,
+    file_type             TEXT NOT NULL CHECK (file_type IN ('photo', 'video')),
+    pinterest_exported_at TIMESTAMPTZ NULL,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_files_user_article
+    ON media_files (user_id, article_code, pinterest_exported_at);
+
+-- ============================================================
+-- pinterest_settings — настройки Pinterest на уровне user/article
+-- ============================================================
+CREATE TABLE IF NOT EXISTS pinterest_settings (
+    id            SERIAL PRIMARY KEY,
+    user_id       BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    article_code  TEXT NULL,
+    board         TEXT NULL,
+    link_template TEXT NULL,
+    hashtags      TEXT[] NULL
+);
+
+-- Partial unique indexes (UNIQUE не работает с NULL в PostgreSQL)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pinterest_settings_user_default
+    ON pinterest_settings (user_id) WHERE article_code IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pinterest_settings_user_article
+    ON pinterest_settings (user_id, article_code) WHERE article_code IS NOT NULL;
+
 -- Seed: вставляем только если таблицы пусты (идемпотентно)
 -- При редактировании через admin-панель данные обновляются в БД,
 -- повторный запуск schema.sql при рестарте бота их не перезатирает.
