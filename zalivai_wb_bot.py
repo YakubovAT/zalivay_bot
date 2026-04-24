@@ -28,6 +28,7 @@ from handlers import (
     build_photo_handler,
     build_video_handler,
     build_pinterest_handler,
+    build_watermark_handler,
     log_message,
     log_callback,
 )
@@ -68,6 +69,7 @@ async def on_startup(application: Application) -> None:
         BotCommand("start", "Запустить бота"),
         BotCommand("help", "Помощь"),
         BotCommand("pinterest", "Создать CSV для Pinterest"),
+        BotCommand("watermark", "Нанести артикул и название на фото"),
     ])
     await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
     logger.info("MenuButton настроен")
@@ -123,6 +125,9 @@ def main() -> None:
 
     # --- Pinterest CSV ---
     application.add_handler(build_pinterest_handler())
+
+    # --- Watermark ---
+    application.add_handler(build_watermark_handler())
 
     # --- Создание фото ---
     application.add_handler(build_gen_photo_handler())

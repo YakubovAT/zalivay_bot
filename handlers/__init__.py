@@ -11,6 +11,7 @@ from handlers.flows.gen_video import build_gen_video_handler  # noqa
 from handlers.flows.photo import build_photo_handler  # noqa
 from handlers.flows.video import build_video_handler  # noqa
 from handlers.flows.pinterest import build_pinterest_handler  # noqa
+from handlers.flows.watermark import build_watermark_handler  # noqa
 
 logger = logging.getLogger(__name__)
 
