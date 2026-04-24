@@ -11,9 +11,10 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/z
 # Тарифы (руб.)
 # ---------------------------------------------------------------------------
 
-REFERENCE_COST = int(os.getenv("REFERENCE_COST", "5"))       # Создание эталона
-PHOTO_COST     = int(os.getenv("PHOTO_COST", "5"))            # Одно фото
-VIDEO_COST     = int(os.getenv("VIDEO_COST", "20"))           # Одно видео
+REFERENCE_COST      = int(os.getenv("REFERENCE_COST", "5"))       # Создание эталона
+PHOTO_COST          = int(os.getenv("PHOTO_COST", "5"))            # Одно фото
+VIDEO_COST          = int(os.getenv("VIDEO_COST", "20"))           # Одно видео
+PINTEREST_CSV_COST  = int(os.getenv("PINTEREST_CSV_COST", "1"))    # Одна строка CSV Pinterest
 
 # AI провайдер — T2T (текстовая модель)
 AI_API_KEY     = os.getenv("AI_API_KEY", "cbc437104f5c302e296b8771ca523030")
