@@ -80,7 +80,7 @@ def _draw_label(
     draw.text((x, y), text, font=font, fill=_TEXT_COLOR)
 
 
-def apply_watermark(file_path: str, article_code: str, name: str) -> str:
+def apply_watermark(file_path: str, article_code: str, name: str, out_path: str | None = None) -> str:
     """
     Накладывает текст на изображение и сохраняет копию.
 
@@ -88,11 +88,13 @@ def apply_watermark(file_path: str, article_code: str, name: str) -> str:
       Вариант A: артикул → правый нижний, название → левый верхний
       Вариант B: артикул → левый нижний,  название → правый верхний
 
+    out_path — куда сохранить результат. Если None — рядом с оригиналом.
     Возвращает путь к копии с текстом.
     Оригинальный файл не изменяется.
     """
     p = Path(file_path)
-    out_path = p.parent / f"{p.stem}_with_text{p.suffix}"
+    dest = Path(out_path) if out_path else p.parent / f"{p.stem}_with_text{p.suffix}"
+    dest.parent.mkdir(parents=True, exist_ok=True)
 
     img = Image.open(file_path).convert("RGBA")
     w, h = img.size
@@ -136,13 +138,13 @@ def apply_watermark(file_path: str, article_code: str, name: str) -> str:
     _draw_label(draw, text_name,    nx, ny, font, pad_x, pad_y)
 
     result = Image.alpha_composite(img, overlay).convert("RGB")
-    result.save(str(out_path), quality=95)
+    result.save(str(dest), quality=95)
 
     logger.info(
         "WATERMARK | file=%s → %s | diagonal=%s",
-        p.name, out_path.name, diagonal,
+        p.name, dest.name, diagonal,
     )
-    return str(out_path)
+    return str(dest)
 
 
 async def apply_watermark_to_media_file(media_file_id: int, user_id: int) -> str | None:
@@ -174,10 +176,18 @@ async def apply_watermark_to_media_file(media_file_id: int, user_id: int) -> str
         return None
 
     try:
+        # Отдельная папка: media/{user_id}/watermarked/{article_code}/
+        from services.media_storage import MEDIA_ROOT
+        p = Path(file_path)
+        article_code = mf["article_code"]
+        out_dir = Path(MEDIA_ROOT) / str(user_id) / "watermarked" / article_code
+        out_file = out_dir / f"{p.stem}_with_text{p.suffix}"
+
         out_path = apply_watermark(
             file_path=file_path,
-            article_code=mf["article_code"],
-            name=article["name"] or mf["article_code"],
+            article_code=article_code,
+            name=article["name"] or article_code,
+            out_path=str(out_file),
         )
         await save_watermarked_path(media_file_id, out_path)
         return out_path
