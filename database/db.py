@@ -713,12 +713,12 @@ async def register_media_file(
 
 
 async def get_unexported_media_files(user_id: int, article_code: str) -> list[asyncpg.Record]:
-    """Возвращает файлы артикула, ещё не экспортированные в Pinterest."""
+    """Возвращает все файлы артикула (без фильтра по экспорту)."""
     pool = await get_pool()
     return await pool.fetch(
         """
         SELECT * FROM media_files
-        WHERE user_id = $1 AND article_code = $2 AND pinterest_exported_at IS NULL
+        WHERE user_id = $1 AND article_code = $2
         ORDER BY created_at
         """,
         user_id, article_code,
@@ -726,12 +726,12 @@ async def get_unexported_media_files(user_id: int, article_code: str) -> list[as
 
 
 async def get_all_unexported_media_files(user_id: int) -> list[asyncpg.Record]:
-    """Возвращает все файлы пользователя, ещё не экспортированные в Pinterest."""
+    """Возвращает все медиафайлы пользователя (без фильтра по экспорту)."""
     pool = await get_pool()
     return await pool.fetch(
         """
         SELECT * FROM media_files
-        WHERE user_id = $1 AND pinterest_exported_at IS NULL
+        WHERE user_id = $1
         ORDER BY created_at
         """,
         user_id,
@@ -739,12 +739,17 @@ async def get_all_unexported_media_files(user_id: int) -> list[asyncpg.Record]:
 
 
 async def mark_pinterest_exported(file_ids: list[int]) -> None:
-    """Помечает файлы как экспортированные в Pinterest."""
+    """Увеличивает счётчик экспортов для файлов и фиксирует дату последнего."""
     if not file_ids:
         return
     pool = await get_pool()
     await pool.execute(
-        "UPDATE media_files SET pinterest_exported_at = NOW() WHERE id = ANY($1::int[])",
+        """
+        UPDATE media_files
+        SET pinterest_export_count = pinterest_export_count + 1,
+            pinterest_exported_at  = NOW()
+        WHERE id = ANY($1::int[])
+        """,
         file_ids,
     )
 

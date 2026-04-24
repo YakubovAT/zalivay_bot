@@ -237,8 +237,9 @@ CREATE TABLE IF NOT EXISTS media_files (
     file_path             TEXT NOT NULL,
     result_url            TEXT,
     file_type             TEXT NOT NULL CHECK (file_type IN ('photo', 'video')),
-    pinterest_exported_at TIMESTAMPTZ NULL,
-    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    pinterest_export_count INT         NOT NULL DEFAULT 0,
+    pinterest_exported_at  TIMESTAMPTZ NULL,
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_media_files_user_article
@@ -257,6 +258,10 @@ CREATE TABLE IF NOT EXISTS pinterest_settings (
 );
 
 -- Partial unique indexes (UNIQUE не работает с NULL в PostgreSQL)
+-- Миграция: добавить pinterest_export_count для существующих БД
+ALTER TABLE media_files
+    ADD COLUMN IF NOT EXISTS pinterest_export_count INT NOT NULL DEFAULT 0;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pinterest_settings_user_default
     ON pinterest_settings (user_id) WHERE article_code IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pinterest_settings_user_article
