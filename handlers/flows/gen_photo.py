@@ -42,7 +42,7 @@ from handlers.keyboards import (
     kb_gen_photo_result,
 )
 from services.prompt_store import get_template
-from services.prompt_generator_cloth import generate_photo_prompts
+from services.image_prompt_generator import generate_image_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -292,17 +292,17 @@ async def cb_gen_photo_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return ConversationHandler.END
 
-    # Создаем промпты
-    description = ref["product_description"]
-    base_prompts = await generate_photo_prompts(
-        description=description,
-        category=ref.get("category", "верх"),
-        count=count,
-    )
-    prompts = [
-        ", ".join(filter(None, [base, wish]))
-        for base in base_prompts
-    ]
+    # Создаем промпты — по одному на каждое фото (рандомная сцена из БД)
+    category = ref.get("category")
+    prompts = []
+    for _ in range(count):
+        base = await generate_image_prompt(category=category)
+        if base is None:
+            await query.edit_message_caption(
+                caption="❌ Не удалось сгенерировать промпт. Проверьте шаблоны в БД.",
+            )
+            return ConversationHandler.END
+        prompts.append(", ".join(filter(None, [base, wish])))
 
     # Создаём job в БД
     job_id = await create_generation_job(

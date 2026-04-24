@@ -111,8 +111,8 @@ def _parse_response(raw: str) -> dict | None:
 
     # Нормализуем категорию
     if category not in VALID_CATEGORIES:
-        logger.warning("Unknown category %r, defaulting to 'верх'", category)
-        category = "верх"
+        logger.error("T2T вернул неизвестную категорию %r — эталон не создан", category)
+        return None
 
     return {
         "category": category,

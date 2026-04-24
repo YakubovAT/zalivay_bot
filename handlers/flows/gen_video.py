@@ -304,7 +304,7 @@ async def cb_gen_video_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     description = ref["product_description"]
     base_prompts = await generate_video_prompts(
         description=description,
-        category=ref.get("category", "верх"),
+        category=ref.get("category"),
         count=count,
     )
     prompts = [

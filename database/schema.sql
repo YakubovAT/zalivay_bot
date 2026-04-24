@@ -853,7 +853,7 @@ DO $$ BEGIN
      '❌ Исходные фотографии для артикула <code>{article}</code> не найдены.
 
 Возможно, файлы были удалены с сервера. Создайте новый эталон через «➕ Новый эталон».',
-     'Шаг 16а — ошибка: исходные фото не найдены. Переменные: {article}', 162);
+     'Шаг 16error — ошибка: исходные фото не найдены. Переменные: {article}', 162);
   END IF;
 END $$;
 
@@ -882,7 +882,7 @@ DO $$ BEGIN
      '⏳ Пересоздаю эталон для артикула <code>{article}</code>...
 
 Это займёт 1–3 минуты...',
-     'Шаг 16а — прогресс пересоздания. Переменные: {article}', 166);
+     'Шаг 16б — прогресс пересоздания. Переменные: {article}', 166);
   END IF;
 END $$;
 
@@ -901,5 +901,204 @@ DO $$ BEGIN
 
 Теперь вы можете создавать фото и видео!',
      'Шаг 16а — финальный результат пересоздания. Переменные: {article}, {ref_number}, {category}, {cost}, {balance}', 168);
+  END IF;
+END $$;
+
+-- ============================================================
+-- Теги эталона: сезон, стиль, пол, возраст, жанр
+-- ============================================================
+
+ALTER TABLE article_references
+    ADD COLUMN IF NOT EXISTS tags JSONB NOT NULL DEFAULT '{}';
+
+-- ============================================================
+-- Lifestyle-фото: сцены и переменные (image_prompt_generator)
+-- ============================================================
+
+-- Список сцен для категории «низ»
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_bottom_scenes' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_bottom_scenes', 'room_mirror', 0);
+  END IF;
+END $$;
+
+-- Общие переменные (shared) — используются во всех сценах где есть плейсхолдер
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_shared_hair_length' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_shared_hair_length', 'short', 0),
+    ('photo_shared_hair_length', 'medium-length', 1),
+    ('photo_shared_hair_length', 'shoulder-length', 2),
+    ('photo_shared_hair_length', 'long', 3),
+    ('photo_shared_hair_length', 'waist-length', 4);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_shared_hair_texture' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_shared_hair_texture', 'straight', 0),
+    ('photo_shared_hair_texture', 'wavy', 1),
+    ('photo_shared_hair_texture', 'curly', 2),
+    ('photo_shared_hair_texture', 'layered', 3);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_shared_hair_color' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_shared_hair_color', 'blonde', 0),
+    ('photo_shared_hair_color', 'brunette', 1),
+    ('photo_shared_hair_color', 'black', 2),
+    ('photo_shared_hair_color', 'red', 3),
+    ('photo_shared_hair_color', 'auburn', 4),
+    ('photo_shared_hair_color', 'chestnut', 5),
+    ('photo_shared_hair_color', 'platinum', 6),
+    ('photo_shared_hair_color', 'ginger', 7),
+    ('photo_shared_hair_color', 'strawberry blonde', 8);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_shared_smartphone_color' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_shared_smartphone_color', 'white', 0),
+    ('photo_shared_smartphone_color', 'black', 1),
+    ('photo_shared_smartphone_color', 'silver', 2),
+    ('photo_shared_smartphone_color', 'gold', 3),
+    ('photo_shared_smartphone_color', 'rose gold', 4),
+    ('photo_shared_smartphone_color', 'blue', 5),
+    ('photo_shared_smartphone_color', 'red', 6),
+    ('photo_shared_smartphone_color', 'green', 7),
+    ('photo_shared_smartphone_color', 'purple', 8),
+    ('photo_shared_smartphone_color', 'gray', 9);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_shared_camera_block' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_shared_camera_block', 'Casual lifestyle photography. Soft natural window light from the left. Warm color grading, subtle film grain, 35mm lens, shallow depth of field.', 0),
+    ('photo_shared_camera_block', 'Contemporary editorial. Bright diffused overhead light. Crisp sharp details, clean high-key palette, 50mm lens, airy magazine aesthetic.', 1),
+    ('photo_shared_camera_block', 'Cinematic portrait. Warm golden sidelight with soft shadows. 85mm lens, creamy bokeh, rich warm tones, subtle filmic contrast.', 2);
+  END IF;
+END $$;
+
+-- Шаблон сцены: комната с зеркалом (низ)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'photo_bottom_room_mirror') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('photo_bottom_room_mirror',
+     'Generate an image of a young Slavic woman with light tan skin taking a mirror selfie.
+She holds a {photo_shared_smartphone_color} smartphone at cheek level, partially revealing her face.
+She has {photo_shared_hair_length} {photo_shared_hair_texture} {photo_shared_hair_color} hair
+and wears a {photo_bottom_room_mirror_upper_color} {photo_bottom_room_mirror_upper_garment}.
+
+Use Image A as the exact bottom garment she is wearing —
+reproduce its silhouette, fabric, color, texture, and pattern precisely.
+Do not invent or substitute the bottom garment.
+
+The setting is a bright minimalist room with {photo_bottom_room_mirror_walls_color} walls,
+{photo_bottom_room_mirror_flooring_material} hardwood floor, and a {photo_bottom_room_mirror_mirror_style} full-length mirror.
+The room includes {photo_bottom_room_mirror_interior_details}.
+
+{photo_shared_camera_block}
+
+Keep the full body visible from head to toe.
+No watermark. No text overlay. No extra people.',
+     'Lifestyle-фото «низ» — комната с зеркалом. Плейсхолдеры: photo_shared_hair_*, photo_shared_smartphone_color, photo_shared_camera_block, photo_bottom_room_mirror_upper_*, photo_bottom_room_mirror_walls_color, photo_bottom_room_mirror_flooring_material, photo_bottom_room_mirror_mirror_style, photo_bottom_room_mirror_interior_details.',
+     1000);
+  END IF;
+END $$;
+
+-- Переменные сцены: комната с зеркалом
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_bottom_room_mirror_upper_color' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_bottom_room_mirror_upper_color', 'lavender', 0),
+    ('photo_bottom_room_mirror_upper_color', 'pink', 1),
+    ('photo_bottom_room_mirror_upper_color', 'light blue', 2),
+    ('photo_bottom_room_mirror_upper_color', 'mint green', 3),
+    ('photo_bottom_room_mirror_upper_color', 'peach', 4),
+    ('photo_bottom_room_mirror_upper_color', 'light yellow', 5),
+    ('photo_bottom_room_mirror_upper_color', 'lilac', 6),
+    ('photo_bottom_room_mirror_upper_color', 'sky blue', 7),
+    ('photo_bottom_room_mirror_upper_color', 'soft coral', 8),
+    ('photo_bottom_room_mirror_upper_color', 'pale pink', 9);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_bottom_room_mirror_upper_garment' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_bottom_room_mirror_upper_garment', 'blouse', 0),
+    ('photo_bottom_room_mirror_upper_garment', 'shirt', 1),
+    ('photo_bottom_room_mirror_upper_garment', 't-shirt', 2),
+    ('photo_bottom_room_mirror_upper_garment', 'tank top', 3),
+    ('photo_bottom_room_mirror_upper_garment', 'crop top', 4),
+    ('photo_bottom_room_mirror_upper_garment', 'sweater', 5),
+    ('photo_bottom_room_mirror_upper_garment', 'cardigan', 6),
+    ('photo_bottom_room_mirror_upper_garment', 'blazer', 7),
+    ('photo_bottom_room_mirror_upper_garment', 'hoodie', 8);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_bottom_room_mirror_walls_color' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_bottom_room_mirror_walls_color', 'light gray', 0),
+    ('photo_bottom_room_mirror_walls_color', 'white', 1),
+    ('photo_bottom_room_mirror_walls_color', 'beige', 2),
+    ('photo_bottom_room_mirror_walls_color', 'pale blue', 3),
+    ('photo_bottom_room_mirror_walls_color', 'soft pink', 4),
+    ('photo_bottom_room_mirror_walls_color', 'cream', 5),
+    ('photo_bottom_room_mirror_walls_color', 'light taupe', 6),
+    ('photo_bottom_room_mirror_walls_color', 'off-white', 7),
+    ('photo_bottom_room_mirror_walls_color', 'light lavender', 8);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_bottom_room_mirror_flooring_material' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_bottom_room_mirror_flooring_material', 'oak', 0),
+    ('photo_bottom_room_mirror_flooring_material', 'maple', 1),
+    ('photo_bottom_room_mirror_flooring_material', 'walnut', 2),
+    ('photo_bottom_room_mirror_flooring_material', 'cherry', 3),
+    ('photo_bottom_room_mirror_flooring_material', 'bamboo', 4),
+    ('photo_bottom_room_mirror_flooring_material', 'hickory', 5),
+    ('photo_bottom_room_mirror_flooring_material', 'pine', 6),
+    ('photo_bottom_room_mirror_flooring_material', 'ash', 7),
+    ('photo_bottom_room_mirror_flooring_material', 'beech', 8);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_bottom_room_mirror_mirror_style' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_bottom_room_mirror_mirror_style', 'wooden-framed', 0),
+    ('photo_bottom_room_mirror_mirror_style', 'ornate', 1),
+    ('photo_bottom_room_mirror_mirror_style', 'rustic', 2),
+    ('photo_bottom_room_mirror_mirror_style', 'modern', 3),
+    ('photo_bottom_room_mirror_mirror_style', 'vintage', 4),
+    ('photo_bottom_room_mirror_mirror_style', 'minimalist', 5),
+    ('photo_bottom_room_mirror_mirror_style', 'carved', 6),
+    ('photo_bottom_room_mirror_mirror_style', 'gilded', 7),
+    ('photo_bottom_room_mirror_mirror_style', 'simple', 8);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'photo_bottom_room_mirror_interior_details' LIMIT 1) THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('photo_bottom_room_mirror_interior_details', 'a small white bedside table with a potted plant and a scented candle', 0),
+    ('photo_bottom_room_mirror_interior_details', 'a light wooden shelf with folded towels and a small vase of dried flowers', 1),
+    ('photo_bottom_room_mirror_interior_details', 'a minimal desk with a laptop and a ceramic mug in the background', 2),
+    ('photo_bottom_room_mirror_interior_details', 'a soft beige armchair with a folded throw blanket in the corner', 3),
+    ('photo_bottom_room_mirror_interior_details', 'a low wooden bench with a woven basket and a few books beside the mirror', 4),
+    ('photo_bottom_room_mirror_interior_details', 'a windowsill with sheer curtains, soft daylight casting gentle shadows', 5),
+    ('photo_bottom_room_mirror_interior_details', 'a coat rack near the wall with a tote bag and a light jacket hanging', 6),
+    ('photo_bottom_room_mirror_interior_details', 'a small round rug and a floor lamp with a warm-toned shade beside the mirror', 7);
   END IF;
 END $$;
