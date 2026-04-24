@@ -780,6 +780,22 @@ async def get_pinterest_settings(user_id: int, article_code: str) -> dict:
     return result
 
 
+async def get_unwatermarked_photos(user_id: int) -> list[asyncpg.Record]:
+    """Возвращает фото пользователя без watermark-копии."""
+    pool = await get_pool()
+    return await pool.fetch(
+        """
+        SELECT * FROM media_files
+        WHERE user_id = $1
+          AND file_type = 'photo'
+          AND file_path IS NOT NULL
+          AND watermarked_path IS NULL
+        ORDER BY created_at
+        """,
+        user_id,
+    )
+
+
 async def save_watermarked_path(media_file_id: int, watermarked_path: str) -> None:
     """Сохраняет путь к watermark-копии медиафайла."""
     pool = await get_pool()
