@@ -21,6 +21,7 @@ from database.db import (
     get_pinterest_settings,
     mark_pinterest_exported,
 )
+from services.media_storage import get_public_media_url
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,20 @@ CSV_COLUMNS = [
     "Title", "Media URL", "Pinterest board",
     "Thumbnail", "Description", "Link", "Publish date", "Keywords",
 ]
+
+
+def _file_path_to_public_url(user_id: int, file_path: str) -> str:
+    """Конвертирует локальный путь в публичный URL на нашем сервере.
+
+    file_path вида "media/171470918/generated/38959282/photo.png"
+    → https://zaliv.ai/media/171470918/generated/38959282/photo.png
+    """
+    prefix = f"media/{user_id}/"
+    if file_path.startswith(prefix):
+        relative = file_path[len(prefix):]
+    else:
+        relative = file_path.lstrip("/")
+    return get_public_media_url(user_id, relative)
 
 
 def _first_word(text: str) -> str:
@@ -133,9 +148,11 @@ async def generate_pinterest_csv(
             step_minutes = random.randint(30, 120)
             publish_dt += timedelta(minutes=step_minutes)
 
+            media_url = _file_path_to_public_url(user_id, mf["file_path"]) if mf["file_path"] else mf["result_url"] or ""
+
             rows.append({
                 "Title": title,
-                "Media URL": mf["result_url"] or "",
+                "Media URL": media_url,
                 "Pinterest board": board,
                 "Thumbnail": thumbnail,
                 "Description": description,
