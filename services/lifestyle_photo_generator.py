@@ -21,11 +21,12 @@ import aiohttp
 logger = logging.getLogger(__name__)
 
 # I2I модель для создания lifestyle-фото
-LIFESTYLE_I2I_MODEL = "gpt-image/1.5-image-to-image"
+LIFESTYLE_I2I_MODEL = "nano-banana-2"
 
 # Параметры для lifestyle-фото
-LIFESTYLE_ASPECT_RATIO = "2:3"  # Портретный формат
-LIFESTYLE_QUALITY = "medium"  # Среднее качество (как в reference_i2i)
+LIFESTYLE_ASPECT_RATIO = "9:16"
+LIFESTYLE_RESOLUTION = "1K"
+LIFESTYLE_OUTPUT_FORMAT = "jpg"
 
 # Максимальное количество попыток polling и интервал
 MAX_POLL_ATTEMPTS = 60
@@ -44,16 +45,18 @@ async def _create_task(
     image_url: str,
     prompt: str,
     aspect_ratio: str = LIFESTYLE_ASPECT_RATIO,
-    quality: str = LIFESTYLE_QUALITY,
+    resolution: str = LIFESTYLE_RESOLUTION,
+    output_format: str = LIFESTYLE_OUTPUT_FORMAT,
 ) -> str | None:
     """Создаёт задачу создания lifestyle-фото."""
     payload = {
         "model": LIFESTYLE_I2I_MODEL,
         "input": {
-            "input_urls": [image_url],
-            "prompt": prompt,
-            "aspect_ratio": aspect_ratio,
-            "quality": quality,
+            "image_input":   [image_url],
+            "prompt":        prompt,
+            "aspect_ratio":  aspect_ratio,
+            "resolution":    resolution,
+            "output_format": output_format,
         },
     }
 
