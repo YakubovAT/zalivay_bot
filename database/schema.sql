@@ -262,6 +262,10 @@ CREATE TABLE IF NOT EXISTS pinterest_settings (
 ALTER TABLE media_files
     ADD COLUMN IF NOT EXISTS pinterest_export_count INT NOT NULL DEFAULT 0;
 
+-- Миграция: путь к копии изображения с наложенным текстом (артикул + название)
+ALTER TABLE media_files
+    ADD COLUMN IF NOT EXISTS watermarked_path TEXT NULL;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pinterest_settings_user_default
     ON pinterest_settings (user_id) WHERE article_code IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pinterest_settings_user_article

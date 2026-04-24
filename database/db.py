@@ -780,6 +780,24 @@ async def get_pinterest_settings(user_id: int, article_code: str) -> dict:
     return result
 
 
+async def save_watermarked_path(media_file_id: int, watermarked_path: str) -> None:
+    """Сохраняет путь к watermark-копии медиафайла."""
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE media_files SET watermarked_path = $2 WHERE id = $1",
+        media_file_id, watermarked_path,
+    )
+
+
+async def get_media_file_by_id(media_file_id: int) -> asyncpg.Record | None:
+    """Возвращает запись media_files по id."""
+    pool = await get_pool()
+    return await pool.fetchrow(
+        "SELECT * FROM media_files WHERE id = $1",
+        media_file_id,
+    )
+
+
 async def save_pinterest_settings(
     user_id: int,
     article_code: str | None,

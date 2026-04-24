@@ -48,6 +48,8 @@ from .db import (
     get_unexported_media_files,
     get_all_unexported_media_files,
     mark_pinterest_exported,
+    save_watermarked_path,
+    get_media_file_by_id,
     # pinterest_settings
     get_pinterest_settings,
     save_pinterest_settings,
@@ -103,6 +105,8 @@ __all__ = [
     "get_unexported_media_files",
     "get_all_unexported_media_files",
     "mark_pinterest_exported",
+    "save_watermarked_path",
+    "get_media_file_by_id",
     # pinterest_settings
     "get_pinterest_settings",
     "save_pinterest_settings",
