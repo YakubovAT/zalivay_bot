@@ -35,8 +35,8 @@ _STYLE_PHRASES = [
     "Модный акцент вашего гардероба.",
 ]
 
-_THUMBNAILS = ["0:01", "0:02", "0:03", ""]
-_THUMBNAIL_WEIGHTS = [25, 25, 25, 25]
+_THUMBNAILS = ["0:01", "0:02", "0:03", "0:04", ""]
+_THUMBNAIL_WEIGHTS = [20, 20, 20, 20, 20]
 
 CSV_COLUMNS = [
     "Title", "Media URL", "Pinterest board",
@@ -157,7 +157,7 @@ async def generate_pinterest_csv(
                 "Thumbnail": thumbnail,
                 "Description": description,
                 "Link": link,
-                "Publish date": publish_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "Publish date": publish_dt.strftime("%Y-%m-%dT%H:%M:%S"),
                 "Keywords": "",
             })
             exported_ids.append(mf["id"])
@@ -171,7 +171,7 @@ async def generate_pinterest_csv(
 
     if output_format == "csv":
         buf = io.StringIO()
-        writer = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, quoting=csv.QUOTE_ALL)
+        writer = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, quoting=csv.QUOTE_MINIMAL)
         writer.writeheader()
         writer.writerows(rows)
         content: str | list = "﻿" + buf.getvalue()
