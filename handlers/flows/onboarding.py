@@ -33,14 +33,6 @@ _WELCOME, _MAIN_MENU = range(2)
 # Шаг 1. Приветствие
 # ---------------------------------------------------------------------------
 
-_WELCOME_TEXT_FALLBACK = (
-    "Шаг 1: Приветствие\n\n"
-    "Система массовой автоматизированной создания профессионального\n"
-    "фото и видео контента для товаров с последующим размещением в социальных сетях.\n\n"
-    "Возможно создавать фото и видео в различных форматах\n"
-    "по заранее спроектированным промптам для ваших товаров."
-)
-
 
 async def _show_profile(update, context, message_id=None):
     """Показывает профиль пользователя в формате «окошек»."""
@@ -68,7 +60,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Удаляем предыдущий экран (если есть)
     await clear_previous_screen(context.bot, user.id)
 
-    welcome_text = await get_template("msg_welcome", fallback=_WELCOME_TEXT_FALLBACK)
+    welcome_text = await get_template("msg_welcome")
     banner_name  = await get_banner("msg_welcome")
     await send_screen(
         context.bot,

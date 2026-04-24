@@ -24,19 +24,6 @@ logger = logging.getLogger(__name__)
 # Храним текущий индекс эталона для каждого пользователя
 _ref_index: dict[int, int] = {}
 
-_MY_REFS_EMPTY_TEXT_FALLBACK = (
-    "📂 Мои эталоны (Шаг 15)\n\n"
-    "У вас пока нет товаров с эталонами.\n\n"
-    "Создайте первый эталон, чтобы создавать "
-    "фото и видео для ваших товаров."
-)
-
-_MY_REFS_LIST_TEXT_FALLBACK = (
-    "📂 Мои эталоны (Шаг 15)\n\n"
-    "Ниже ваши артикулы с эталонами.\n"
-    "Нажмите на артикул — откроется меню работы с эталонами."
-)
-
 
 async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список товаров пользователя с количеством эталонов."""
@@ -50,11 +37,11 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     articles = await get_user_articles_with_refs(user_id)
 
     if not articles:
-        text = await get_template("msg_my_refs_empty", fallback=_MY_REFS_EMPTY_TEXT_FALLBACK)
+        text = await get_template("msg_my_refs_empty")
         keyboard = kb_my_refs_empty()
     else:
         stats = await get_user_stats(user_id)
-        list_template = await get_template("msg_my_refs_list", fallback=_MY_REFS_LIST_TEXT_FALLBACK)
+        list_template = await get_template("msg_my_refs_list")
         text = list_template.format(
             user_id=user_id,
             full_name=full_name,

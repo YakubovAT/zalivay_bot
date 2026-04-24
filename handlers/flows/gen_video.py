@@ -52,44 +52,6 @@ _V_COUNT, _V_WISH, _V_CONFIRM, _V_GENERATING = range(4)
 # Максимальное количество видео за один запрос
 _MAX_VIDEOS = 5
 
-_GEN_VIDEO_COUNT_TEXT_FALLBACK = (
-    "🎥 Шаг V1: Сколько видео?\n\n"
-    "Сколько видео создать на основе этого эталона?\n\n"
-    "Каждое видео будет уникальным — разная локация, освещение, движение модели.\n\n"
-    "📦 Артикул: <code>{article}</code>\n"
-    "📸 Эталон: #{ref_number}\n"
-    "🏷 Тип товара: {category}\n\n"
-    "💰 Стоимость: {video_cost}₽ за видео\n\n"
-    "Введите число (1–5) или выберите:"
-)
-
-_GEN_VIDEO_WISH_TEXT_FALLBACK = (
-    "🎥 Шаг V2: Пожелания\n\n"
-    "📦 Артикул: <code>{article}</code>\n"
-    "📸 Эталон: #{ref_number}\n\n"
-    "Будет создано: {count} видео\n"
-    "💰 Стоимость: {total_cost}₽\n\n"
-    "Есть пожелания к создания?\n\n"
-    "Например: «модель идёт по пляжу», «съёмка в студии»."
-)
-
-_GEN_VIDEO_CONFIRM_TEXT_FALLBACK = (
-    "🎥 Шаг V3: Подтверждение\n\n"
-    "Готов создавать {count} видео на основе изображения выше.\n\n"
-    "📦 Артикул: <code>{article}</code>\n"
-    "{wish_block}"
-    "💰 Стоимость: {total_cost}₽\n"
-    "💳 Ваш баланс: {balance}₽\n\n"
-    "Если всё устраивает, нажмите ✅ Создать."
-)
-
-_GEN_VIDEO_GENERATING_TEXT_FALLBACK = (
-    "🎥 Шаг V4: Создание\n\n"
-    "⏳ Поставил в очередь {count} видео для артикула <code>{article}</code>.\n\n"
-    "Видео создаются параллельно. Это занимает несколько минут.\n"
-    "Я пришлю результат когда всё будет готово."
-)
-
 
 # ---------------------------------------------------------------------------
 # Entry point — нажали «🎥 Создать видео»
@@ -451,7 +413,7 @@ async def cb_close_alert_video(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def _msg_gen_video_count(article: str, ref_number: int | str, category: str) -> str:
-    template = await get_template("msg_gen_video_count", fallback=_GEN_VIDEO_COUNT_TEXT_FALLBACK)
+    template = await get_template("msg_gen_video_count")
     return template.format(
         article=article,
         ref_number=ref_number,
@@ -461,7 +423,7 @@ async def _msg_gen_video_count(article: str, ref_number: int | str, category: st
 
 
 async def _msg_gen_video_wish(article: str, ref_number: int | str, count: int, total_cost: int) -> str:
-    template = await get_template("msg_gen_video_wish", fallback=_GEN_VIDEO_WISH_TEXT_FALLBACK)
+    template = await get_template("msg_gen_video_wish")
     return template.format(
         article=article,
         ref_number=ref_number,
@@ -471,7 +433,7 @@ async def _msg_gen_video_wish(article: str, ref_number: int | str, count: int, t
 
 
 async def _msg_gen_video_confirm(article: str, count: int, total_cost: int, balance: int, wish: str | None) -> str:
-    template = await get_template("msg_gen_video_confirm", fallback=_GEN_VIDEO_CONFIRM_TEXT_FALLBACK)
+    template = await get_template("msg_gen_video_confirm")
     wish_block = f'📝 Пожелания: "{wish}"\n\n' if wish else ""
     return template.format(
         article=article,
@@ -483,7 +445,7 @@ async def _msg_gen_video_confirm(article: str, count: int, total_cost: int, bala
 
 
 async def _msg_gen_video_generating(article: str, count: int) -> str:
-    template = await get_template("msg_gen_video_generating", fallback=_GEN_VIDEO_GENERATING_TEXT_FALLBACK)
+    template = await get_template("msg_gen_video_generating")
     return template.format(article=article, count=count)
 
 

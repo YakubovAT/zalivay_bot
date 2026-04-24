@@ -33,18 +33,6 @@ logger = logging.getLogger(__name__)
 _PHOTO_SELECT, _PHOTO_CONFIRM, _REFERENCE_CONFIRM = range(10, 13)
 _REFERENCE_GENERATING = 13  # Из create_reference.py
 
-_PHOTO_SELECT_TEXT_FALLBACK = (
-    "Шаг 6 из N: Выбор фото — {current} из {total}\n\n"
-    "{selection_text}"
-)
-
-_REFERENCE_CONFIRM_TEXT_FALLBACK = (
-    "Шаг 7 из N: Создание эталона\n\n"
-    "Вы выбрали 3 фото для артикула <code>{article}</code>.\n\n"
-    "Убедитесь, что на этих фото товар виден лучше всего — "
-    "по ним будет создан эталон для создания контента."
-)
-
 
 # ---------------------------------------------------------------------------
 # Утилиты
@@ -68,7 +56,7 @@ async def _show_photo(context, chat_id, message_id, idx, paths, selected):
     done = selected_count >= 3
 
     selection_text = _selection_text(selected_count)
-    template = await get_template("msg_photo_select", fallback=_PHOTO_SELECT_TEXT_FALLBACK)
+    template = await get_template("msg_photo_select")
     caption = template.format(
         current=idx + 1,
         total=total,
@@ -277,7 +265,7 @@ async def cb_photos_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if not merge_ok or not Path(merged_path).exists():
         merged_path = chosen_paths[0] if chosen_paths else "assets/banner_default.png"
 
-    template = await get_template("msg_reference_create_confirm", fallback=_REFERENCE_CONFIRM_TEXT_FALLBACK)
+    template = await get_template("msg_reference_create_confirm")
     caption = template.format(article=article)
 
     try:

@@ -29,36 +29,6 @@ logger = logging.getLogger(__name__)
 # Состояние (13, чтобы не пересекаться с new_article 0-2 и photo_selection 10-12)
 _REFERENCE_GENERATING = 13
 
-_REFERENCE_CREATING_TEXT_FALLBACK = (
-    "⏳ Создаю эталон для артикула <code>{article}</code>...\n\n"
-    "<a href=\"https://zaliv.ai/\">Zaliv.AI</a> — сервис массовой автоматизированной создания "
-    "профессионального фото и видео контента для товаров "
-    "с последующим размещением в социальных сетях.\n\n"
-    "Это займёт 1-3 минуты..."
-)
-
-_REFERENCE_GENERATING_PHOTO_TEXT_FALLBACK = (
-    "⏳ Создаю фото эталона...\n"
-    "Тип товара: {category}\n\n"
-    "Созданный эталон позволит вам массово создавать "
-    "фото и видео для любых площадок: Telegram, VK, "
-    "Instagram, YouTube и других социальных сетей.\n\n"
-    "Осталось немного..."
-)
-
-_REFERENCE_READY_TEXT_FALLBACK = (
-    "Шаг 11 из N: Эталон готов!\n\n"
-    "📦 Артикул: <code>{article}</code>\n"
-    "📸 Это ваш {reference_number}-й эталон для этого товара\n"
-    "🏷 Тип товара: {category}\n\n"
-    "💰 Списано: {reference_cost}₽\n"
-    "💳 Ваш баланс: {new_balance}₽\n\n"
-    "Эталон может немного отличаться от оригинала.\n"
-    "Если отличия значительные — пересоздайте эталон,\n"
-    "заменив фотографии на шаге выбора фото.\n\n"
-    "Теперь вы можете создавать фото и видео!"
-)
-
 
 def _kb_reference_result(article: str) -> InlineKeyboardMarkup:
     """Клавиатура после создания эталона."""
@@ -116,7 +86,7 @@ async def start_reference_generation(
         return _REFERENCE_GENERATING
 
     # 2. Показываем экран создания
-    creating_text = await get_template("msg_reference_creating", fallback=_REFERENCE_CREATING_TEXT_FALLBACK)
+    creating_text = await get_template("msg_reference_creating")
     await context.bot.edit_message_caption(
         chat_id=user_id,
         message_id=message_id,
@@ -150,10 +120,7 @@ async def start_reference_generation(
     logger.info("T2T DONE | category=%s prompt_len=%d desc_len=%d", category, len(prompt_i2i), len(description))
 
     # 4. Обновляем caption
-    generating_photo_text = await get_template(
-        "msg_reference_generating_photo",
-        fallback=_REFERENCE_GENERATING_PHOTO_TEXT_FALLBACK,
-    )
+    generating_photo_text = await get_template("msg_reference_generating_photo")
     await context.bot.edit_message_caption(
         chat_id=user_id,
         message_id=message_id,
@@ -261,7 +228,7 @@ async def start_reference_generation(
     context.user_data["ref_number_for_gen"] = reference_number
 
     # Редактируем исходное сообщение с финальным результатом
-    ready_text = await get_template("msg_reference_ready", fallback=_REFERENCE_READY_TEXT_FALLBACK)
+    ready_text = await get_template("msg_reference_ready")
     final_caption = ready_text.format(
         article=article,
         reference_number=reference_number,

@@ -53,41 +53,14 @@ ARTICLE_RE = re.compile(r"^\d{6,9}$")
 # Шаг 3. Выбор маркетплейса
 # ---------------------------------------------------------------------------
 
-_MARKETPLACE_TEXT_FALLBACK = (
-    "Шаг 3 из N: Выбор маркетплейса\n\n"
-    "Выберите маркетплейс, на котором продаётся ваш товар. "
-    "После мы с вами создадим фото и видео контент "
-    "для последующего размещения в социальных сетях. "
-    "Вам нужно будет ввести артикул товара, и мы создадим эталон "
-    "вашего товара для создания фото и видео контента."
-)
-
 _LOCKED_TEXT = "⏳ Этот маркетплейс скоро будет доступен"
-
-_ARTICLE_INPUT_TEXT_FALLBACK = (
-    "Шаг 4 из N: Ввод артикула\n\n"
-    "В строку сообщений введите артикул.\n\n"
-    "Мы загрузим фото из карточки. Выберите "
-    "3 лучших — где ваш товар виден наиболее "
-    "чётко и детально. Это станет основой "
-    "для создания фото и видео контента."
-)
-
-_PRODUCT_FOUND_TEXT_FALLBACK = (
-    "Шаг 5 из N: Найден товар\n\n"
-    "📦 {name}\n"
-    "🏷 Бренд: {brand}\n"
-    "🎨 Цвет: {color}\n"
-    "🧵 Состав: {material}\n\n"
-    "Это тот товар?"
-)
 
 
 async def cb_menu_new_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Пользователь нажал «➕ Новый эталон» в главном меню."""
     query = update.callback_query
     await query.answer()
-    marketplace_text = await get_template("msg_marketplace_select", fallback=_MARKETPLACE_TEXT_FALLBACK)
+    marketplace_text = await get_template("msg_marketplace_select")
 
     await send_screen(
         context.bot,
@@ -104,7 +77,7 @@ async def cb_mp_wb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Пользователь выбрал WB."""
     query = update.callback_query
     await query.answer()
-    article_input_text = await get_template("msg_article_input", fallback=_ARTICLE_INPUT_TEXT_FALLBACK)
+    article_input_text = await get_template("msg_article_input")
 
     await send_screen(
         context.bot,
@@ -127,7 +100,7 @@ async def cb_back_to_mp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     """Кнопка «← Назад» — возврат к выбору маркетплейса."""
     query = update.callback_query
     await query.answer()
-    marketplace_text = await get_template("msg_marketplace_select", fallback=_MARKETPLACE_TEXT_FALLBACK)
+    marketplace_text = await get_template("msg_marketplace_select")
 
     await send_screen(
         context.bot,
@@ -241,7 +214,7 @@ async def msg_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     color = product.get("colors", ["—"])[0] if product.get("colors") else "—"
     material = product.get("material", "—")
 
-    product_found_template = await get_template("msg_product_found", fallback=_PRODUCT_FOUND_TEXT_FALLBACK)
+    product_found_template = await get_template("msg_product_found")
     caption = product_found_template.format(
         name=name,
         brand=brand,
@@ -329,7 +302,7 @@ async def cb_product_no(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await query.answer()
     
     logger.info("PRODUCT_REJECTED | user=%s", query.from_user.id)
-    article_input_text = await get_template("msg_article_input", fallback=_ARTICLE_INPUT_TEXT_FALLBACK)
+    article_input_text = await get_template("msg_article_input")
 
     # Возврат к вводу артикула
     await send_screen(

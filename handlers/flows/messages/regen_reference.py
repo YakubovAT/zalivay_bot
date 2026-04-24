@@ -6,57 +6,22 @@ handlers/flows/messages/regen_reference.py
 
 from services.prompt_store import get_template
 
-_MSG_REF_CARD_FALLBACK = (
-    "📸 Шаг 16: Эталон #{ref_number} из {total}\n"
-    "📦 Артикул: <code>{article}</code>\n"
-    "🏷 Тип товара: {category}"
-)
-
-
 async def msg_ref_card(ref_number: int, total: int, article: str, category: str) -> str:
     """Заголовок карточки эталона (Шаг 16)."""
-    template = await get_template("msg_ref_card", fallback=_MSG_REF_CARD_FALLBACK)
+    template = await get_template("msg_ref_card")
     return template.format(ref_number=ref_number, total=total, article=article, category=category)
-
-
-_MSG_REGEN_WISH_FALLBACK = (
-    "🔄 Шаг 16а: Пересоздание эталона\n\n"
-    "📦 Артикул: <code>{article}</code>\n"
-    "📸 Эталон: #{ref_number}\n\n"
-    "Будут использованы те же 3 фотографии, что и при создании.\n\n"
-    "Если хотите скорректировать результат — опишите, что не так "
-    "(например: <i>убери фон, товар должен быть по центру</i>).\n\n"
-    "Или нажмите <b>Пропустить</b> — эталон пересоздастся с теми же настройками."
-)
 
 
 async def msg_regen_wish(article: str, ref_number: int) -> str:
     """Шаг 16а — запрос пожеланий перед созданием."""
-    template = await get_template("msg_regen_wish", fallback=_MSG_REGEN_WISH_FALLBACK)
+    template = await get_template("msg_regen_wish")
     return template.format(article=article, ref_number=ref_number)
-
-
-_MSG_REGEN_GENERATING_FALLBACK = (
-    "⏳ Пересоздаю эталон для артикула <code>{article}</code>...\n\n"
-    "Это займёт 1–3 минуты..."
-)
 
 
 async def msg_regen_generating(article: str) -> str:
     """Прогресс пересоздания."""
-    template = await get_template("msg_regen_generating", fallback=_MSG_REGEN_GENERATING_FALLBACK)
+    template = await get_template("msg_regen_generating")
     return template.format(article=article)
-
-
-_MSG_REGEN_RESULT_FALLBACK = (
-    "✅ Шаг 16а: Новый эталон готов!\n\n"
-    "📦 Артикул: <code>{article}</code>\n"
-    "📸 Эталон #{ref_number}\n"
-    "🏷 Тип товара: {category}\n\n"
-    "💰 Списано: {cost}₽\n"
-    "💳 Ваш баланс: {balance}₽\n\n"
-    "Теперь вы можете создавать фото и видео!"
-)
 
 
 async def msg_regen_result(
@@ -67,18 +32,11 @@ async def msg_regen_result(
     balance: int,
 ) -> str:
     """Результат пересоздания (Шаг 16а — финал)."""
-    template = await get_template("msg_regen_result", fallback=_MSG_REGEN_RESULT_FALLBACK)
+    template = await get_template("msg_regen_result")
     return template.format(article=article, ref_number=ref_number, category=category, cost=cost, balance=balance)
-
-
-_MSG_REGEN_NO_SOURCE_FALLBACK = (
-    "❌ Исходные фотографии для артикула <code>{article}</code> не найдены.\n\n"
-    "Возможно, файлы были удалены с сервера. "
-    "Создайте новый эталон через «➕ Новый эталон»."
-)
 
 
 async def msg_regen_no_source_photos(article: str) -> str:
     """Ошибка — исходные фото не найдены на диске."""
-    template = await get_template("msg_regen_no_source_photos", fallback=_MSG_REGEN_NO_SOURCE_FALLBACK)
+    template = await get_template("msg_regen_no_source_photos")
     return template.format(article=article)

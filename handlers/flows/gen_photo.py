@@ -49,45 +49,6 @@ logger = logging.getLogger(__name__)
 # Состояния
 _P_COUNT, _P_WISH, _P_CONFIRM, _P_GENERATING = range(4)
 
-_GEN_PHOTO_COUNT_TEXT_FALLBACK = (
-    "📸 Шаг P1: Сколько фото?\n\n"
-    "Сколько фото создать на основе этого эталона?\n\n"
-    "Вы можете создать одно или множество изображений.\n"
-    "Каждое фото будет уникальным — разная локация, освещение, ракурс.\n\n"
-    "📦 Артикул: <code>{article}</code>\n"
-    "📸 Эталон: #{ref_number}\n"
-    "🏷 Тип товара: {category}\n\n"
-    "💰 Стоимость: {photo_cost}₽ за фото\n\n"
-    "Введите число:"
-)
-
-_GEN_PHOTO_WISH_TEXT_FALLBACK = (
-    "📸 Шаг P2: Пожелания\n\n"
-    "📦 Артикул: <code>{article}</code>\n"
-    "📸 Эталон: #{ref_number}\n\n"
-    "Будет создано: {count} фото\n"
-    "💰 Стоимость: {total_cost}₽\n\n"
-    "Есть пожелания к создания?\n\n"
-    "Например: «хочу фото на фоне моря», «сделай в студии»."
-)
-
-_GEN_PHOTO_CONFIRM_TEXT_FALLBACK = (
-    "📸 Шаг P3: Подтверждение\n\n"
-    "Готов создавать {count} фото на основе изображения представленного выше.\n\n"
-    "📦 Артикул: <code>{article}</code>\n"
-    "{wish_block}"
-    "💰 Стоимость: {total_cost}₽\n"
-    "💳 Ваш баланс: {balance}₽\n\n"
-    "Если всё устраивает, нажмите ✅ Создать и процесс запустится."
-)
-
-_GEN_PHOTO_GENERATING_TEXT_FALLBACK = (
-    "📸 Шаг P4: Создание\n\n"
-    "⏳ Поставил в очередь {count} фото для артикула <code>{article}</code>.\n\n"
-    "Фото создаются параллельно.\n"
-    "Я пришлю результат когда все будут готовы."
-)
-
 
 # ---------------------------------------------------------------------------
 # Entry point — нажали «📸 Создать фото»
@@ -497,7 +458,7 @@ async def cb_close_alert_photo(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def _msg_gen_photo_count(article: str, ref_number: int | str, category: str) -> str:
-    template = await get_template("msg_gen_photo_count", fallback=_GEN_PHOTO_COUNT_TEXT_FALLBACK)
+    template = await get_template("msg_gen_photo_count")
     return template.format(
         article=article,
         ref_number=ref_number,
@@ -507,7 +468,7 @@ async def _msg_gen_photo_count(article: str, ref_number: int | str, category: st
 
 
 async def _msg_gen_photo_wish(article: str, ref_number: int | str, count: int, total_cost: int) -> str:
-    template = await get_template("msg_gen_photo_wish", fallback=_GEN_PHOTO_WISH_TEXT_FALLBACK)
+    template = await get_template("msg_gen_photo_wish")
     return template.format(
         article=article,
         ref_number=ref_number,
@@ -517,7 +478,7 @@ async def _msg_gen_photo_wish(article: str, ref_number: int | str, count: int, t
 
 
 async def _msg_gen_photo_confirm(article: str, count: int, total_cost: int, balance: int, wish: str | None) -> str:
-    template = await get_template("msg_gen_photo_confirm", fallback=_GEN_PHOTO_CONFIRM_TEXT_FALLBACK)
+    template = await get_template("msg_gen_photo_confirm")
     wish_block = f'📝 Пожелания: "{wish}"\n\n' if wish else ""
     return template.format(
         article=article,
@@ -529,7 +490,7 @@ async def _msg_gen_photo_confirm(article: str, count: int, total_cost: int, bala
 
 
 async def _msg_gen_photo_generating(article: str, count: int) -> str:
-    template = await get_template("msg_gen_photo_generating", fallback=_GEN_PHOTO_GENERATING_TEXT_FALLBACK)
+    template = await get_template("msg_gen_photo_generating")
     return template.format(article=article, count=count)
 
 
