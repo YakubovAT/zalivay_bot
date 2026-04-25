@@ -1943,6 +1943,7 @@ function loadPinterest() {
       pintFiles = data.files;
 
       const artContainer = document.getElementById('pint-articul-filters');
+      artContainer.querySelectorAll('[data-articul]:not([data-articul="all"])').forEach(b => b.remove());
       data.articuls.forEach(art => {
         const btn = document.createElement('button');
         btn.className = 'chip';
