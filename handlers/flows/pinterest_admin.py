@@ -114,7 +114,8 @@ async def on_count_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END
 
 
-async def _cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def _end_and_redispatch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    asyncio.create_task(context.application.process_update(update))
     return ConversationHandler.END
 
 
@@ -126,7 +127,7 @@ def build_pinterest_admin_handler() -> ConversationHandler:
         },
         fallbacks=[
             CommandHandler("pinterest2", cmd_pinterest2),
-            MessageHandler(filters.COMMAND, _cancel),
+            MessageHandler(filters.COMMAND, _end_and_redispatch),
         ],
         name="pinterest_admin_flow",
         persistent=False,

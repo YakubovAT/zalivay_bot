@@ -263,7 +263,8 @@ async def msg_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # ── Сборка хендлера ────────────────────────────────────────────────────────────
 
-async def _cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def _end_and_redispatch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    asyncio.create_task(context.application.process_update(update))
     return ConversationHandler.END
 
 
@@ -275,7 +276,7 @@ def build_t2i_admin_handler() -> ConversationHandler:
         },
         fallbacks=[
             CommandHandler("08111981", cmd_t2i_admin),
-            MessageHandler(filters.COMMAND, _cancel),
+            MessageHandler(filters.COMMAND, _end_and_redispatch),
         ],
         name="t2i_admin",
         persistent=False,
