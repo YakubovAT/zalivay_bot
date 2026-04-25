@@ -263,13 +263,20 @@ async def msg_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # ── Сборка хендлера ────────────────────────────────────────────────────────────
 
+async def _cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return ConversationHandler.END
+
+
 def build_t2i_admin_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CommandHandler("08111981", cmd_t2i_admin)],
         states={
             _WAIT_COUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, msg_count)],
         },
-        fallbacks=[CommandHandler("08111981", cmd_t2i_admin)],
+        fallbacks=[
+            CommandHandler("08111981", cmd_t2i_admin),
+            MessageHandler(filters.COMMAND, _cancel),
+        ],
         name="t2i_admin",
         persistent=False,
     )

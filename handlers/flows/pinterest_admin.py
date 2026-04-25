@@ -114,13 +114,20 @@ async def on_count_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END
 
 
+async def _cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return ConversationHandler.END
+
+
 def build_pinterest_admin_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CommandHandler("pinterest2", cmd_pinterest2)],
         states={
             _WAIT_COUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_count_input)],
         },
-        fallbacks=[CommandHandler("pinterest2", cmd_pinterest2)],
+        fallbacks=[
+            CommandHandler("pinterest2", cmd_pinterest2),
+            MessageHandler(filters.COMMAND, _cancel),
+        ],
         name="pinterest_admin_flow",
         persistent=False,
     )
