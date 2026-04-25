@@ -2054,9 +2054,21 @@ function deleteMediaFile(e, mediaFileId, hasWatermark) {
     .then(r => { if (!r.ok) throw new Error(); return r.json(); })
     .then(() => {
       if (hasWatermark) {
-        // Обновить только вкладку Пинтерест (watermark удалён, файл остаётся)
-        pintLoaded = false;
-        loadPinterest();
+        // Watermark удалён — файл убираем из Pinterest (без watermark не показываем)
+        pintFiles = pintFiles.filter(f => f.media_file_id !== mediaFileId);
+        const artContainer = document.getElementById('pint-articul-filters');
+        artContainer.querySelectorAll('[data-articul]:not([data-articul="all"])').forEach(b => b.remove());
+        const remaining = [...new Set(pintFiles.map(f => f.articul))].sort();
+        remaining.forEach(art => {
+          const btn = document.createElement('button');
+          btn.className = 'chip';
+          btn.dataset.articul = art;
+          btn.textContent = art;
+          btn.onclick = () => setPintArticul(btn);
+          artContainer.appendChild(btn);
+        });
+        if (!pintFiles.some(f => f.articul === pintActiveArt)) pintActiveArt = 'all';
+        renderPinterest();
       } else {
         // Убрать из обеих вкладок и показать корзину
         allFiles  = allFiles.filter(f => f.media_file_id !== mediaFileId);

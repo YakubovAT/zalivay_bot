@@ -963,7 +963,7 @@ async def pinterest_files(session: str | None = Cookie(default=None)):
         SELECT id, article_code, file_type, file_path, watermarked_path,
                pinterest_export_count, pinterest_exported_at, created_at
         FROM media_files
-        WHERE user_id = $1 AND deleted_at IS NULL
+        WHERE user_id = $1 AND deleted_at IS NULL AND watermarked_path IS NOT NULL
         ORDER BY created_at DESC
         """,
         user["user_id"],
