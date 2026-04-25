@@ -73,7 +73,7 @@ async def cmd_pinterest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     max_affordable = balance // PINTEREST_CSV_COST
 
     await update.message.reply_text(
-        await msg_pinterest_ask_count(available, balance, min(max_affordable, 200), PINTEREST_CSV_COST)
+        await msg_pinterest_ask_count(available, balance, min(max_affordable, 100), PINTEREST_CSV_COST)
     )
     return _ASK_COUNT
 
@@ -87,7 +87,7 @@ async def on_count_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return _ASK_COUNT
 
     requested = int(text)
-    if requested < 10 or requested > 200:
+    if requested < 10 or requested > 100:
         await update.message.reply_text(await msg_pinterest_out_of_range())
         return _ASK_COUNT
 

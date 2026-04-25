@@ -159,7 +159,7 @@ async def generate_pinterest_csv(
             step_minutes = random.randint(30, 120)
             publish_dt += timedelta(minutes=step_minutes)
 
-            media_url = _file_path_to_public_url(user_id, mf["file_path"]) if mf["file_path"] else mf["result_url"] or ""
+            media_url = _file_path_to_public_url(user_id, mf["watermarked_path"]) if mf["watermarked_path"] else mf["result_url"] or ""
 
             rows.append({
                 "Title": title,

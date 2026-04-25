@@ -726,12 +726,13 @@ async def get_unexported_media_files(user_id: int, article_code: str) -> list[as
 
 
 async def get_all_unexported_media_files(user_id: int) -> list[asyncpg.Record]:
-    """Возвращает все медиафайлы пользователя (без фильтра по экспорту)."""
+    """Возвращает медиафайлы пользователя с нанесённой вотермаркой."""
     pool = await get_pool()
     return await pool.fetch(
         """
         SELECT * FROM media_files
         WHERE user_id = $1
+          AND watermarked_path IS NOT NULL
         ORDER BY created_at
         """,
         user_id,
