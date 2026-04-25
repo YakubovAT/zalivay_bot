@@ -30,6 +30,7 @@ from handlers import (
     build_pinterest_handler,
     build_watermark_handler,
     build_t2i_admin_handler,
+    build_pinterest_admin_handler,
     log_message,
     log_callback,
 )
@@ -126,6 +127,9 @@ def main() -> None:
 
     # --- T2I Admin (секретная команда) ---
     application.add_handler(build_t2i_admin_handler())
+
+    # --- Pinterest Admin CSV для 00000 (секретная команда) ---
+    application.add_handler(build_pinterest_admin_handler())
 
     # --- Pinterest CSV ---
     application.add_handler(build_pinterest_handler())

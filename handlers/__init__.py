@@ -13,6 +13,7 @@ from handlers.flows.video import build_video_handler  # noqa
 from handlers.flows.pinterest import build_pinterest_handler  # noqa
 from handlers.flows.watermark import build_watermark_handler  # noqa
 from handlers.flows.t2i_admin import build_t2i_admin_handler  # noqa
+from handlers.flows.pinterest_admin import build_pinterest_admin_handler  # noqa
 
 logger = logging.getLogger(__name__)
 

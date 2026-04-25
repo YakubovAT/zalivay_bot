@@ -91,6 +91,7 @@ async def generate_pinterest_csv(
     user_id: int,
     rows_count: int,
     output_format: str = "csv",
+    article_code_filter: str | None = None,
 ) -> dict:
     """
     Генерирует CSV для Pinterest.
@@ -115,6 +116,8 @@ async def generate_pinterest_csv(
     style_phrases = await get_list("pinterest_style_phrases") or _STYLE_PHRASES_FALLBACK
 
     all_files = await get_all_unexported_media_files(user_id)
+    if article_code_filter:
+        all_files = [f for f in all_files if f["article_code"] == article_code_filter]
     total_available = len(all_files)
 
     selected = random.sample(all_files, min(rows_count, len(all_files)))
