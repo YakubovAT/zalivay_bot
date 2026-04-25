@@ -22,12 +22,13 @@ from database.db import (
     mark_pinterest_exported,
 )
 from services.media_storage import get_public_media_url
+from services.prompt_store import get_list
 
 logger = logging.getLogger(__name__)
 
-_TITLE_PREFIXES = ["Новинка", "Тренд", "Хит", "Must have", "Стиль"]
+_TITLE_PREFIXES_FALLBACK = ["Новинка", "Тренд", "Хит", "Must have", "Стиль"]
 
-_STYLE_PHRASES = [
+_STYLE_PHRASES_FALLBACK = [
     "Элегантный образ на каждый день.",
     "Стильное решение для любого случая.",
     "Комфорт и красота в одном.",
@@ -70,8 +71,8 @@ def _build_title(color: str, name: str, prefix: str, article: str, index: int) -
     return f"{_first_color(color)} {_first_word(name)} {prefix} {article} {index:04d}".strip()
 
 
-def _build_description(name: str, color: str, hashtags: list[str]) -> str:
-    phrase = random.choice(_STYLE_PHRASES)
+def _build_description(name: str, color: str, hashtags: list[str], phrases: list[str] | None = None) -> str:
+    phrase = random.choice(phrases if phrases else _STYLE_PHRASES_FALLBACK)
     tags = random.sample(hashtags, min(5, len(hashtags))) if hashtags else []
     hashtag_str = " ".join(f"#{t}" for t in tags)
     return f"{name} {_first_color(color)}. {phrase} {hashtag_str}".strip()
@@ -110,6 +111,9 @@ async def generate_pinterest_csv(
     errors: list[str] = []
     used_titles: set[str] = set()
 
+    title_prefixes = await get_list("pinterest_title_prefixes") or _TITLE_PREFIXES_FALLBACK
+    style_phrases = await get_list("pinterest_style_phrases") or _STYLE_PHRASES_FALLBACK
+
     all_files = await get_all_unexported_media_files(user_id)
     total_available = len(all_files)
 
@@ -130,7 +134,7 @@ async def generate_pinterest_csv(
             name = article["name"] or ""
             color = article["color"] or ""
 
-            prefix = random.choice(_TITLE_PREFIXES)
+            prefix = random.choice(title_prefixes)
             title = _build_title(color, name, prefix, article_code, index)
 
             suffix = 1
@@ -144,7 +148,7 @@ async def generate_pinterest_csv(
             # Thumbnail только для видео
             is_video = mf["file_type"] == "video"
             thumbnail = random.choices(_THUMBNAILS[:-1], weights=_THUMBNAIL_WEIGHTS[:-1], k=1)[0] if is_video else ""
-            description = _build_description(name, color, settings.get("hashtags") or [])[:500]
+            description = _build_description(name, color, settings.get("hashtags") or [], style_phrases)[:500]
             link = _build_link(settings.get("link_template"), article_code, index)
             # Board обязателен для Pinterest; fallback — название товара
             board = settings.get("board") or name or article_code

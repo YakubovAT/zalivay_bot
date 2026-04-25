@@ -133,7 +133,7 @@ def _draw_label_multiline(
         cy += lh + line_spacing
 
 
-def apply_watermark(file_path: str, article_code: str, name: str, out_path: str | None = None) -> str:
+def apply_watermark(file_path: str, article_code: str, name: str, out_path: str | None = None, article_label: str | None = None) -> str:
     """
     Накладывает текст на изображение и сохраняет копию.
 
@@ -159,7 +159,7 @@ def apply_watermark(file_path: str, article_code: str, name: str, out_path: str 
     font      = _load_font(font_size)
     margin    = int(min(w, h) * 0.035)
 
-    text_article = f"арт. {article_code}"
+    text_article = article_label if article_label is not None else f"арт. {article_code}"
 
     pad_x, pad_y = 14, 9
 
@@ -215,6 +215,7 @@ async def apply_watermark_to_media_file(media_file_id: int, user_id: int) -> str
     Возвращает путь к файлу с текстом или None при ошибке.
     """
     from database.db import get_media_file_by_id, get_article_info, get_reference, save_watermarked_path
+    from services.prompt_store import get_template
 
     mf = await get_media_file_by_id(media_file_id)
     if not mf:
@@ -246,11 +247,15 @@ async def apply_watermark_to_media_file(media_file_id: int, user_id: int) -> str
         out_dir = Path(MEDIA_ROOT) / str(user_id) / "watermarked" / article_code
         out_file = out_dir / f"{p.stem}_with_text{p.suffix}"
 
+        label_template = await get_template("watermark_article_label", fallback="арт. {article}")
+        article_label = label_template.format(article=article_code)
+
         out_path = apply_watermark(
             file_path=file_path,
             article_code=article_code,
             name=name,
             out_path=str(out_file),
+            article_label=article_label,
         )
         await save_watermarked_path(media_file_id, out_path)
         return out_path

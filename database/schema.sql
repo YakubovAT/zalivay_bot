@@ -2268,3 +2268,35 @@ DO $$ BEGIN
     ('photo_top_street_lighting', 'Cloudy diffused light, cool neutral tones, flat even exposure',     3);
   END IF;
 END $$;
+
+-- Pinterest: префиксы заголовков
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'pinterest_title_prefixes') THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('pinterest_title_prefixes', 'Новинка',   1),
+    ('pinterest_title_prefixes', 'Тренд',     2),
+    ('pinterest_title_prefixes', 'Хит',       3),
+    ('pinterest_title_prefixes', 'Must have', 4),
+    ('pinterest_title_prefixes', 'Стиль',     5);
+  END IF;
+END $$;
+
+-- Pinterest: стилевые фразы для описания
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_list_items WHERE list_key = 'pinterest_style_phrases') THEN
+    INSERT INTO prompt_list_items (list_key, value, sort_order) VALUES
+    ('pinterest_style_phrases', 'Элегантный образ на каждый день.',       1),
+    ('pinterest_style_phrases', 'Стильное решение для любого случая.',    2),
+    ('pinterest_style_phrases', 'Комфорт и красота в одном.',             3),
+    ('pinterest_style_phrases', 'Подчеркни свою индивидуальность.',       4),
+    ('pinterest_style_phrases', 'Модный акцент вашего гардероба.',        5);
+  END IF;
+END $$;
+
+-- Watermark: шаблон надписи артикула на изображении
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'watermark_article_label') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('watermark_article_label', 'арт. {article}', 'Формат надписи артикула на watermark-изображении');
+  END IF;
+END $$;
