@@ -80,12 +80,14 @@ async def _ensure() -> None:
 # Публичный API
 # ---------------------------------------------------------------------------
 
-async def get_template(key: str) -> str:
-    """Возвращает шаблон по ключу из БД."""
+async def get_template(key: str, fallback: str | None = None) -> str:
+    """Возвращает шаблон по ключу. Приоритет: БД → fallback → пустая строка."""
     await _ensure()
     result = _cache.get("templates", {}).get(key)
     if result:
         return result
+    if fallback is not None:
+        return fallback
     logger.error("prompt_store: шаблон '%s' не найден в БД", key)
     return ""
 
