@@ -266,6 +266,10 @@ ALTER TABLE media_files
 ALTER TABLE media_files
     ADD COLUMN IF NOT EXISTS watermarked_path TEXT NULL;
 
+-- Миграция: мягкое удаление медиафайлов
+ALTER TABLE media_files
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pinterest_settings_user_default
     ON pinterest_settings (user_id) WHERE article_code IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pinterest_settings_user_article

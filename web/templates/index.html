@@ -284,6 +284,28 @@
     .card:hover .card-info-btn { opacity: 1; }
     .card-info-btn:hover { background: rgba(42,171,238,.75); color: #fff; }
 
+    .card-del-btn {
+      position: absolute;
+      top: 7px;
+      right: 8px;
+      z-index: 3;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(0,0,0,.55);
+      border: none;
+      color: rgba(255,255,255,.85);
+      font-size: 12px;
+      line-height: 22px;
+      text-align: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity .15s, background .15s;
+      padding: 0;
+    }
+    .card:hover .card-del-btn { opacity: 1; }
+    .card-del-btn:hover { background: rgba(239,68,68,.8); color: #fff; }
+
     /* ── Info drawer (снизу экрана) ── */
     .info-drawer-overlay {
       display: none;
@@ -1573,11 +1595,16 @@ function cardHTML(f, i) {
     ? `<img src="/thumb/${f.path}" loading="lazy" alt="${f.articul}">`
     : `<img class="video-thumb" data-video-src="/files/${f.path}" alt="${f.articul}">`;
 
+  const delBtn = f.media_file_id
+    ? `<button class="card-del-btn" onclick="deleteMediaFile(event,${f.media_file_id},false)" title="Удалить">🗑</button>`
+    : '';
+
   return `
     <div class="card" onclick="openLightbox(${i})">
       ${media}
       ${f.type === 'video' ? '<span class="badge-video">▶ видео</span>' : ''}
       <button class="card-info-btn" onclick="showInfoDrawer(event,${i})" title="Информация">ⓘ</button>
+      ${delBtn}
       <div class="card-overlay">
         <span class="card-articul">${f.articul}</span>
         <span class="card-name">${f.name}</span>
@@ -1988,11 +2015,16 @@ function pintCardHTML(f, i) {
     ? `<img src="/thumb/${f.path}" loading="lazy" alt="${f.articul}">`
     : `<img class="video-thumb" data-video-src="/files/${f.path}" alt="${f.articul}">`;
 
+  const delBtn = f.media_file_id
+    ? `<button class="card-del-btn" onclick="deleteMediaFile(event,${f.media_file_id},${f.has_watermark})" title="Удалить">🗑</button>`
+    : '';
+
   return `
     <div class="card" onclick="openPintLightbox(${i})">
       ${media}
       ${f.type === 'video' ? '<span class="badge-video">▶ видео</span>' : ''}
       <button class="card-info-btn" onclick="showPintInfoDrawer(event,${i})" title="Информация">ⓘ</button>
+      ${delBtn}
       <div class="card-overlay">
         <span class="card-articul">${f.articul}</span>
       </div>
@@ -2002,6 +2034,39 @@ function pintCardHTML(f, i) {
 function openPintLightbox(i) {
   lbFiles = pintLbFiles;
   openLightbox(i);
+}
+
+// ── Удаление медиафайлов ──────────────────────────────────────────────────────
+
+function deleteMediaFile(e, mediaFileId, hasWatermark) {
+  e.stopPropagation();
+  const msg = hasWatermark
+    ? 'Удалить водяной знак с этого файла? Оригинал останется.'
+    : 'Переместить файл в корзину?';
+  if (!confirm(msg)) return;
+
+  const url = hasWatermark
+    ? `/api/media/${mediaFileId}/watermark`
+    : `/api/media/${mediaFileId}`;
+
+  fetch(url, { method: 'DELETE' })
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(() => {
+      if (hasWatermark) {
+        // Обновить только вкладку Пинтерест (watermark удалён, файл остаётся)
+        pintLoaded = false;
+        loadPinterest();
+      } else {
+        // Убрать из обеих вкладок и показать корзину
+        allFiles  = allFiles.filter(f => f.media_file_id !== mediaFileId);
+        pintFiles = pintFiles.filter(f => f.media_file_id !== mediaFileId);
+        render();
+        renderPinterest();
+        document.getElementById('tab-btn-trash').style.display = '';
+        trashLoaded = false;
+      }
+    })
+    .catch(() => alert('Ошибка удаления. Попробуйте ещё раз.'));
 }
 
 // ── Корзина ───────────────────────────────────────────────────────────────────
@@ -2024,7 +2089,7 @@ function renderTrash(items) {
     container.innerHTML = `
       <div class="empty">
         <h3>Корзина пуста</h3>
-        <p>Удалённые эталоны появятся здесь.</p>
+        <p>Удалённые файлы и эталоны появятся здесь.</p>
       </div>`;
     return;
   }
@@ -2033,25 +2098,42 @@ function renderTrash(items) {
 }
 
 function trashCardHTML(item) {
-  const photo = item.ref_path
-    ? `<img class="trash-photo" src="/files/${item.ref_path}" loading="lazy" alt="эталон">`
-    : `<div class="trash-photo-placeholder"></div>`;
-
   const daysClass = item.days_left <= 7 ? '' : 'safe';
   const daysLabel = item.days_left === 0
     ? 'удаляется сегодня'
     : `удалится через ${item.days_left} дн.`;
 
+  if (item.kind === 'reference') {
+    const photo = item.ref_path
+      ? `<img class="trash-photo" src="/files/${item.ref_path}" loading="lazy" alt="эталон">`
+      : `<div class="trash-photo-placeholder"></div>`;
+    return `
+      <div class="trash-card" id="trash-ref-${item.id}">
+        ${photo}
+        <div class="trash-info">
+          <div class="trash-articul">${escHtml(item.articul)} <span style="font-weight:400;font-size:13px;color:var(--muted)">эталон №${item.reference_number}</span></div>
+          <div class="trash-name">${escHtml(item.product_name)}</div>
+          <span class="trash-days ${daysClass}">${daysLabel}</span>
+        </div>
+        <button class="btn-restore" onclick="restoreReference(${item.id})">Восстановить</button>
+        <button class="btn-purge"   onclick="purgeReference(${item.id})" title="Удалить навсегда">✕</button>
+      </div>`;
+  }
+
+  // kind === 'media'
+  const typeLabel = item.file_type === 'video' ? '🎬 Видео' : '📷 Фото';
+  const photo = item.path
+    ? `<img class="trash-photo" src="/thumb/${item.path}" loading="lazy" alt="${escHtml(item.articul)}">`
+    : `<div class="trash-photo-placeholder"></div>`;
   return `
-    <div class="trash-card" id="trash-${item.id}">
+    <div class="trash-card" id="trash-media-${item.id}">
       ${photo}
       <div class="trash-info">
-        <div class="trash-articul">${escHtml(item.articul)} <span style="font-weight:400;font-size:13px;color:var(--muted)">эталон №${item.reference_number}</span></div>
-        <div class="trash-name">${escHtml(item.product_name)}</div>
+        <div class="trash-articul">${escHtml(item.articul)} <span style="font-weight:400;font-size:13px;color:var(--muted)">${typeLabel}</span></div>
         <span class="trash-days ${daysClass}">${daysLabel}</span>
       </div>
-      <button class="btn-restore" onclick="restoreReference(${item.id})">Восстановить</button>
-      <button class="btn-purge"   onclick="purgeReference(${item.id})" title="Удалить навсегда">✕</button>
+      <button class="btn-restore" onclick="restoreMediaFile(${item.id})">Восстановить</button>
+      <button class="btn-purge"   onclick="purgeMediaFile(${item.id})" title="Удалить навсегда">✕</button>
     </div>`;
 }
 
@@ -2059,9 +2141,8 @@ function restoreReference(refId) {
   fetch(`/api/trash/${refId}/restore`, { method: 'POST' })
     .then(r => {
       if (!r.ok) throw new Error();
-      const el = document.getElementById(`trash-${refId}`);
+      const el = document.getElementById(`trash-ref-${refId}`);
       if (el) el.remove();
-      // Обновляем список эталонов
       refsLoaded = false;
       loadReferences();
       _hideTrashIfEmpty();
@@ -2071,11 +2152,38 @@ function restoreReference(refId) {
 
 function purgeReference(refId) {
   if (!confirm('Удалить эталон навсегда?\nЭто действие нельзя отменить.')) return;
-
   fetch(`/api/trash/${refId}`, { method: 'DELETE' })
     .then(r => {
       if (!r.ok) throw new Error();
-      const el = document.getElementById(`trash-${refId}`);
+      const el = document.getElementById(`trash-ref-${refId}`);
+      if (el) el.remove();
+      _hideTrashIfEmpty();
+    })
+    .catch(() => alert('Ошибка удаления. Попробуйте ещё раз.'));
+}
+
+function restoreMediaFile(mediaId) {
+  fetch(`/api/trash/media/${mediaId}/restore`, { method: 'POST' })
+    .then(r => {
+      if (!r.ok) throw new Error();
+      const el = document.getElementById(`trash-media-${mediaId}`);
+      if (el) el.remove();
+      // Сбрасываем кэш обеих вкладок
+      allFiles = [];
+      pintFiles = [];
+      fetch('/api/files').then(r => r.json()).then(data => { allFiles = data.files; render(); });
+      pintLoaded = false;
+      _hideTrashIfEmpty();
+    })
+    .catch(() => alert('Ошибка восстановления. Попробуйте ещё раз.'));
+}
+
+function purgeMediaFile(mediaId) {
+  if (!confirm('Удалить файл навсегда?\nЭто действие нельзя отменить.')) return;
+  fetch(`/api/trash/media/${mediaId}`, { method: 'DELETE' })
+    .then(r => {
+      if (!r.ok) throw new Error();
+      const el = document.getElementById(`trash-media-${mediaId}`);
       if (el) el.remove();
       _hideTrashIfEmpty();
     })
@@ -2083,7 +2191,7 @@ function purgeReference(refId) {
 }
 
 function _hideTrashIfEmpty() {
-  const remaining = document.querySelectorAll('[id^="trash-"]').length;
+  const remaining = document.querySelectorAll('[id^="trash-ref-"], [id^="trash-media-"]').length;
   if (remaining === 0) {
     document.getElementById('tab-btn-trash').style.display = 'none';
     switchTab('refs');

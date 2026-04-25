@@ -288,7 +288,9 @@ async def list_files(session: str | None = Cookie(default=None)):
             ar.category,
             ar.product_name,
             ar.product_color,
-            ar.product_material
+            ar.product_material,
+            mf.id           AS media_file_id,
+            mf.deleted_at   AS mf_deleted_at
         FROM generation_tasks gt
         JOIN generation_jobs gj
           ON gj.id = gt.job_id
@@ -297,6 +299,9 @@ async def list_files(session: str | None = Cookie(default=None)):
          AND ar.articul = gt.articul
          AND ar.reference_number = gj.ref_number
          AND ar.is_active = TRUE
+        LEFT JOIN media_files mf
+          ON mf.file_path = gt.file_path
+         AND mf.user_id = gt.user_id
         WHERE gt.user_id = $1
           AND gt.status   = 'completed'
           AND gt.file_path = ANY($2::text[])
@@ -305,9 +310,14 @@ async def list_files(session: str | None = Cookie(default=None)):
     )
     meta_by_path = {r["file_path"]: dict(r) for r in meta_rows}
 
+    result = []
     for f in files:
         m = meta_by_path.get("media/" + f["path"])
+        # Скрываем мягко удалённые файлы
+        if m and m["mf_deleted_at"] is not None:
+            continue
         if m:
+            f["media_file_id"] = m["media_file_id"]
             f["meta"] = {
                 "ref_number":       m["ref_number"],
                 "job_id":           m["job_id"],
@@ -321,10 +331,12 @@ async def list_files(session: str | None = Cookie(default=None)):
                 "product_material": m["product_material"] or "",
             }
         else:
+            f["media_file_id"] = None
             f["meta"] = None
+        result.append(f)
 
-    articuls = sorted({f["articul"] for f in files})
-    return {"files": files, "articuls": articuls}
+    articuls = sorted({f["articul"] for f in result})
+    return {"files": result, "articuls": articuls}
 
 
 # ---------------------------------------------------------------------------
@@ -408,14 +420,14 @@ async def delete_reference(ref_id: int, session: str | None = Cookie(default=Non
 
 @app.get("/api/trash")
 async def list_trash(session: str | None = Cookie(default=None)):
-    """Возвращает эталоны из корзины. Попутно финализирует просроченные (>30 дней)."""
+    """Возвращает корзину: эталоны + медиафайлы. Финализирует просроченные (>30 дней)."""
     user = _get_current_user(session)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     user_id = user["user_id"]
 
-    # Финализируем просроченные — переводим в is_active = FALSE
+    # Финализируем просроченные эталоны
     await _db_pool.execute(
         """
         UPDATE article_references
@@ -427,31 +439,57 @@ async def list_trash(session: str | None = Cookie(default=None)):
         user_id,
     )
 
-    rows = await _db_pool.fetch(
+    # Финализируем просроченные медиафайлы — удаляем строку (файл уже недоступен)
+    expired_media = await _db_pool.fetch(
         """
-        SELECT
-            ar.id,
-            ar.articul,
-            ar.reference_number,
-            ar.file_path,
-            ar.product_name,
-            ar.product_color,
-            ar.deleted_at,
-            a.name AS article_name
+        SELECT id, file_path, watermarked_path FROM media_files
+        WHERE user_id = $1 AND deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days'
+        """,
+        user_id,
+    )
+    for row in expired_media:
+        for raw_path in [row["file_path"], row["watermarked_path"]]:
+            if not raw_path:
+                continue
+            p = Path(raw_path)
+            if not p.is_absolute():
+                p = MEDIA_ROOT / raw_path.lstrip("media/").lstrip("/")
+            p.unlink(missing_ok=True)
+    if expired_media:
+        await _db_pool.execute(
+            "DELETE FROM media_files WHERE user_id = $1 AND deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days'",
+            user_id,
+        )
+
+    # Эталоны в корзине
+    ref_rows = await _db_pool.fetch(
+        """
+        SELECT ar.id, ar.articul, ar.reference_number, ar.file_path,
+               ar.product_name, ar.product_color, ar.deleted_at, a.name AS article_name
         FROM article_references ar
-        LEFT JOIN articles a
-            ON a.user_id = ar.user_id AND a.article_code = ar.articul
+        LEFT JOIN articles a ON a.user_id = ar.user_id AND a.article_code = ar.articul
         WHERE ar.user_id = $1 AND ar.is_active = TRUE AND ar.deleted_at IS NOT NULL
-        ORDER BY ar.deleted_at DESC
+        """,
+        user_id,
+    )
+
+    # Медиафайлы в корзине
+    media_rows = await _db_pool.fetch(
+        """
+        SELECT id, article_code, file_type, file_path, watermarked_path, deleted_at
+        FROM media_files
+        WHERE user_id = $1 AND deleted_at IS NOT NULL
         """,
         user_id,
     )
 
     result = []
-    for row in rows:
+
+    for row in ref_rows:
         deleted_at = row["deleted_at"]
         days_left  = 30 - (time.time() - deleted_at.timestamp()) / 86400
         result.append({
+            "kind":             "reference",
             "id":               row["id"],
             "articul":          row["articul"],
             "reference_number": row["reference_number"],
@@ -462,6 +500,34 @@ async def list_trash(session: str | None = Cookie(default=None)):
             "days_left":        max(0, int(days_left)),
         })
 
+    media_root_resolved = MEDIA_ROOT.resolve()
+
+    def _to_serve_any(raw: str | None) -> str | None:
+        if not raw:
+            return None
+        p = Path(raw)
+        if p.is_absolute():
+            try:
+                return str(p.resolve().relative_to(media_root_resolved))
+            except ValueError:
+                return None
+        return _db_path_to_serve_path(raw)
+
+    for row in media_rows:
+        deleted_at = row["deleted_at"]
+        days_left  = 30 - (time.time() - deleted_at.timestamp()) / 86400
+        serve_path = _to_serve_any(row["watermarked_path"]) or _to_serve_any(row["file_path"])
+        result.append({
+            "kind":       "media",
+            "id":         row["id"],
+            "articul":    row["article_code"],
+            "file_type":  row["file_type"],
+            "path":       serve_path,
+            "deleted_at": deleted_at.isoformat(),
+            "days_left":  max(0, int(days_left)),
+        })
+
+    result.sort(key=lambda x: x["deleted_at"], reverse=True)
     return {"trash": result}
 
 
@@ -894,10 +960,10 @@ async def pinterest_files(session: str | None = Cookie(default=None)):
 
     rows = await _db_pool.fetch(
         """
-        SELECT article_code, file_type, file_path, watermarked_path,
+        SELECT id, article_code, file_type, file_path, watermarked_path,
                pinterest_export_count, pinterest_exported_at, created_at
         FROM media_files
-        WHERE user_id = $1
+        WHERE user_id = $1 AND deleted_at IS NULL
         ORDER BY created_at DESC
         """,
         user["user_id"],
@@ -922,17 +988,98 @@ async def pinterest_files(session: str | None = Cookie(default=None)):
         if not serve_path:
             continue
         files.append({
-            "path":          serve_path,
-            "articul":       r["article_code"],
-            "type":          r["file_type"],
-            "has_watermark": r["watermarked_path"] is not None,
-            "export_count":  r["pinterest_export_count"],
-            "exported_at":   r["pinterest_exported_at"].isoformat() if r["pinterest_exported_at"] else None,
-            "created_at":    r["created_at"].isoformat(),
+            "path":           serve_path,
+            "articul":        r["article_code"],
+            "type":           r["file_type"],
+            "has_watermark":  r["watermarked_path"] is not None,
+            "export_count":   r["pinterest_export_count"],
+            "exported_at":    r["pinterest_exported_at"].isoformat() if r["pinterest_exported_at"] else None,
+            "created_at":     r["created_at"].isoformat(),
+            "media_file_id":  r["id"],
         })
 
     articuls = sorted({f["articul"] for f in files})
     return {"files": files, "articuls": articuls}
+
+
+# ---------------------------------------------------------------------------
+# Роуты — удаление медиафайлов
+# ---------------------------------------------------------------------------
+
+@app.delete("/api/media/{media_id}")
+async def delete_media_file(media_id: int, session: str | None = Cookie(default=None)):
+    """Мягкое удаление медиафайла (ставит deleted_at)."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    result = await _db_pool.execute(
+        "UPDATE media_files SET deleted_at = NOW() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+        media_id, user["user_id"],
+    )
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+@app.delete("/api/media/{media_id}/watermark")
+async def delete_media_watermark(media_id: int, session: str | None = Cookie(default=None)):
+    """Удаляет только watermark-файл с диска и сбрасывает watermarked_path."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    row = await _db_pool.fetchrow(
+        "SELECT watermarked_path FROM media_files WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+        media_id, user["user_id"],
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Not found")
+    if row["watermarked_path"]:
+        wpath = Path(row["watermarked_path"])
+        if wpath.exists():
+            wpath.unlink(missing_ok=True)
+    await _db_pool.execute(
+        "UPDATE media_files SET watermarked_path = NULL WHERE id = $1 AND user_id = $2",
+        media_id, user["user_id"],
+    )
+    return {"ok": True}
+
+
+@app.post("/api/trash/media/{media_id}/restore")
+async def restore_media_file(media_id: int, session: str | None = Cookie(default=None)):
+    """Восстанавливает медиафайл из корзины."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    result = await _db_pool.execute(
+        "UPDATE media_files SET deleted_at = NULL WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL",
+        media_id, user["user_id"],
+    )
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+@app.delete("/api/trash/media/{media_id}")
+async def hard_delete_media_file(media_id: int, session: str | None = Cookie(default=None)):
+    """Необратимое удаление медиафайла из корзины (файл + строка в БД)."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    row = await _db_pool.fetchrow(
+        "SELECT file_path, watermarked_path FROM media_files WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL",
+        media_id, user["user_id"],
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Not found")
+    for raw_path in [row["file_path"], row["watermarked_path"]]:
+        if not raw_path:
+            continue
+        p = Path(raw_path)
+        if not p.is_absolute():
+            p = MEDIA_ROOT / raw_path.lstrip("media/").lstrip("/")
+        p.unlink(missing_ok=True)
+    await _db_pool.execute("DELETE FROM media_files WHERE id = $1 AND user_id = $2", media_id, user["user_id"])
+    return {"ok": True}
 
 
 @app.post("/api/pinterest/generate")
