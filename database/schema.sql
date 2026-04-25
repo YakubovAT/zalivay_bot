@@ -2300,3 +2300,154 @@ DO $$ BEGIN
     ('watermark_article_label', 'арт. {article}', 'Формат надписи артикула на watermark-изображении');
   END IF;
 END $$;
+
+-- /watermark flow
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_watermark_all_done') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_watermark_all_done', 'Все ваши фото уже обработаны — артикул и название нанесены.', '/watermark — уже обработаны');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_watermark_confirm') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_watermark_confirm',
+     E'Фото без текста: {count}\n\nНа каждое фото будет нанесено:\n• артикул товара (по диагонали)\n• название товара (по диагонали)\n\nОригиналы остаются без изменений.',
+     '/watermark — запрос подтверждения; {count}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_watermark_processing') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_watermark_processing', 'Наношу текст на фото…', '/watermark — в процессе');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_watermark_done') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_watermark_done', 'Готово! Обработано фото: {done}', '/watermark — результат; {done}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_watermark_failed_line') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_watermark_failed_line', 'Не удалось обработать: {failed}', '/watermark — строка об ошибках; {failed}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_watermark_cancel') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_watermark_cancel', 'Отменено.', '/watermark — отмена');
+  END IF;
+END $$;
+
+-- /pinterest flow
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_no_files') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_no_files',
+     E'У вас нет медиафайлов для экспорта в Pinterest.\nСначала создайте фото или видео для ваших товаров.',
+     '/pinterest — нет файлов для экспорта');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_ask_count') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_ask_count',
+     E'Сколько строк сгенерировать для Pinterest CSV?\nВведите число от 10 до 200.\n\nДоступно файлов: {available}\nБаланс: {balance} руб. (до {max_rows} строк)\nСтоимость: {cost_per_row} руб./строка',
+     '/pinterest — запрос количества строк; {available}, {balance}, {max_rows}, {cost_per_row}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_invalid_input') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_invalid_input', 'Пожалуйста, введите число от 10 до 200.', '/pinterest — некорректный ввод');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_out_of_range') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_out_of_range', 'Число должно быть от 10 до 200. Попробуйте ещё раз.', '/pinterest — число вне диапазона');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_insufficient_funds') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_insufficient_funds',
+     E'Недостаточно средств.\nВаш баланс: {balance} руб. — хватает на {affordable} строк (минимум 10).\nПополните баланс и попробуйте снова.',
+     '/pinterest — не хватает на минимум 10 строк; {balance}, {affordable}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_balance_low') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_balance_low',
+     E'Баланс: {balance} руб. — не хватает на {count} строк ({cost} руб.).\nМожно создать {affordable} строк за {affordable_cost} руб.',
+     '/pinterest — баланс ниже запрошенного; {balance}, {count}, {cost}, {affordable}, {affordable_cost}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_fewer_files') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_fewer_files',
+     E'У вас {available} файлов, а вы запросили {requested}.\nСоздать CSV с {available} строками за {cost} руб.?',
+     '/pinterest — файлов меньше запрошенного; {available}, {requested}, {cost}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_confirm') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_confirm',
+     E'Баланс: {balance} руб.\nБудет списано: {cost} руб. за {count} строк.\nОстаток после: {after} руб.',
+     '/pinterest — подтверждение; {balance}, {cost}, {count}, {after}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_cancel') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_cancel', 'Генерация отменена.', '/pinterest — отмена');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_generating') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_generating', 'Генерирую Pinterest CSV ({count} строк)…', '/pinterest — в процессе; {count}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_no_result') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_no_result', 'Не удалось сгенерировать строки.', '/pinterest — нет результата');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_done') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_done',
+     E'Pinterest CSV готов — {count} строк\nСписано: {cost} руб. | Баланс: {balance} руб.',
+     '/pinterest — результат готов; {count}, {cost}, {balance}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_errors_line') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_errors_line', 'Ошибок: {errors_count}', '/pinterest — строка с количеством ошибок; {errors_count}');
+  END IF;
+END $$;

@@ -30,6 +30,21 @@ from telegram.ext import (
 
 from config import PINTEREST_CSV_COST
 from database.db import get_all_unexported_media_files, get_user_stats, deduct_balance
+from handlers.flows.messages.pinterest import (
+    msg_pinterest_no_files,
+    msg_pinterest_ask_count,
+    msg_pinterest_invalid_input,
+    msg_pinterest_out_of_range,
+    msg_pinterest_insufficient_funds,
+    msg_pinterest_balance_low,
+    msg_pinterest_fewer_files,
+    msg_pinterest_confirm,
+    msg_pinterest_cancel,
+    msg_pinterest_generating,
+    msg_pinterest_no_result,
+    msg_pinterest_done,
+    msg_pinterest_errors_line,
+)
 from services.pinterest_csv_generator import generate_pinterest_csv
 
 logger = logging.getLogger(__name__)
@@ -47,10 +62,7 @@ async def cmd_pinterest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     all_files = await get_all_unexported_media_files(user_id)
     if not all_files:
-        await update.message.reply_text(
-            "У вас нет медиафайлов для экспорта в Pinterest.\n"
-            "Сначала создайте фото или видео для ваших товаров."
-        )
+        await update.message.reply_text(await msg_pinterest_no_files())
         return ConversationHandler.END
 
     stats = await get_user_stats(user_id)
@@ -61,11 +73,7 @@ async def cmd_pinterest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     max_affordable = balance // PINTEREST_CSV_COST
 
     await update.message.reply_text(
-        f"Сколько строк сгенерировать для Pinterest CSV?\n"
-        f"Введите число от 10 до 200.\n\n"
-        f"Доступно файлов: {available}\n"
-        f"Баланс: {balance} руб. (до {min(max_affordable, 200)} строк)\n"
-        f"Стоимость: {PINTEREST_CSV_COST} руб./строка"
+        await msg_pinterest_ask_count(available, balance, min(max_affordable, 200), PINTEREST_CSV_COST)
     )
     return _ASK_COUNT
 
@@ -75,12 +83,12 @@ async def on_count_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     text = update.message.text.strip()
 
     if not text.isdigit():
-        await update.message.reply_text("Пожалуйста, введите число от 10 до 200.")
+        await update.message.reply_text(await msg_pinterest_invalid_input())
         return _ASK_COUNT
 
     requested = int(text)
     if requested < 10 or requested > 200:
-        await update.message.reply_text("Число должно быть от 10 до 200. Попробуйте ещё раз.")
+        await update.message.reply_text(await msg_pinterest_out_of_range())
         return _ASK_COUNT
 
     available = context.user_data.get(_CTX_AVAILABLE, 0)
@@ -96,21 +104,19 @@ async def on_count_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         affordable = balance // PINTEREST_CSV_COST
         if affordable < 10:
             await update.message.reply_text(
-                f"Недостаточно средств.\n"
-                f"Ваш баланс: {balance} руб. — хватает на {affordable} строк (минимум 10).\n"
-                f"Пополните баланс и попробуйте снова."
+                await msg_pinterest_insufficient_funds(balance, affordable)
             )
             return ConversationHandler.END
 
+        affordable_cost = affordable * PINTEREST_CSV_COST
         keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton(f"Создать {affordable} строк ({affordable} руб.)", callback_data="pinterest_confirm"),
+            InlineKeyboardButton(f"Создать {affordable} строк ({affordable_cost} руб.)", callback_data="pinterest_confirm"),
             InlineKeyboardButton("Отмена", callback_data="pinterest_cancel"),
         ]])
         context.user_data[_CTX_COUNT] = affordable
-        context.user_data[_CTX_COST]  = affordable * PINTEREST_CSV_COST
+        context.user_data[_CTX_COST]  = affordable_cost
         await update.message.reply_text(
-            f"Баланс: {balance} руб. — не хватает на {count} строк ({cost} руб.).\n"
-            f"Можно создать {affordable} строк за {affordable * PINTEREST_CSV_COST} руб.",
+            await msg_pinterest_balance_low(balance, count, cost, affordable, affordable_cost),
             reply_markup=keyboard,
         )
         return _CONFIRM
@@ -125,8 +131,7 @@ async def on_count_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         context.user_data[_CTX_COUNT] = available
         context.user_data[_CTX_COST]  = cost
         await update.message.reply_text(
-            f"У вас {available} файлов, а вы запросили {requested}.\n"
-            f"Создать CSV с {available} строками за {cost} руб.?",
+            await msg_pinterest_fewer_files(available, requested, cost),
             reply_markup=keyboard,
         )
         return _CONFIRM
@@ -139,9 +144,7 @@ async def on_count_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data[_CTX_COUNT] = count
     context.user_data[_CTX_COST]  = cost
     await update.message.reply_text(
-        f"Баланс: {balance} руб.\n"
-        f"Будет списано: {cost} руб. за {count} строк.\n"
-        f"Остаток после: {balance - cost} руб.",
+        await msg_pinterest_confirm(balance, cost, count, balance - cost),
         reply_markup=keyboard,
     )
     return _CONFIRM
@@ -161,7 +164,7 @@ async def cb_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Пользователь отменил генерацию."""
     query = update.callback_query
     await query.answer()
-    await query.message.edit_text("Генерация отменена.")
+    await query.message.edit_text(await msg_pinterest_cancel())
     _clear(context)
     return ConversationHandler.END
 
@@ -175,7 +178,7 @@ async def _do_generate(
     user_id = update.effective_user.id
     msg = update.effective_message
 
-    status_msg = await msg.reply_text(f"Генерирую Pinterest CSV ({count} строк)…")
+    status_msg = await msg.reply_text(await msg_pinterest_generating(count))
 
     result = await generate_pinterest_csv(user_id, count)
 
@@ -183,10 +186,10 @@ async def _do_generate(
     errors    = result["stats"]["errors"]
 
     if generated == 0:
-        await status_msg.edit_text(
-            "Не удалось сгенерировать строки.\n"
-            + ("\n".join(errors) if errors else "Нет данных для экспорта.")
-        )
+        no_result_text = await msg_pinterest_no_result()
+        if errors:
+            no_result_text += "\n" + "\n".join(errors)
+        await status_msg.edit_text(no_result_text)
         _clear(context)
         return ConversationHandler.END
 
@@ -199,18 +202,15 @@ async def _do_generate(
     csv_bytes = result["content"].encode("utf-8")
     filename  = f"pinterest_{result['batch_id']}.csv"
 
-    caption_lines = [
-        f"Pinterest CSV готов — {generated} строк",
-        f"Списано: {actual_cost} руб. | Баланс: {new_balance} руб.",
-    ]
+    caption = await msg_pinterest_done(generated, actual_cost, new_balance)
     if errors:
-        caption_lines.append(f"Ошибок: {len(errors)}")
+        caption += "\n" + await msg_pinterest_errors_line(len(errors))
 
     await status_msg.delete()
     await msg.reply_document(
         document=io.BytesIO(csv_bytes),
         filename=filename,
-        caption="\n".join(caption_lines),
+        caption=caption,
     )
 
     _clear(context)

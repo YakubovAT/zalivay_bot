@@ -21,6 +21,14 @@ from telegram.ext import (
 )
 
 from database.db import get_unwatermarked_photos
+from handlers.flows.messages.watermark import (
+    msg_watermark_all_done,
+    msg_watermark_confirm,
+    msg_watermark_processing,
+    msg_watermark_done,
+    msg_watermark_failed_line,
+    msg_watermark_cancel,
+)
 from services.image_watermark import apply_watermark_to_media_file
 
 logger = logging.getLogger(__name__)
@@ -34,9 +42,7 @@ async def cmd_watermark(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     photos = await get_unwatermarked_photos(user_id)
     if not photos:
-        await update.message.reply_text(
-            "Все ваши фото уже обработаны — артикул и название нанесены."
-        )
+        await update.message.reply_text(await msg_watermark_all_done())
         return ConversationHandler.END
 
     keyboard = InlineKeyboardMarkup([[
@@ -44,11 +50,7 @@ async def cmd_watermark(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         InlineKeyboardButton("Отмена", callback_data="watermark_cancel"),
     ]])
     await update.message.reply_text(
-        f"Фото без текста: {len(photos)}\n\n"
-        f"На каждое фото будет нанесено:\n"
-        f"• артикул товара (по диагонали)\n"
-        f"• название товара (по диагонали)\n\n"
-        f"Оригиналы остаются без изменений.",
+        await msg_watermark_confirm(len(photos)),
         reply_markup=keyboard,
     )
     return _CONFIRM
@@ -58,7 +60,7 @@ async def cb_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Пользователь подтвердил — обрабатываем все фото."""
     query = update.callback_query
     await query.answer()
-    await query.message.edit_text("Наношу текст на фото…")
+    await query.message.edit_text(await msg_watermark_processing())
 
     user_id = update.effective_user.id
     photos = await get_unwatermarked_photos(user_id)
@@ -75,11 +77,11 @@ async def cb_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         else:
             failed += 1
 
-    lines = [f"Готово! Обработано фото: {done}"]
+    result_text = await msg_watermark_done(done)
     if failed:
-        lines.append(f"Не удалось обработать: {failed}")
+        result_text += "\n" + await msg_watermark_failed_line(failed)
 
-    await query.message.edit_text("\n".join(lines))
+    await query.message.edit_text(result_text)
     return ConversationHandler.END
 
 
@@ -87,7 +89,7 @@ async def cb_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Пользователь отменил."""
     query = update.callback_query
     await query.answer()
-    await query.message.edit_text("Отменено.")
+    await query.message.edit_text(await msg_watermark_cancel())
     return ConversationHandler.END
 
 
