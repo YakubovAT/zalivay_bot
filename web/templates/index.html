@@ -17,6 +17,40 @@
       --radius:    10px;
     }
 
+    [data-theme="light"] {
+      --bg:      #f0f2f5;
+      --surface: #ffffff;
+      --border:  #e0e0e0;
+      --accent:  #2AABEE;
+      --text:    #1a1a1a;
+      --muted:   #888;
+    }
+
+    [data-theme="light"] .video-thumb:not([src]),
+    [data-theme="light"] .video-thumb[src=""] { background: #ddd; }
+
+    [data-theme="light"] .ref-photo-wrap,
+    [data-theme="light"] .trash-photo-placeholder,
+    [data-theme="light"] .ref-photo-placeholder { background: #e8e8e8; }
+
+    [data-theme="light"] .admin-sidebar { background: #f8f8f8; border-color: var(--border); }
+    [data-theme="light"] .admin-content { background: var(--bg); }
+    [data-theme="light"] .list-group-header { background: #f0f0f0; }
+    [data-theme="light"] .list-group-header:hover { background: #e8e8e8; }
+    [data-theme="light"] .tpl-card,
+    [data-theme="light"] .list-group { background: var(--surface); }
+    [data-theme="light"] .tpl-sort-input,
+    [data-theme="light"] .tpl-textarea,
+    [data-theme="light"] .list-item-input { background: #f5f5f5; color: var(--text); border-color: var(--border); }
+    [data-theme="light"] .trash-card,
+    [data-theme="light"] .ref-card { background: var(--surface); border-color: var(--border); }
+    [data-theme="light"] .info-drawer { background: var(--surface); }
+    [data-theme="light"] .lightbox-inner img,
+    [data-theme="light"] .lightbox-inner video { box-shadow: 0 4px 24px rgba(0,0,0,.15); }
+    [data-theme="light"] .users-table th { background: #f0f0f0; color: var(--text); }
+    [data-theme="light"] .users-table tr:hover td { background: #f5f5f5; }
+    [data-theme="light"] .btn-sidebar-toggle { color: var(--text); }
+
     html, body { height: 100%; }
 
     body {
@@ -73,6 +107,22 @@
       transition: border-color .2s, color .2s;
     }
     .btn-logout:hover { border-color: #555; color: var(--text); }
+
+    .btn-theme {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color .2s, color .2s;
+    }
+    .btn-theme:hover { border-color: var(--accent); color: var(--accent); }
 
     /* ── Экран входа ── */
     #login-screen {
@@ -1278,6 +1328,7 @@
   <div class="logo">📦 Zalivai</div>
   {% if user %}
   <div class="user-info">
+    <button class="btn-theme" id="btn-theme" onclick="toggleTheme()" title="Сменить тему"></button>
     <span>Привет, <span class="user-name">{{ user.first_name }}</span></span>
     <button class="btn-logout" onclick="logout()">Выйти</button>
   </div>
@@ -2797,6 +2848,23 @@ function escHtml(str) {
 }
 
 {% endif %}
+
+// ── Тема (день / ночь) ───────────────────────────────────────────────────────
+
+function _applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  const btn = document.getElementById('btn-theme');
+  if (btn) btn.textContent = theme === 'light' ? '🌙' : '☀️';
+}
+
+function toggleTheme() {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  localStorage.setItem('theme', next);
+  _applyTheme(next);
+}
+
+_applyTheme(localStorage.getItem('theme') || 'dark');
+
 </script>
 </body>
 </html>
