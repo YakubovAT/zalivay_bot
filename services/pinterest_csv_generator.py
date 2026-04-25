@@ -48,12 +48,15 @@ CSV_COLUMNS = [
 def _file_path_to_public_url(user_id: int, file_path: str) -> str:
     """Конвертирует локальный путь в публичный URL на нашем сервере.
 
-    file_path вида "media/171470918/generated/38959282/photo.png"
-    → https://zaliv.ai/media/171470918/generated/38959282/photo.png
+    Работает с относительными и абсолютными путями:
+      "media/171470918/generated/38959282/photo.png"
+      "/var/www/bots/.../media/171470918/watermarked/225616209/photo_with_text.png"
+    → https://zaliv.ai/media/171470918/...
     """
     prefix = f"media/{user_id}/"
-    if file_path.startswith(prefix):
-        relative = file_path[len(prefix):]
+    idx = file_path.find(prefix)
+    if idx != -1:
+        relative = file_path[idx + len(prefix):]
     else:
         relative = file_path.lstrip("/")
     return get_public_media_url(user_id, relative)
