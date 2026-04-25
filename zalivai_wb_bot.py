@@ -29,6 +29,7 @@ from handlers import (
     build_video_handler,
     build_pinterest_handler,
     build_watermark_handler,
+    build_t2i_admin_handler,
     log_message,
     log_callback,
 )
@@ -122,6 +123,9 @@ def main() -> None:
     # --- Глобальное логирование (group=-1) ---
     application.add_handler(MessageHandler(filters.ALL, log_message), group=-1)
     application.add_handler(CallbackQueryHandler(log_callback), group=-1)
+
+    # --- T2I Admin (секретная команда) ---
+    application.add_handler(build_t2i_admin_handler())
 
     # --- Pinterest CSV ---
     application.add_handler(build_pinterest_handler())
