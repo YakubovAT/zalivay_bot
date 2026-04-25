@@ -903,9 +903,22 @@ async def pinterest_files(session: str | None = Cookie(default=None)):
         user["user_id"],
     )
 
+    media_root_resolved = MEDIA_ROOT.resolve()
+
+    def _to_serve(raw: str | None) -> str | None:
+        if not raw:
+            return None
+        p = Path(raw)
+        if p.is_absolute():
+            try:
+                return str(p.resolve().relative_to(media_root_resolved))
+            except ValueError:
+                return None
+        return _db_path_to_serve_path(raw)
+
     files = []
     for r in rows:
-        serve_path = _db_path_to_serve_path(r["watermarked_path"] or r["file_path"])
+        serve_path = _to_serve(r["watermarked_path"]) or _to_serve(r["file_path"])
         if not serve_path:
             continue
         files.append({
