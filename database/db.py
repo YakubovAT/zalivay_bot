@@ -791,6 +791,7 @@ async def get_unwatermarked_photos(user_id: int) -> list[asyncpg.Record]:
           AND file_type = 'photo'
           AND file_path IS NOT NULL
           AND watermarked_path IS NULL
+          AND article_code != '00000'
         ORDER BY created_at
         """,
         user_id,
