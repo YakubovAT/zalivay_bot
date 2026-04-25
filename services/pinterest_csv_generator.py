@@ -125,7 +125,7 @@ async def generate_pinterest_csv(
 
     selected = random.sample(all_files, min(rows_count, len(all_files)))
 
-    publish_dt = datetime.now(timezone.utc) + timedelta(days=1)
+    publish_dt = datetime.now(timezone.utc) + timedelta(hours=1)
 
     for index, mf in enumerate(selected, start=1):
         article_code = mf["article_code"]
@@ -159,7 +159,7 @@ async def generate_pinterest_csv(
             # Board обязателен для Pinterest; fallback — название товара
             board = settings.get("board") or name or article_code
 
-            step_minutes = random.randint(30, 120)
+            step_minutes = random.randint(40, 48)
             publish_dt += timedelta(minutes=step_minutes)
 
             media_url = _file_path_to_public_url(user_id, mf["watermarked_path"]) if mf["watermarked_path"] else mf["result_url"] or ""
