@@ -6,3 +6,17 @@ __pycache__/
 logs/
 QWEN.md
 .claude/settings.json
+DEPLOY.md
+промты для тестов.md
+SCENARIO.md
+promts/
+services/cvs_generation_pinterest.md
+с KIE скаченное/
+400016004_referens.png
+docs/superpowers/plans/2026-04-24-pinterest-csv.md
+docs/api_kie.md
+services/image_watermark.py
+docs/генерация_фото.md
+database/__init__.py
+docs/генерация_видео.md
+.DS_Store
