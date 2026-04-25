@@ -1289,6 +1289,7 @@
     <button class="tab-btn active" data-tab="media" onclick="switchTab('media')">Медиафайлы</button>
     <button class="tab-btn"        data-tab="refs"  onclick="switchTab('refs')">Эталоны</button>
     <button class="tab-btn"        data-tab="trash" id="tab-btn-trash" style="display:none" onclick="switchTab('trash')">Корзина</button>
+    <button class="tab-btn"        data-tab="pinterest" onclick="switchTab('pinterest')">Пинтерест</button>
     {% if is_admin %}
     <button class="tab-btn"        data-tab="admin" onclick="switchTab('admin')" style="margin-left:auto;color:#f59e0b">Администратор</button>
     {% endif %}
@@ -1330,6 +1331,30 @@
     <div id="trash-content">
       <div class="loader"><div class="spinner"></div></div>
     </div>
+  </div>
+
+  <!-- ── Вкладка: Пинтерест ── -->
+  <div id="tab-pinterest" class="tab-panel">
+
+    <div class="filters">
+      <div class="filter-group" id="pint-type-filters">
+        <button class="chip active" data-type="all"   onclick="setPintType(this)">Все</button>
+        <button class="chip photo"  data-type="photo" onclick="setPintType(this)">📷 Фото</button>
+        <button class="chip video"  data-type="video" onclick="setPintType(this)">🎬 Видео</button>
+      </div>
+
+      <div class="filter-sep"></div>
+
+      <div class="filter-group" id="pint-articul-filters">
+        <button class="chip active" data-articul="all" onclick="setPintArticul(this)">Все артикулы</button>
+      </div>
+    </div>
+
+    <div class="stats" id="pint-stats"></div>
+    <div id="pint-content">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+
   </div>
 
   {% if is_admin %}
@@ -1410,9 +1435,10 @@ function logout() {
 
 let refsLoaded  = false;
 let trashLoaded = false;
+let pintLoaded  = false;
 let adminLoaded = false;
 
-const _TAB_URL   = { media: '/mediafiles', refs: '/etalons', trash: '/trash', admin: '/admin' };
+const _TAB_URL   = { media: '/mediafiles', refs: '/etalons', trash: '/trash', pinterest: '/pinterest', admin: '/admin' };
 const _URL_TAB   = Object.fromEntries(Object.entries(_TAB_URL).map(([k,v]) => [v, k]));
 const _SECTION_URL = { prompts: '/admin/prompts', messages: '/admin/messages', users: '/admin/users' };
 const _URL_SECTION = Object.fromEntries(Object.entries(_SECTION_URL).map(([k,v]) => [v, k]));
@@ -1430,6 +1456,10 @@ function switchTab(name, push = true) {
   if (name === 'trash' && !trashLoaded) {
     trashLoaded = true;
     loadTrash();
+  }
+  if (name === 'pinterest' && !pintLoaded) {
+    pintLoaded = true;
+    loadPinterest();
   }
   if (name === 'admin' && !adminLoaded) {
     adminLoaded = true;
@@ -1714,6 +1744,46 @@ function closeInfoDrawer() {
   document.getElementById('info-drawer').classList.remove('open');
 }
 
+function showPintInfoDrawer(e, i) {
+  e.stopPropagation();
+  const f = pintLbFiles[i];
+
+  document.getElementById('info-drawer-title').textContent =
+    (f.type === 'video' ? '▶ Видео' : '📷 Фото') + ' · ' + f.articul;
+
+  const createdAt = new Date(f.created_at).toLocaleString('ru-RU', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+  const exportedAt = f.exported_at
+    ? new Date(f.exported_at).toLocaleString('ru-RU', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      })
+    : '—';
+
+  const rows = [
+    ['📅', 'Создан',             createdAt],
+    ['📦', 'Артикул',            f.articul],
+    ['🎨', 'Тип',                f.type === 'photo' ? 'Фото' : 'Видео'],
+    ['🔖', 'Водяной знак',       f.has_watermark ? '✓ Нанесён' : '✗ Нет'],
+    ['📤', 'Экспортов Pinterest', f.export_count > 0 ? String(f.export_count) : 'Не экспортировался'],
+    ['🗓', 'Последний экспорт',  exportedAt],
+  ];
+
+  const body = rows.map(([icon, label, val]) => `
+    <div class="info-row">
+      <span class="info-icon">${icon}</span>
+      <span class="info-label">${label}:</span>
+      <span class="info-value">${escHtml(String(val))}</span>
+    </div>`).join('');
+
+  document.getElementById('info-drawer-body').innerHTML = body;
+  document.getElementById('info-overlay').classList.add('open');
+  document.getElementById('info-drawer').classList.add('open');
+  document.addEventListener('keydown', onKeyDown);
+}
+
 // ── Эталоны ──────────────────────────────────────────────────────────────────
 
 function loadReferences() {
@@ -1830,6 +1900,108 @@ function deleteReference(refId) {
       trashLoaded = false;
     })
     .catch(() => alert('Ошибка удаления. Попробуйте ещё раз.'));
+}
+
+// ── Пинтерест ────────────────────────────────────────────────────────────────
+
+let pintFiles      = [];
+let pintActiveType = 'all';
+let pintActiveArt  = 'all';
+let pintLbFiles    = [];
+
+function loadPinterest() {
+  fetch('/api/pinterest/files')
+    .then(r => r.json())
+    .then(data => {
+      pintFiles = data.files;
+
+      const artContainer = document.getElementById('pint-articul-filters');
+      data.articuls.forEach(art => {
+        const btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.dataset.articul = art;
+        btn.textContent = art;
+        btn.onclick = () => setPintArticul(btn);
+        artContainer.appendChild(btn);
+      });
+
+      renderPinterest();
+    })
+    .catch(() => {
+      document.getElementById('pint-content').innerHTML =
+        '<div class="empty"><h3>Ошибка загрузки</h3><p>Попробуйте обновить страницу.</p></div>';
+    });
+}
+
+function setPintType(btn) {
+  pintActiveType = btn.dataset.type;
+  document.querySelectorAll('#pint-type-filters .chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPinterest();
+}
+
+function setPintArticul(btn) {
+  pintActiveArt = btn.dataset.articul;
+  document.querySelectorAll('#pint-articul-filters .chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPinterest();
+}
+
+function pintFiltered() {
+  return pintFiles.filter(f => {
+    if (pintActiveType !== 'all' && f.type !== pintActiveType) return false;
+    if (pintActiveArt  !== 'all' && f.articul !== pintActiveArt)  return false;
+    return true;
+  });
+}
+
+function renderPinterest() {
+  const files   = pintFiltered();
+  const content = document.getElementById('pint-content');
+  const stats   = document.getElementById('pint-stats');
+
+  const photos = files.filter(f => f.type === 'photo').length;
+  const videos = files.filter(f => f.type === 'video').length;
+  stats.textContent = files.length === 0 ? '' :
+    `Показано: ${files.length} файл${plural(files.length, '', 'а', 'ов')}` +
+    (photos ? ` · ${photos} фото` : '') +
+    (videos ? ` · ${videos} видео` : '');
+
+  if (files.length === 0) {
+    content.innerHTML = `
+      <div class="empty">
+        <h3>Файлы не найдены</h3>
+        <p>Попробуйте изменить фильтры или создайте фото в боте.</p>
+      </div>`;
+    return;
+  }
+
+  pintLbFiles = files;
+  content.innerHTML = `<div class="grid">${files.map((f, i) => pintCardHTML(f, i)).join('')}</div>`;
+  document.querySelectorAll('#pint-content .video-thumb:not([src])').forEach(img => {
+    _vthumbObserver.observe(img);
+  });
+}
+
+function pintCardHTML(f, i) {
+  const media = f.type === 'photo'
+    ? `<img src="/thumb/${f.path}" loading="lazy" alt="${f.articul}">`
+    : `<img class="video-thumb" data-video-src="/files/${f.path}" alt="${f.articul}">`;
+
+  return `
+    <div class="card" onclick="openPintLightbox(${i})">
+      ${media}
+      ${f.type === 'video' ? '<span class="badge-video">▶ видео</span>' : ''}
+      <button class="card-info-btn" onclick="showPintInfoDrawer(event,${i})" title="Информация">ⓘ</button>
+      <div class="card-overlay">
+        <span class="card-articul">${f.articul}</span>
+      </div>
+    </div>`;
+}
+
+function openPintLightbox(i) {
+  lbFiles = pintLbFiles;
+  openLightbox(i);
 }
 
 // ── Корзина ───────────────────────────────────────────────────────────────────

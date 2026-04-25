@@ -881,8 +881,46 @@ async def serve_file(path: str, session: str | None = Cookie(default=None)):
 
 
 # SPA fallback — все «красивые» URL отдают тот же index.html
-_SPA_PATHS = {"/mediafiles", "/etalons", "/trash", "/admin",
+_SPA_PATHS = {"/mediafiles", "/etalons", "/trash", "/pinterest", "/admin",
               "/admin/prompts", "/admin/messages", "/admin/users"}
+
+
+@app.get("/api/pinterest/files")
+async def pinterest_files(session: str | None = Cookie(default=None)):
+    """Возвращает медиафайлы пользователя из таблицы media_files."""
+    user = _get_current_user(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    rows = await _db_pool.fetch(
+        """
+        SELECT article_code, file_type, file_path, watermarked_path,
+               pinterest_export_count, pinterest_exported_at, created_at
+        FROM media_files
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        """,
+        user["user_id"],
+    )
+
+    files = []
+    for r in rows:
+        serve_path = _db_path_to_serve_path(r["watermarked_path"] or r["file_path"])
+        if not serve_path:
+            continue
+        files.append({
+            "path":          serve_path,
+            "articul":       r["article_code"],
+            "type":          r["file_type"],
+            "has_watermark": r["watermarked_path"] is not None,
+            "export_count":  r["pinterest_export_count"],
+            "exported_at":   r["pinterest_exported_at"].isoformat() if r["pinterest_exported_at"] else None,
+            "created_at":    r["created_at"].isoformat(),
+        })
+
+    articuls = sorted({f["articul"] for f in files})
+    return {"files": files, "articuls": articuls}
+
 
 @app.post("/api/pinterest/generate")
 async def pinterest_generate(request: Request, session: str | None = Cookie(default=None)) -> Response:
