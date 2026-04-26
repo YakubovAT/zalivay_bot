@@ -766,6 +766,29 @@ async def get_all_unexported_media_files(user_id: int) -> list[asyncpg.Record]:
     )
 
 
+async def get_watermarked_articles_stats(user_id: int) -> list[dict]:
+    """Возвращает список артикулов с кол-вом watermark-файлов (для экрана выбора распределения)."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT
+            mf.article_code,
+            COALESCE(a.name, mf.article_code) AS name,
+            COUNT(*) FILTER (WHERE mf.file_type = 'photo') AS photo_count,
+            COUNT(*) FILTER (WHERE mf.file_type = 'video') AS video_count
+        FROM media_files mf
+        LEFT JOIN articles a ON a.user_id = mf.user_id AND a.article_code = mf.article_code
+        WHERE mf.user_id = $1
+          AND mf.is_watermark = TRUE
+          AND mf.article_code != '00000'
+        GROUP BY mf.article_code, a.name
+        ORDER BY COUNT(*) DESC
+        """,
+        user_id,
+    )
+    return [dict(r) for r in rows]
+
+
 async def mark_pinterest_exported(file_ids: list[int]) -> None:
     """Увеличивает счётчик экспортов для файлов и фиксирует дату последнего."""
     if not file_ids:
