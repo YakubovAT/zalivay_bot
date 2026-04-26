@@ -396,4 +396,5 @@ def build_pinterest_menu_handler() -> ConversationHandler:
         ],
         name="pinterest_menu_flow",
         persistent=False,
+        allow_reentry=True,
     )
