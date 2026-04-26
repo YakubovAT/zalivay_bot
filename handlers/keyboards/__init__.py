@@ -370,7 +370,43 @@ def kb_pinterest_menu_confirm() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Создать CSV", callback_data="pmenu_confirm")],
         [
+            InlineKeyboardButton("← Назад", callback_data="pmenu_back_dist"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Pinterest меню — Шаг П2.5 (распределение)
+# ---------------------------------------------------------------------------
+
+def kb_pinterest_menu_distribution() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎲 Случайно из всех",     callback_data="pmenu_dist_random")],
+        [InlineKeyboardButton("⚖️ Поровну по артикулам", callback_data="pmenu_dist_equal")],
+        [InlineKeyboardButton("🎯 Приоритет артикулу →", callback_data="pmenu_dist_priority")],
+        [
             InlineKeyboardButton("← Назад", callback_data="pmenu_back_count"),
             InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
         ],
     ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Pinterest меню — Шаг П2.6 (выбор артикула)
+# ---------------------------------------------------------------------------
+
+def kb_pinterest_menu_articles(articles: list[dict]) -> InlineKeyboardMarkup:
+    """Динамический список артикулов.
+    articles = [{'article_code': str, 'name': str, 'photo_count': int, 'video_count': int}]
+    """
+    rows = []
+    for a in articles:
+        total = a["photo_count"] + a["video_count"]
+        label = f"{a['name']} ({total} фото)" if a["name"] != a["article_code"] else f"{a['article_code']} ({total} фото)"
+        rows.append([InlineKeyboardButton(label, callback_data=f"pmenu_article_{a['article_code']}")])
+    rows.append([
+        InlineKeyboardButton("← Назад", callback_data="pmenu_back_dist"),
+        InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+    ])
+    return InlineKeyboardMarkup(rows)

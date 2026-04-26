@@ -60,3 +60,13 @@ async def msg_pinterest_menu_generating(count: int) -> str:
 async def msg_pinterest_menu_done(count: int, cost: int, balance: int) -> str:
     template = await get_template("msg_pinterest_menu_done")
     return template.format(count=count, cost=cost, balance=balance)
+
+
+async def msg_pinterest_menu_distribution(count: int, articles_count: int) -> str:
+    template = await get_template("msg_pinterest_menu_distribution")
+    return template.format(count=count, articles_count=articles_count)
+
+
+async def msg_pinterest_menu_article_select(articles_list: str) -> str:
+    template = await get_template("msg_pinterest_menu_article_select")
+    return template.format(articles_list=articles_list)
