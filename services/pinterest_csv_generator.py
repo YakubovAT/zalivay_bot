@@ -157,7 +157,7 @@ async def generate_pinterest_csv(
             description = _build_description(name, color, settings.get("hashtags") or [], style_phrases)[:500]
             link = _build_link(settings.get("link_template"), article_code, index)
             # Board обязателен для Pinterest; fallback — название товара
-            board = settings.get("board") or name or article_code
+            board = name or settings.get("board") or article_code
 
             step_minutes = random.randint(40, 48)
             publish_dt += timedelta(minutes=step_minutes)
