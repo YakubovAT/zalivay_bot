@@ -16,6 +16,5 @@ services/cvs_generation_pinterest.md
 docs/superpowers/plans/2026-04-24-pinterest-csv.md
 docs/api_kie.md
 docs/генерация_фото.md
-database/__init__.py
 docs/генерация_видео.md
 .DS_Store
