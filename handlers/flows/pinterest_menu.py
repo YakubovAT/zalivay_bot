@@ -284,6 +284,8 @@ def build_pinterest_menu_handler() -> ConversationHandler:
         fallbacks=[
             CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
         ],
+        allow_reentry=True,
+        per_message=True,
         name="pinterest_menu_flow",
         persistent=False,
     )
