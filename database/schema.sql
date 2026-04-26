@@ -2527,7 +2527,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_menu_distribution') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_menu_distribution',
-     E'📌 <b>Распределение {count} пинов</b>\n\nКак распределить файлы по артикулам?\n\nУ вас {articles_count} артикул(ов) с готовыми изображениями.',
+     E'📌 Распределение {count} пинов.\n\nКак распределить файлы по артикулам?\n\nУ вас {articles_count} артикул(ов) с готовыми изображениями.',
      'Pinterest меню — выбор режима распределения; {count}, {articles_count}');
   END IF;
 END $$;
@@ -2536,7 +2536,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_menu_article_select') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_menu_article_select',
-     E'🎯 <b>Выберите приоритетный артикул</b>\n\nПоловина пинов будет из этого артикула, остальные — поровну из остальных.\n\n{articles_list}',
+     E'🎯 Выберите приоритетный артикул.\n\nПоловина пинов будет из этого артикула, остальные — поровну из остальных.\n\n{articles_list}',
      'Pinterest меню — выбор приоритетного артикула; {articles_list}');
   END IF;
 END $$;
