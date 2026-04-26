@@ -28,6 +28,7 @@ from handlers import (
     build_photo_handler,
     build_video_handler,
     build_pinterest_handler,
+    build_pinterest_menu_handler,
     build_watermark_handler,
     build_t2i_admin_handler,
     build_pinterest_admin_handler,
@@ -133,6 +134,9 @@ def main() -> None:
 
     # --- Pinterest CSV ---
     application.add_handler(build_pinterest_handler())
+
+    # --- Pinterest меню (кнопка из Шага 2) ---
+    application.add_handler(build_pinterest_menu_handler())
 
     # --- Watermark ---
     application.add_handler(build_watermark_handler())

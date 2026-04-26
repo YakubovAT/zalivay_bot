@@ -34,6 +34,9 @@ def kb_main_menu() -> InlineKeyboardMarkup:
             InlineKeyboardButton("📂 Мои эталоны", callback_data="menu_my_refs"),
             InlineKeyboardButton("💰 Пополнить баланс", callback_data="menu_topup"),
         ],
+        [
+            InlineKeyboardButton("📌 Пинтерест", callback_data="menu_pinterest"),
+        ],
     ])
 
 
@@ -324,4 +327,50 @@ def kb_gen_video_result() -> InlineKeyboardMarkup:
         ],
         [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
         [InlineKeyboardButton("✕ Закрыть", callback_data="gen_video_close")],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Pinterest меню — Шаг П1 (обзор)
+# ---------------------------------------------------------------------------
+
+def kb_pinterest_menu_overview() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📄 Создать CSV", callback_data="pmenu_csv")],
+        [InlineKeyboardButton("← Назад", callback_data="back_to_menu")],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Pinterest меню — Шаг П2 (выбор количества строк)
+# ---------------------------------------------------------------------------
+
+def kb_pinterest_menu_count(available: int) -> InlineKeyboardMarkup:
+    options = [10, 25, 50, 100]
+    row = [
+        InlineKeyboardButton(str(n), callback_data=f"pmenu_count_{n}")
+        for n in options if n <= available
+    ]
+    if not row:
+        row = [InlineKeyboardButton(str(available), callback_data=f"pmenu_count_{available}")]
+    return InlineKeyboardMarkup([
+        row,
+        [
+            InlineKeyboardButton("← Назад", callback_data="pmenu_back_overview"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Flow: Pinterest меню — Шаг П3 (подтверждение)
+# ---------------------------------------------------------------------------
+
+def kb_pinterest_menu_confirm() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Создать CSV", callback_data="pmenu_confirm")],
+        [
+            InlineKeyboardButton("← Назад", callback_data="pmenu_back_count"),
+            InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
+        ],
     ])

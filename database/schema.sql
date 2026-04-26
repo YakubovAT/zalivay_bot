@@ -2451,3 +2451,66 @@ DO $$ BEGIN
     ('msg_pinterest_errors_line', 'Ошибок: {errors_count}', '/pinterest — строка с количеством ошибок; {errors_count}');
   END IF;
 END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_menu_overview') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_menu_overview',
+     E'📌 Pinterest\n\nУ вас в базе есть:\n📸 Фото: {photos_count}\n🎬 Видео: {videos_count}\n\nС нанесённым артикулом:\n📸 Фото: {watermarked_photos}\n🎬 Видео: {watermarked_videos}\n\nВы можете сформировать CSV файл ваших товаров (до 100 за один раз), получить готовый файл и автоматически разместить их в Ваши аккаунты Pinterest.',
+     'Pinterest меню — Шаг П1 обзор; {photos_count}, {videos_count}, {watermarked_photos}, {watermarked_videos}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_menu_count') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_menu_count',
+     E'📌 Pinterest — Создание CSV\n\nС нанесённым артикулом доступно:\n📸 Фото: {watermarked_photos}\n🎬 Видео: {watermarked_videos}\n\n💳 Баланс: {balance}₽\nСтоимость: {cost_per_row}₽ за строку\n\nСколько строк сгенерировать? (максимум 100)',
+     'Pinterest меню — Шаг П2 выбор количества; {watermarked_photos}, {watermarked_videos}, {balance}, {cost_per_row}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_menu_confirm') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_menu_confirm',
+     E'📌 Pinterest — Подтверждение\n\nСтрок в CSV: {count}\n💰 Стоимость: {cost}₽\n💳 Баланс: {balance}₽\nОстаток после: {after}₽\n\nСоздать CSV?',
+     'Pinterest меню — Шаг П3 подтверждение; {count}, {cost}, {balance}, {after}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_menu_insufficient') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_menu_insufficient',
+     E'❌ Недостаточно средств.\n\n💰 Стоимость: {cost}₽\n💳 Ваш баланс: {balance}₽\n\nПополните баланс и попробуйте снова.',
+     'Pinterest меню — недостаточно средств; {cost}, {balance}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_menu_no_files') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_menu_no_files',
+     E'📌 Pinterest\n\nУ вас нет фото с нанесённым артикулом.\n\nСначала создайте фото и нанесите артикул через команду /watermark.',
+     'Pinterest меню — нет файлов с вотермаркой');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_menu_generating') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_menu_generating',
+     '⏳ Создаю Pinterest CSV ({count} строк)…',
+     'Pinterest меню — в процессе генерации; {count}');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_menu_done') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_pinterest_menu_done',
+     E'✅ Pinterest CSV готов — {count} строк\n💰 Списано: {cost}₽ | 💳 Баланс: {balance}₽',
+     'Pinterest меню — результат готов; {count}, {cost}, {balance}');
+  END IF;
+END $$;

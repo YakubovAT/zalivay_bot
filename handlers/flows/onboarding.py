@@ -117,7 +117,7 @@ def build_onboarding_handler() -> ConversationHandler:
             _MAIN_MENU: [
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
                 # menu_my_refs, menu_gen_photo, menu_gen_video, menu_new_article обрабатываются в других flow
-                CallbackQueryHandler(cb_menu_not_impl, pattern="^menu_(?!my_refs|gen_photo|gen_video|topup|new_article)"),
+                CallbackQueryHandler(cb_menu_not_impl, pattern="^menu_(?!my_refs|gen_photo|gen_video|topup|new_article|pinterest)"),
             ],
         },
         fallbacks=[],
