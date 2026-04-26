@@ -13,6 +13,7 @@ import json
 import logging
 import random
 import uuid
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from database.db import (
@@ -53,40 +54,48 @@ def _select_files(
     distribution_mode:
       "random"   — случайная выборка из всех (текущее поведение)
       "equal"    — поровну по артикулам; остаток добирается случайно
-      "priority" — половина из priority_article_code, остаток поровну из остальных
+      "priority" — половина из priority_article_code, остаток поровну из остальных артикулов
     """
     if distribution_mode == "random" or not all_files:
         return random.sample(all_files, min(count, len(all_files)))
 
-    from collections import defaultdict
     by_article: dict[str, list] = defaultdict(list)
     for f in all_files:
         by_article[f["article_code"]].append(f)
 
-    selected: list = []
-
-    if distribution_mode == "priority" and priority_article_code:
+    if distribution_mode == "priority":
+        if not priority_article_code:
+            raise ValueError("priority_article_code required for distribution_mode='priority'")
         priority_files = by_article.pop(priority_article_code, [])
         priority_take  = min(len(priority_files), count // 2)
-        selected.extend(random.sample(priority_files, priority_take))
+        selected = list(random.sample(priority_files, priority_take))
         remaining_count = count - priority_take
-        others = [f for files in by_article.values() for f in files]
-        selected.extend(random.sample(others, min(remaining_count, len(others))))
-        return selected
+        # Остаток — поровну из оставшихся артикулов
+        others_by_article = dict(by_article)
+        return selected + _distribute_equal(others_by_article, remaining_count)
 
-    # "equal": поровну по артикулам
+    elif distribution_mode == "equal":
+        return _distribute_equal(dict(by_article), count)
+
+    else:
+        raise ValueError(f"Unknown distribution_mode: {distribution_mode!r}")
+
+
+def _distribute_equal(by_article: dict[str, list], count: int) -> list:
+    """Вспомогательная: поровну по артикулам, остаток случайно из leftover."""
     articles = list(by_article.keys())
     n = len(articles)
-    if n == 0:
+    if n == 0 or count == 0:
         return []
     per_article = count // n
+    selected: list = []
     leftover: list = []
-    for code, files in by_article.items():
+    for files in by_article.values():
         take = min(per_article, len(files))
         chosen = random.sample(files, take)
+        chosen_ids = {f["id"] for f in chosen}
         selected.extend(chosen)
-        leftover.extend([f for f in files if f not in chosen])
-    # Добираем остаток случайно
+        leftover.extend(f for f in files if f["id"] not in chosen_ids)
     needed = count - len(selected)
     if needed > 0 and leftover:
         selected.extend(random.sample(leftover, min(needed, len(leftover))))
