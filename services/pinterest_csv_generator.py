@@ -119,6 +119,7 @@ async def generate_pinterest_csv(
     style_phrases = await get_list("pinterest_style_phrases") or _STYLE_PHRASES_FALLBACK
 
     all_files = await get_all_unexported_media_files(user_id)
+    all_files = [f for f in all_files if f["article_code"] != "00000"]
     if article_code_filter:
         all_files = [f for f in all_files if f["article_code"] == article_code_filter]
     total_available = len(all_files)
@@ -162,7 +163,7 @@ async def generate_pinterest_csv(
             step_minutes = random.randint(40, 48)
             publish_dt += timedelta(minutes=step_minutes)
 
-            media_url = _file_path_to_public_url(user_id, mf["watermarked_path"]) if mf["watermarked_path"] else mf["result_url"] or ""
+            media_url = _file_path_to_public_url(user_id, mf["file_path"]) if mf["file_path"] else ""
 
             rows.append({
                 "Title": title,

@@ -210,11 +210,11 @@ def apply_watermark(file_path: str, article_code: str, name: str, out_path: str 
 async def apply_watermark_to_media_file(media_file_id: int, user_id: int) -> str | None:
     """
     Async-обёртка: читает media_file из БД, применяет watermark,
-    сохраняет watermarked_path обратно в БД.
+    создаёт новую запись media_files для watermark-файла.
 
     Возвращает путь к файлу с текстом или None при ошибке.
     """
-    from database.db import get_media_file_by_id, get_article_info, get_reference, save_watermarked_path
+    from database.db import get_media_file_by_id, get_article_info, get_reference, create_watermarked_file
     from services.prompt_store import get_template
 
     mf = await get_media_file_by_id(media_file_id)
@@ -222,12 +222,11 @@ async def apply_watermark_to_media_file(media_file_id: int, user_id: int) -> str
         logger.warning("WATERMARK | media_file_id=%d не найден", media_file_id)
         return None
 
-    # Если копия уже есть — возвращаем её
-    if mf["watermarked_path"]:
-        return mf["watermarked_path"]
+    if mf["is_watermark"]:
+        logger.warning("WATERMARK | media_file_id=%d уже является watermark-файлом, пропускаем", media_file_id)
+        return mf["file_path"]
 
     article_code = mf["article_code"]
-
     file_path = mf["file_path"]
     if not file_path:
         logger.warning("WATERMARK | media_file_id=%d не имеет file_path", media_file_id)
@@ -241,11 +240,11 @@ async def apply_watermark_to_media_file(media_file_id: int, user_id: int) -> str
         name = (article and article["name"]) or article_code
 
     try:
-        # Отдельная папка: media/{user_id}/watermarked/{article_code}/
         from services.media_storage import MEDIA_ROOT
         p = Path(file_path)
-        out_dir = Path(MEDIA_ROOT) / str(user_id) / "watermarked" / article_code
-        out_file = out_dir / f"{p.stem}_with_text{p.suffix}"
+        wm_index = mf["watermark_count"] + 1
+        out_dir  = Path(MEDIA_ROOT) / str(user_id) / "watermarked" / article_code
+        out_file = out_dir / f"{p.stem}_wm_{wm_index}{p.suffix}"
 
         label_template = await get_template("watermark_article_label", fallback="арт. {article}")
         article_label = label_template.format(article=article_code)
@@ -257,7 +256,13 @@ async def apply_watermark_to_media_file(media_file_id: int, user_id: int) -> str
             out_path=str(out_file),
             article_label=article_label,
         )
-        await save_watermarked_path(media_file_id, out_path)
+        await create_watermarked_file(
+            parent_id=media_file_id,
+            user_id=user_id,
+            article_code=article_code,
+            file_path=out_path,
+            file_type=mf["file_type"],
+        )
         return out_path
     except Exception as e:
         logger.error("WATERMARK | ошибка для media_file_id=%d: %s", media_file_id, e)

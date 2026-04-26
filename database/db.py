@@ -726,13 +726,14 @@ async def get_unexported_media_files(user_id: int, article_code: str) -> list[as
 
 
 async def get_all_unexported_media_files(user_id: int) -> list[asyncpg.Record]:
-    """Возвращает медиафайлы пользователя с нанесённой вотермаркой."""
+    """Возвращает watermark-файлы пользователя ещё не попавшие в Pinterest CSV."""
     pool = await get_pool()
     return await pool.fetch(
         """
         SELECT * FROM media_files
         WHERE user_id = $1
-          AND watermarked_path IS NOT NULL
+          AND is_watermark = TRUE
+          AND pinterest_export_count = 0
         ORDER BY created_at
         """,
         user_id,
@@ -782,7 +783,7 @@ async def get_pinterest_settings(user_id: int, article_code: str) -> dict:
 
 
 async def get_unwatermarked_photos(user_id: int) -> list[asyncpg.Record]:
-    """Возвращает фото пользователя без watermark-копии."""
+    """Возвращает оригинальные фото пользователя без watermark-копии."""
     pool = await get_pool()
     return await pool.fetch(
         """
@@ -790,7 +791,8 @@ async def get_unwatermarked_photos(user_id: int) -> list[asyncpg.Record]:
         WHERE user_id = $1
           AND file_type = 'photo'
           AND file_path IS NOT NULL
-          AND watermarked_path IS NULL
+          AND is_watermark = FALSE
+          AND watermark_count = 0
           AND article_code != '00000'
         ORDER BY created_at
         """,
@@ -798,13 +800,28 @@ async def get_unwatermarked_photos(user_id: int) -> list[asyncpg.Record]:
     )
 
 
-async def save_watermarked_path(media_file_id: int, watermarked_path: str) -> None:
-    """Сохраняет путь к watermark-копии медиафайла."""
+async def create_watermarked_file(
+    parent_id: int,
+    user_id: int,
+    article_code: str,
+    file_path: str,
+    file_type: str,
+) -> int:
+    """Создаёт запись watermark-файла и инкрементирует счётчик на оригинале."""
     pool = await get_pool()
-    await pool.execute(
-        "UPDATE media_files SET watermarked_path = $2 WHERE id = $1",
-        media_file_id, watermarked_path,
+    row = await pool.fetchrow(
+        """
+        INSERT INTO media_files (user_id, article_code, file_path, file_type, is_watermark, parent_id)
+        VALUES ($1, $2, $3, $4, TRUE, $5)
+        RETURNING id
+        """,
+        user_id, article_code, file_path, file_type, parent_id,
     )
+    await pool.execute(
+        "UPDATE media_files SET watermark_count = watermark_count + 1 WHERE id = $1",
+        parent_id,
+    )
+    return row["id"] if row else -1
 
 
 async def get_media_file_by_id(media_file_id: int) -> asyncpg.Record | None:

@@ -270,6 +270,14 @@ ALTER TABLE media_files
 ALTER TABLE media_files
     ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 
+-- Миграция: watermark как отдельная сущность
+ALTER TABLE media_files
+    ADD COLUMN IF NOT EXISTS is_watermark BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE media_files
+    ADD COLUMN IF NOT EXISTS parent_id INT REFERENCES media_files(id) ON DELETE CASCADE;
+ALTER TABLE media_files
+    ADD COLUMN IF NOT EXISTS watermark_count INT NOT NULL DEFAULT 0;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pinterest_settings_user_default
     ON pinterest_settings (user_id) WHERE article_code IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pinterest_settings_user_article
