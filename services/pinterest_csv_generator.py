@@ -19,6 +19,7 @@ from database.db import (
     get_article_info,
     get_all_unexported_media_files,
     get_pinterest_settings,
+    get_reference_product_name,
     mark_pinterest_exported,
 )
 from services.media_storage import get_public_media_url
@@ -140,6 +141,7 @@ async def generate_pinterest_csv(
             settings = await get_pinterest_settings(user_id, article_code)
             name = article["name"] or ""
             color = article["color"] or ""
+            ref_product_name = await get_reference_product_name(user_id, article_code)
 
             prefix = random.choice(title_prefixes)
             title = _build_title(color, name, prefix, article_code, index)
@@ -157,8 +159,8 @@ async def generate_pinterest_csv(
             thumbnail = random.choices(_THUMBNAILS[:-1], weights=_THUMBNAIL_WEIGHTS[:-1], k=1)[0] if is_video else ""
             description = _build_description(name, color, settings.get("hashtags") or [], style_phrases)[:500]
             link = _build_link(settings.get("link_template"), article_code, index)
-            # Board обязателен для Pinterest; fallback — название товара
-            board = name or settings.get("board") or article_code
+            # Board обязателен для Pinterest; приоритет — имя из эталона.
+            board = (ref_product_name or "").strip() or name or settings.get("board") or article_code
 
             step_minutes = random.randint(40, 48)
             publish_dt += timedelta(minutes=step_minutes)

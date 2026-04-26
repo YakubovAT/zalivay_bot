@@ -167,6 +167,32 @@ async def get_article_info(user_id: int, article_code: str) -> asyncpg.Record | 
     )
 
 
+async def get_reference_product_name(user_id: int, article_code: str) -> str | None:
+    """
+    Возвращает product_name из последнего активного эталона артикула.
+
+    Нужен для Pinterest board: после миграций имя товара может быть
+    актуальнее в article_references, чем в articles.
+    """
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        SELECT product_name
+        FROM article_references
+        WHERE user_id = $1
+          AND articul = $2
+          AND is_active = TRUE
+          AND deleted_at IS NULL
+          AND product_name IS NOT NULL
+          AND btrim(product_name) <> ''
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        user_id, article_code,
+    )
+    return row["product_name"] if row else None
+
+
 async def delete_user(user_id: int):
     """Полностью удаляет пользователя и все его данные из БД (CASCADE)."""
     pool = await get_pool()
