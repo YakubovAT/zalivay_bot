@@ -22,7 +22,7 @@ from telegram.ext import (
 )
 
 from config import PINTEREST_CSV_COST
-from database import get_user_stats, get_all_unexported_media_files, deduct_balance
+from database import get_user_stats, get_all_unexported_media_files, get_watermarked_articles_stats, deduct_balance
 from handlers.flows.flow_helpers import send_screen
 from handlers.flows.messages.pinterest_menu import (
     msg_pinterest_menu_overview,
@@ -32,21 +32,27 @@ from handlers.flows.messages.pinterest_menu import (
     msg_pinterest_menu_no_files,
     msg_pinterest_menu_generating,
     msg_pinterest_menu_done,
+    msg_pinterest_menu_distribution,
+    msg_pinterest_menu_article_select,
 )
 from handlers.keyboards import (
     kb_pinterest_menu_overview,
     kb_pinterest_menu_count,
     kb_pinterest_menu_confirm,
+    kb_pinterest_menu_distribution,
+    kb_pinterest_menu_articles,
 )
 from services.pinterest_csv_generator import generate_pinterest_csv
 
 logger = logging.getLogger(__name__)
 
-_P1_OVERVIEW, _P2_COUNT, _P3_CONFIRM = range(3)
+_P1_OVERVIEW, _P2_COUNT, _P2_DISTRIBUTION, _P2_ARTICLE, _P3_CONFIRM = range(5)
 
-_CTX_COUNT     = "pmenu_count"
-_CTX_COST      = "pmenu_cost"
-_CTX_AVAILABLE = "pmenu_available"
+_CTX_COUNT        = "pmenu_count"
+_CTX_COST         = "pmenu_cost"
+_CTX_AVAILABLE    = "pmenu_available"
+_CTX_DISTRIBUTION = "pmenu_distribution"
+_CTX_ARTICLE      = "pmenu_priority_article"
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +174,75 @@ async def _on_count_selected(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data[_CTX_COUNT] = count
     context.user_data[_CTX_COST]  = cost
 
+    articles = await get_watermarked_articles_stats(user_id)
+    text = await msg_pinterest_menu_distribution(
+        count=count,
+        articles_count=len(articles),
+    )
+    await send_screen(
+        context.bot,
+        chat_id=user_id,
+        message_id=query.message.message_id,
+        text=text,
+        keyboard=kb_pinterest_menu_distribution(),
+    )
+    return _P2_DISTRIBUTION
+
+
+# ---------------------------------------------------------------------------
+# Шаг П2.5: Выбор распределения
+# ---------------------------------------------------------------------------
+
+async def _on_distribution_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    mode = query.data.split("_")[-1]  # "random" | "equal" | "priority"
+    user_id = update.effective_user.id
+
+    if mode == "priority":
+        articles = await get_watermarked_articles_stats(user_id)
+        articles_list = "\n".join(
+            f"• {a['name']} — {a['photo_count'] + a['video_count']} фото"
+            for a in articles
+        )
+        text = await msg_pinterest_menu_article_select(articles_list=articles_list)
+        await send_screen(
+            context.bot,
+            chat_id=user_id,
+            message_id=query.message.message_id,
+            text=text,
+            keyboard=kb_pinterest_menu_articles(articles),
+        )
+        return _P2_ARTICLE
+
+    context.user_data[_CTX_DISTRIBUTION] = mode
+    context.user_data[_CTX_ARTICLE] = None
+    return await _show_confirm(update, context)
+
+
+# ---------------------------------------------------------------------------
+# Шаг П2.6: Выбор приоритетного артикула
+# ---------------------------------------------------------------------------
+
+async def _on_article_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    article_code = query.data[len("pmenu_article_"):]
+    context.user_data[_CTX_DISTRIBUTION] = "priority"
+    context.user_data[_CTX_ARTICLE] = article_code
+    return await _show_confirm(update, context)
+
+
+async def _show_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    user_id = update.effective_user.id
+    count   = context.user_data.get(_CTX_COUNT, 0)
+    cost    = context.user_data.get(_CTX_COST, 0)
+    stats   = await get_user_stats(user_id)
+    balance = stats["balance"]
+
     text = await msg_pinterest_menu_confirm(
         count=count,
         cost=cost,
@@ -204,7 +279,14 @@ async def _do_generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         keyboard=None,
     )
 
-    result    = await generate_pinterest_csv(user_id, count)
+    distribution_mode = context.user_data.get(_CTX_DISTRIBUTION, "random")
+    priority_article  = context.user_data.get(_CTX_ARTICLE)
+    result = await generate_pinterest_csv(
+        user_id,
+        count,
+        distribution_mode=distribution_mode,
+        priority_article_code=priority_article,
+    )
     generated = result["stats"]["count"]
 
     if generated == 0:
@@ -245,6 +327,23 @@ async def _back_to_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return await _show_count_select(update, context)
 
 
+async def _back_to_distribution(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    user_id = update.effective_user.id
+    count   = context.user_data.get(_CTX_COUNT, 0)
+    articles = await get_watermarked_articles_stats(user_id)
+    text = await msg_pinterest_menu_distribution(count=count, articles_count=len(articles))
+    await send_screen(
+        context.bot,
+        chat_id=user_id,
+        message_id=query.message.message_id,
+        text=text,
+        keyboard=kb_pinterest_menu_distribution(),
+    )
+    return _P2_DISTRIBUTION
+
+
 async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     _clear(context)
     from handlers.flows.onboarding import cb_back_to_menu as _menu
@@ -252,7 +351,7 @@ async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 def _clear(context: ContextTypes.DEFAULT_TYPE) -> None:
-    for key in (_CTX_COUNT, _CTX_COST, _CTX_AVAILABLE):
+    for key in (_CTX_COUNT, _CTX_COST, _CTX_AVAILABLE, _CTX_DISTRIBUTION, _CTX_ARTICLE):
         context.user_data.pop(key, None)
 
 
@@ -275,17 +374,25 @@ def build_pinterest_menu_handler() -> ConversationHandler:
                 CallbackQueryHandler(_back_to_overview,  pattern="^pmenu_back_overview$"),
                 CallbackQueryHandler(cb_back_to_menu,    pattern="^back_to_menu$"),
             ],
+            _P2_DISTRIBUTION: [
+                CallbackQueryHandler(_on_distribution_selected, pattern=r"^pmenu_dist_(random|equal|priority)$"),
+                CallbackQueryHandler(_back_to_count,             pattern="^pmenu_back_count$"),
+                CallbackQueryHandler(cb_back_to_menu,            pattern="^back_to_menu$"),
+            ],
+            _P2_ARTICLE: [
+                CallbackQueryHandler(_on_article_selected,  pattern=r"^pmenu_article_.+$"),
+                CallbackQueryHandler(_back_to_distribution, pattern="^pmenu_back_dist$"),
+                CallbackQueryHandler(cb_back_to_menu,       pattern="^back_to_menu$"),
+            ],
             _P3_CONFIRM: [
-                CallbackQueryHandler(_do_generate,    pattern="^pmenu_confirm$"),
-                CallbackQueryHandler(_back_to_count,  pattern="^pmenu_back_count$"),
-                CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
+                CallbackQueryHandler(_do_generate,          pattern="^pmenu_confirm$"),
+                CallbackQueryHandler(_back_to_distribution, pattern="^pmenu_back_dist$"),
+                CallbackQueryHandler(cb_back_to_menu,       pattern="^back_to_menu$"),
             ],
         },
         fallbacks=[
             CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
         ],
-        allow_reentry=True,
-        per_message=True,
         name="pinterest_menu_flow",
         persistent=False,
     )
