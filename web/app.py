@@ -953,17 +953,25 @@ _SPA_PATHS = {"/mediafiles", "/etalons", "/trash", "/pinterest", "/admin",
 
 @app.get("/api/pinterest/files")
 async def pinterest_files(session: str | None = Cookie(default=None)):
-    """Возвращает медиафайлы пользователя из таблицы media_files."""
+    """
+    Возвращает медиафайлы пользователя для вкладки Pinterest.
+
+    Поддерживает обе схемы:
+    1) новая: отдельные watermark-записи (is_watermark=TRUE, путь в file_path)
+    2) legacy: watermark в поле watermarked_path у оригинальной записи
+    """
     user = _get_current_user(session)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     rows = await _db_pool.fetch(
         """
-        SELECT id, article_code, file_type, file_path, watermarked_path,
+        SELECT id, article_code, file_type, file_path, watermarked_path, is_watermark,
                pinterest_export_count, pinterest_exported_at, created_at
         FROM media_files
-        WHERE user_id = $1 AND deleted_at IS NULL AND watermarked_path IS NOT NULL
+        WHERE user_id = $1
+          AND deleted_at IS NULL
+          AND (is_watermark = TRUE OR watermarked_path IS NOT NULL)
         ORDER BY created_at DESC
         """,
         user["user_id"],
@@ -984,14 +992,19 @@ async def pinterest_files(session: str | None = Cookie(default=None)):
 
     files = []
     for r in rows:
-        serve_path = _to_serve(r["watermarked_path"]) or _to_serve(r["file_path"])
+        if r["is_watermark"]:
+            # Новая схема: watermark-файл хранится прямо в file_path текущей записи.
+            serve_path = _to_serve(r["file_path"])
+        else:
+            # Legacy схема: watermark лежит в watermarked_path оригинала.
+            serve_path = _to_serve(r["watermarked_path"]) or _to_serve(r["file_path"])
         if not serve_path:
             continue
         files.append({
             "path":           serve_path,
             "articul":        r["article_code"],
             "type":           r["file_type"],
-            "has_watermark":  r["watermarked_path"] is not None,
+            "has_watermark":  bool(r["is_watermark"] or r["watermarked_path"]),
             "export_count":   r["pinterest_export_count"],
             "exported_at":    r["pinterest_exported_at"].isoformat() if r["pinterest_exported_at"] else None,
             "created_at":     r["created_at"].isoformat(),
@@ -1023,24 +1036,36 @@ async def delete_media_file(media_id: int, session: str | None = Cookie(default=
 
 @app.delete("/api/media/{media_id}/watermark")
 async def delete_media_watermark(media_id: int, session: str | None = Cookie(default=None)):
-    """Удаляет только watermark-файл с диска и сбрасывает watermarked_path."""
+    """
+    Удаляет watermark:
+    - новая схема: soft-delete watermark-записи (is_watermark=TRUE)
+    - legacy схема: удаляет watermarked_path с диска и сбрасывает поле
+    """
     user = _get_current_user(session)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     row = await _db_pool.fetchrow(
-        "SELECT watermarked_path FROM media_files WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+        "SELECT file_path, watermarked_path, is_watermark FROM media_files WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
         media_id, user["user_id"],
     )
     if not row:
         raise HTTPException(status_code=404, detail="Not found")
-    if row["watermarked_path"]:
-        wpath = Path(row["watermarked_path"])
-        if wpath.exists():
+
+    if row["is_watermark"]:
+        await _db_pool.execute(
+            "UPDATE media_files SET deleted_at = NOW() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+            media_id, user["user_id"],
+        )
+    else:
+        if row["watermarked_path"]:
+            wpath = Path(row["watermarked_path"])
+            if not wpath.is_absolute():
+                wpath = MEDIA_ROOT / row["watermarked_path"].lstrip("media/").lstrip("/")
             wpath.unlink(missing_ok=True)
-    await _db_pool.execute(
-        "UPDATE media_files SET watermarked_path = NULL WHERE id = $1 AND user_id = $2",
-        media_id, user["user_id"],
-    )
+        await _db_pool.execute(
+            "UPDATE media_files SET watermarked_path = NULL WHERE id = $1 AND user_id = $2",
+            media_id, user["user_id"],
+        )
     return {"ok": True}
 
 
