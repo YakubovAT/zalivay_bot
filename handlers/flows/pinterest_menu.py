@@ -347,7 +347,8 @@ async def _back_to_distribution(update: Update, context: ContextTypes.DEFAULT_TY
 async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     _clear(context)
     from handlers.flows.onboarding import cb_back_to_menu as _menu
-    return await _menu(update, context)
+    await _menu(update, context)
+    return ConversationHandler.END
 
 
 def _clear(context: ContextTypes.DEFAULT_TYPE) -> None:
