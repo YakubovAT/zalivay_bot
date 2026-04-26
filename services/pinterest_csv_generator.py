@@ -40,6 +40,58 @@ _STYLE_PHRASES_FALLBACK = [
 _THUMBNAILS = ["0:01", "0:02", "0:03", "0:04", ""]
 _THUMBNAIL_WEIGHTS = [20, 20, 20, 20, 20]
 
+
+def _select_files(
+    all_files: list,
+    count: int,
+    distribution_mode: str,
+    priority_article_code: str | None,
+) -> list:
+    """
+    Выбирает файлы согласно режиму распределения.
+
+    distribution_mode:
+      "random"   — случайная выборка из всех (текущее поведение)
+      "equal"    — поровну по артикулам; остаток добирается случайно
+      "priority" — половина из priority_article_code, остаток поровну из остальных
+    """
+    if distribution_mode == "random" or not all_files:
+        return random.sample(all_files, min(count, len(all_files)))
+
+    from collections import defaultdict
+    by_article: dict[str, list] = defaultdict(list)
+    for f in all_files:
+        by_article[f["article_code"]].append(f)
+
+    selected: list = []
+
+    if distribution_mode == "priority" and priority_article_code:
+        priority_files = by_article.pop(priority_article_code, [])
+        priority_take  = min(len(priority_files), count // 2)
+        selected.extend(random.sample(priority_files, priority_take))
+        remaining_count = count - priority_take
+        others = [f for files in by_article.values() for f in files]
+        selected.extend(random.sample(others, min(remaining_count, len(others))))
+        return selected
+
+    # "equal": поровну по артикулам
+    articles = list(by_article.keys())
+    n = len(articles)
+    if n == 0:
+        return []
+    per_article = count // n
+    leftover: list = []
+    for code, files in by_article.items():
+        take = min(per_article, len(files))
+        chosen = random.sample(files, take)
+        selected.extend(chosen)
+        leftover.extend([f for f in files if f not in chosen])
+    # Добираем остаток случайно
+    needed = count - len(selected)
+    if needed > 0 and leftover:
+        selected.extend(random.sample(leftover, min(needed, len(leftover))))
+    return selected
+
 CSV_COLUMNS = [
     "Title", "Media URL", "Pinterest board",
     "Thumbnail", "Description", "Link", "Publish date", "Keywords",
@@ -96,6 +148,8 @@ async def generate_pinterest_csv(
     rows_count: int,
     output_format: str = "csv",
     article_code_filter: str | None = None,
+    distribution_mode: str = "random",
+    priority_article_code: str | None = None,
 ) -> dict:
     """
     Генерирует CSV для Pinterest.
@@ -125,7 +179,7 @@ async def generate_pinterest_csv(
         all_files = [f for f in all_files if f["article_code"] == article_code_filter]
     total_available = len(all_files)
 
-    selected = random.sample(all_files, min(rows_count, len(all_files)))
+    selected = _select_files(all_files, rows_count, distribution_mode, priority_article_code)
 
     publish_dt = datetime.now(timezone.utc) + timedelta(hours=1)
 
