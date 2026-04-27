@@ -14,7 +14,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMe
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from database import get_user_articles_with_refs, get_active_references, get_user_stats
-from handlers.flows.flow_helpers import send_screen, safe_delete
+from handlers.flows.flow_helpers import send_screen, clear_article_context, safe_delete
 from handlers.flows.messages.regen_reference import msg_ref_card
 from handlers.keyboards import kb_my_refs_empty, kb_ref_card
 from services.prompt_store import get_template
@@ -29,6 +29,9 @@ async def cb_menu_my_refs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """Показывает список товаров пользователя с количеством эталонов."""
     query = update.callback_query
     await query.answer()
+
+    # Очищаем выбранный артикул при возврате в список
+    clear_article_context(context)
 
     user_id = update.effective_user.id
     full_name = update.effective_user.full_name or "—"

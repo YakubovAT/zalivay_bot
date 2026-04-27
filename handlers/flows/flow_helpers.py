@@ -152,6 +152,20 @@ async def clean_bot_message(bot, chat_id: int, message_id: int) -> None:
     await safe_delete(bot, chat_id, message_id)
 
 
+def clear_article_context(context) -> None:
+    """Очищает информацию о выбранном артикуле при выходе из flow'ов."""
+    keys_to_clear = [
+        "article_code",
+        "ref_number_for_gen",
+        "gen_article",
+        "gen_ref_number",
+        "gen_video_article",
+        "gen_video_ref_number",
+    ]
+    for key in keys_to_clear:
+        context.user_data.pop(key, None)
+
+
 _msg_store: dict[int, int] = {}
 
 

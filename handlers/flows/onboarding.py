@@ -18,7 +18,7 @@ from telegram.ext import (
 )
 
 from database import ensure_user, get_user_stats
-from handlers.flows.flow_helpers import send_screen, clear_previous_screen
+from handlers.flows.flow_helpers import send_screen, clear_previous_screen, clear_article_context
 from handlers.flows.messages.common import msg_profile
 from handlers.keyboards import kb_start, kb_main_menu
 from services.prompt_store import get_template, get_banner
@@ -59,6 +59,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     # Удаляем предыдущий экран (если есть)
     await clear_previous_screen(context.bot, user.id)
+
+    # Очищаем информацию о выбранном артикуле
+    clear_article_context(context)
 
     welcome_text = await get_template("msg_welcome")
     banner_name  = await get_banner("msg_welcome")
