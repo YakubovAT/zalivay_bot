@@ -17,7 +17,7 @@ TEST_TEXT = """это сообщение для проверки того как
 
 async def cmd_test_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Команда /test_edit — показываем начальное сообщение."""
-    text = TEST_TEXT + "\n\nedit edit edit"
+    text = TEST_TEXT + "\n\n✏️ edit edit edit"
 
     keyboard = InlineKeyboardMarkup([
         [
@@ -37,11 +37,11 @@ async def cmd_test_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def cb_test_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Нажата кнопка 'Тест edit!' — редактируем сообщение."""
+    """Нажата кнопка 'Тест edit!' — редактируем сообщение (edit_message_text)."""
     query = update.callback_query
     await query.answer()
 
-    text = TEST_TEXT + "\n\nedit edit edit"
+    text = TEST_TEXT + "\n\n✏️ edit edit edit (ОТРЕДАКТИРОВАНО edit_message_text)"
 
     keyboard = InlineKeyboardMarkup([
         [
@@ -59,11 +59,11 @@ async def cb_test_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def cb_test_replace(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Нажата кнопка 'Тест replace!' — удаляем и создаём новое."""
+    """Нажата кнопка 'Тест replace!' — удаляем старое и создаём новое."""
     query = update.callback_query
     await query.answer()
 
-    text = TEST_TEXT + "\n\nreplace replace replace"
+    text = TEST_TEXT + "\n\n🗑️ replace replace replace (ПЕРЕДЕЛАНО replace_screen: удалено старое, создано новое)"
 
     keyboard = InlineKeyboardMarkup([
         [
