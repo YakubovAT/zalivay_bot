@@ -30,28 +30,33 @@ from PIL import Image, ImageDraw, ImageFont
 
 logger = logging.getLogger(__name__)
 
-# Пути к шрифтам (перебираем до первого найденного)
-_FONT_PATHS = [
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-    "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf",
-    "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-    "/System/Library/Fonts/Helvetica.ttc",          # macOS
-    "/Library/Fonts/Arial Bold.ttf",                # macOS
-]
+# Папка со шрифтами — fonts/ в корне проекта рядом с services/
+_FONTS_DIR = Path(__file__).parent.parent / "fonts"
 
 # Цвета
 _BG_COLOR   = (0, 0, 0, 100)        # тёмный, ~39% opacity
 _TEXT_COLOR = (255, 255, 255, 255)  # белый
 
 
+def _available_fonts() -> list[Path]:
+    """Возвращает список подходящих TTF-шрифтов из fonts/."""
+    return [
+        p for p in _FONTS_DIR.rglob("*.ttf")
+        if "Italic" not in p.name and "Variable" not in p.name and "MORF" not in p.name
+    ]
+
+
 def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for path in _FONT_PATHS:
+    fonts = _available_fonts()
+    if fonts:
+        path = random.choice(fonts)
         try:
-            return ImageFont.truetype(path, size)
+            font = ImageFont.truetype(str(path), size)
+            logger.debug("WATERMARK | font=%s", path.stem)
+            return font
         except (OSError, IOError):
-            continue
-    # Fallback — встроенный шрифт Pillow (>=10.0 поддерживает size)
+            pass
+    # Fallback — встроенный шрифт Pillow
     try:
         return ImageFont.load_default(size=size)
     except TypeError:
