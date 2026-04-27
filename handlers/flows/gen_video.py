@@ -33,7 +33,7 @@ from database import (
     create_generation_job,
     create_video_job_task,
 )
-from handlers.flows.flow_helpers import safe_delete
+from handlers.flows.flow_helpers import safe_delete, send_screen
 from handlers.flows.messages.common import msg_insufficient_funds, kb_alert_close
 from handlers.keyboards import (
     kb_gen_video_count,
@@ -73,7 +73,12 @@ async def cb_menu_gen_video(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     ref = await get_reference(update.effective_user.id, article, ref_number)
     if not ref:
-        await query.edit_message_text("❌ Эталон не найден.")
+        await send_screen(
+            context.bot,
+            chat_id=query.from_user.id,
+            message_id=query.message.message_id,
+            text="❌ Эталон не найден.",
+        )
         return ConversationHandler.END
 
     # Проверяем наличие product_description

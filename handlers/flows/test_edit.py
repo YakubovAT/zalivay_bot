@@ -9,7 +9,7 @@ import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
 
-from handlers.flows.flow_helpers import replace_screen
+from handlers.flows.flow_helpers import send_screen
 
 _TEST_INIT, _TEST_EDIT, _TEST_REPLACE = range(3)
 
@@ -82,11 +82,11 @@ async def cb_test_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def cb_test_replace(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Нажата кнопка 'Тест replace!' — удаляем старое и создаём новое."""
+    """Нажата кнопка 'Тест replace!' — редактируем через send_screen (тоже edit, но с fallback)."""
     query = update.callback_query
     await query.answer()
 
-    text = TEST_TEXT + "\n\n🗑️ replace replace replace (ПЕРЕДЕЛАНО replace_screen: удалено старое, создано новое)"
+    text = TEST_TEXT + "\n\n✏️ replace replace replace (ОТРЕДАКТИРОВАНО send_screen с fallback)"
 
     keyboard = InlineKeyboardMarkup([
         [
@@ -95,10 +95,10 @@ async def cb_test_replace(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         ],
     ])
 
-    await replace_screen(
-        bot=context.bot,
+    await send_screen(
+        context.bot,
         chat_id=query.from_user.id,
-        old_message_id=query.message.message_id,
+        message_id=query.message.message_id,
         text=text,
         keyboard=keyboard,
     )
