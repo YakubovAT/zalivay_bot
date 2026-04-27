@@ -5,7 +5,8 @@ handlers/flows/test_edit.py
 Команда: /test_edit
 """
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
 
 from handlers.flows.flow_helpers import replace_screen
@@ -16,7 +17,7 @@ TEST_TEXT = """это сообщение для проверки того как
 
 
 async def cmd_test_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Команда /test_edit — показываем начальное сообщение."""
+    """Команда /test_edit — показываем начальное сообщение с баннером."""
     text = TEST_TEXT + "\n\n✏️ edit edit edit"
 
     keyboard = InlineKeyboardMarkup([
@@ -26,22 +27,34 @@ async def cmd_test_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         ],
     ])
 
-    msg = await context.bot.send_message(
-        chat_id=update.effective_user.id,
-        text=text,
-        reply_markup=keyboard,
-    )
+    # Отправляем с баннером (как replace_screen)
+    photo_path = "assets/banner_default.png"
+    if os.path.exists(photo_path):
+        with open(photo_path, "rb") as photo:
+            msg = await context.bot.send_photo(
+                chat_id=update.effective_user.id,
+                photo=photo,
+                caption=text,
+                reply_markup=keyboard,
+            )
+    else:
+        # Fallback на текст если баннер не найден
+        msg = await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text=text,
+            reply_markup=keyboard,
+        )
 
     context.user_data["test_msg_id"] = msg.message_id
     return _TEST_INIT
 
 
 async def cb_test_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Нажата кнопка 'Тест edit!' — редактируем сообщение (edit_message_text)."""
+    """Нажата кнопка 'Тест edit!' — редактируем сообщение (edit_message_media для фото)."""
     query = update.callback_query
     await query.answer()
 
-    text = TEST_TEXT + "\n\n✏️ edit edit edit (ОТРЕДАКТИРОВАНО edit_message_text)"
+    text = TEST_TEXT + "\n\n✏️ edit edit edit (ОТРЕДАКТИРОВАНО edit_message_media)"
 
     keyboard = InlineKeyboardMarkup([
         [
@@ -50,10 +63,20 @@ async def cb_test_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         ],
     ])
 
-    await query.edit_message_text(
-        text=text,
-        reply_markup=keyboard,
-    )
+    # Редактируем фото (caption) на месте
+    photo_path = "assets/banner_default.png"
+    if os.path.exists(photo_path):
+        with open(photo_path, "rb") as photo:
+            await query.edit_message_media(
+                media=InputMediaPhoto(media=photo, caption=text),
+                reply_markup=keyboard,
+            )
+    else:
+        # Fallback на текст если баннер не найден
+        await query.edit_message_text(
+            text=text,
+            reply_markup=keyboard,
+        )
 
     return _TEST_EDIT
 
