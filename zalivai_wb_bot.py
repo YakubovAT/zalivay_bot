@@ -32,7 +32,6 @@ from handlers import (
     build_watermark_handler,
     build_t2i_admin_handler,
     build_pinterest_admin_handler,
-    build_test_edit_handler,
     log_message,
     log_callback,
 )
@@ -141,10 +140,6 @@ def main() -> None:
 
     # --- Watermark ---
     application.add_handler(build_watermark_handler())
-
-    # --- Test edit/replace ---
-    for handler in build_test_edit_handler():
-        application.add_handler(handler)
 
     # --- Создание фото ---
     application.add_handler(build_gen_photo_handler())

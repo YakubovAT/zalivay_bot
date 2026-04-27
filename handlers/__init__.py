@@ -15,7 +15,6 @@ from handlers.flows.pinterest_menu import build_pinterest_menu_handler  # noqa
 from handlers.flows.watermark import build_watermark_handler  # noqa
 from handlers.flows.t2i_admin import build_t2i_admin_handler  # noqa
 from handlers.flows.pinterest_admin import build_pinterest_admin_handler  # noqa
-from handlers.flows.test_edit import build_test_edit_handler  # noqa
 
 logger = logging.getLogger(__name__)
 
