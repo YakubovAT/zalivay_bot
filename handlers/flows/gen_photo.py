@@ -468,8 +468,11 @@ async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     # Очищаем весь контекст о товаре и фото
     clear_article_context(context)
 
+    # Показываем экран меню ПЕРЕД закрытием диалога
+    from handlers.flows.onboarding import _show_profile
+    await _show_profile(update, context, message_id=query.message.message_id)
+
     # Закрываем gen_photo ConversationHandler
-    # onboarding обработает это как fallback и покажет меню
     return ConversationHandler.END
 
 
