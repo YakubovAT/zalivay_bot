@@ -33,7 +33,7 @@ from database import (
     create_generation_job,
     create_job_task,
 )
-from handlers.flows.flow_helpers import safe_delete, send_screen
+from handlers.flows.flow_helpers import safe_delete, send_screen, clear_article_context
 from handlers.flows.messages.common import msg_insufficient_funds, kb_alert_close
 from handlers.keyboards import (
     kb_gen_photo_count,
@@ -355,19 +355,32 @@ async def cb_gen_photo_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def cb_back_to_ref_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Назад к карточке эталона."""
+    query = update.callback_query
+    await query.answer()
+
     from handlers.flows.etalon import show_ref_card
-    user_id = update.effective_user.id
+
     article = context.user_data.get("gen_article")
     ref_number = context.user_data.get("gen_ref_number")
     ref_index = context.user_data.get("gen_ref_index", 0)
+
     if article and ref_number:
-        # Сохраняем article_code и ref_number_for_gen как в etalon.py
+        # Очищаем контекст gen_photo (но оставляем для etalon)
+        for key in list(context.user_data.keys()):
+            if key.startswith("gen_"):
+                del context.user_data[key]
+
+        # Восстанавливаем для etalon
         context.user_data["article_code"] = article
         context.user_data["ref_number_for_gen"] = ref_number
-        # Возвращаемся к карточке эталона напрямую
-        return await show_ref_card(update.effective_user, article, ref_index, context.bot, update.callback_query)
-    from handlers.flows.onboarding import cb_back_to_menu
-    return await cb_back_to_menu(update, context)
+
+        # Показываем карточку эталона
+        await show_ref_card(update.effective_user, article, ref_index, context.bot, query)
+        # Закрываем gen_photo ConversationHandler
+        return ConversationHandler.END
+
+    # Если что-то пошло не так, идём в меню
+    return ConversationHandler.END
 
 
 async def cb_quick_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -449,8 +462,15 @@ async def cb_back_to_p_wish(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Назад в главное меню."""
-    from handlers.flows.onboarding import cb_back_to_menu
-    return await cb_back_to_menu(update, context)
+    query = update.callback_query
+    await query.answer()
+
+    # Очищаем весь контекст о товаре и фото
+    clear_article_context(context)
+
+    # Закрываем gen_photo ConversationHandler
+    # onboarding обработает это как fallback и покажет меню
+    return ConversationHandler.END
 
 
 async def cb_close_alert_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
