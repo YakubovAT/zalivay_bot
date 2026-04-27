@@ -91,6 +91,10 @@ async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """Кнопка «🏠 Меню» из любого экрана."""
     query = update.callback_query
     await query.answer()
+
+    # Очищаем информацию о выбранном артикуле
+    clear_article_context(context)
+
     await _show_profile(update, context, message_id=query.message.message_id)
     return _MAIN_MENU
 
