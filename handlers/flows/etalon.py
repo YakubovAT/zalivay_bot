@@ -166,7 +166,8 @@ async def cb_ref_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             media=InputMediaPhoto(media=ref["file_id"], caption=caption, parse_mode="HTML"),
             reply_markup=keyboard,
         )
-    except Exception:
+    except Exception as e:
+        logger.error(f"edit_message_media failed for article {article}: {e}", exc_info=True)
         await context.bot.send_photo(
             chat_id=user_id,
             photo=ref["file_id"],
@@ -221,7 +222,8 @@ async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             media=InputMediaPhoto(media=ref["file_id"], caption=caption, parse_mode="HTML"),
             reply_markup=keyboard,
         )
-    except Exception:
+    except Exception as e:
+        logger.error(f"edit_message_media failed for article {article} (nav): {e}", exc_info=True)
         try:
             await context.bot.send_photo(
                 chat_id=user_id,
@@ -230,8 +232,8 @@ async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                 parse_mode="HTML",
                 reply_markup=keyboard,
             )
-        except Exception:
-            pass
+        except Exception as e2:
+            logger.error(f"send_photo also failed for article {article} (nav): {e2}", exc_info=True)
 
 
 def build_etalon_handler() -> CallbackQueryHandler:
