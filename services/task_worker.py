@@ -240,6 +240,8 @@ async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
         failed=failed,
     )
 
+    logger.info("JOB_WORKER | job_id=%d | about_to_send | screen_msg_id=%s file_count=%d", job_id, screen_msg_id, len(file_paths))
+
     try:
         # Если есть screen_msg_id, редактируем P4; иначе отправляем новое
         if screen_msg_id:
