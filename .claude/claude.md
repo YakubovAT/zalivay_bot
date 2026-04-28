@@ -13,5 +13,10 @@ ssh sku "cd /var/www/bots/Zalivai_bot && git pull && systemctl restart zalivai-b
 ```
 Иначе сервис будет работать со старым кодом!
 
+**⚠️ СООБЩЕНИЯ В БД, НЕ В КОДЕ!**
+Все текстовые сообщения, кнопки и шаблоны хранятся в `template_messages` (БД).
+Не хардкодить их в Python-коде! Используй `get_template("template_name")` для получения из БД.
+Так легче менять текст без перестарта бота.
+
 ## Стек
 Python (asyncio, python-telegram-bot), PostgreSQL
