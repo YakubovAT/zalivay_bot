@@ -4,5 +4,14 @@ SSH: `ssh -o RequestTTY=no -o RemoteCommand=none sku "команда"` (alias `s
 Path to the working folder `/var/www/bots/Zalivai_bot/`
 Services `zalivai-bot` (Telegram-бот) и `zalivai-web` (веб-вьюер) — два отдельных systemd-сервиса
 
+Все с разрешения никаких самомстоятельных правок! Все с разрешения и согласования
+ВАЖНО! НИкаких изменений в коде на сервере не должно быть без их фиксации в git-репозитории. Все изменения должны быть закоммичены и запушены, а затем уже деплоены на сервер. Все с разрешения никаких самомстоятельных правок!
+
+**⚠️ ПОСЛЕ КОММИТА И ПУША** — всегда деплоить на сервер:
+```bash
+ssh sku "cd /var/www/bots/Zalivai_bot && git pull && systemctl restart zalivai-bot zalivai-web"
+```
+Иначе сервис будет работать со старым кодом!
+
 ## Стек
 Python (asyncio, python-telegram-bot), PostgreSQL
