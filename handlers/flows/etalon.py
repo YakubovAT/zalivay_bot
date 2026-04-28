@@ -159,22 +159,57 @@ async def cb_ref_article(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     caption = await msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
     keyboard = kb_ref_card(article, idx, total)
 
+    # Проверяем наличие file_id (может быть пуст для старых эталонов)
+    file_id = ref["file_id"]
+    file_path = ref.get("file_path", "")
+
+    if not file_id and not file_path:
+        logger.error(f"NO_FILE_FOR_ARTICLE | article={article} ref={ref['reference_number']} file_id={file_id} file_path={file_path}")
+        await query.edit_message_text("❌ Файл эталона не найден. Пересоздайте эталон.")
+        return
+
     try:
-        await context.bot.edit_message_media(
-            chat_id=user_id,
-            message_id=message_id,
-            media=InputMediaPhoto(media=ref["file_id"], caption=caption, parse_mode="HTML"),
-            reply_markup=keyboard,
-        )
+        # Если есть file_id, используем его (быстро)
+        if file_id:
+            await context.bot.edit_message_media(
+                chat_id=user_id,
+                message_id=message_id,
+                media=InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"),
+                reply_markup=keyboard,
+            )
+        else:
+            # Если нет file_id, но есть file_path, используем файл с диска (медленнее)
+            logger.warning(f"USING_FILE_PATH_FALLBACK | article={article} ref={ref['reference_number']}")
+            with open(file_path, "rb") as f:
+                await context.bot.edit_message_media(
+                    chat_id=user_id,
+                    message_id=message_id,
+                    media=InputMediaPhoto(media=f, caption=caption, parse_mode="HTML"),
+                    reply_markup=keyboard,
+                )
     except Exception as e:
         logger.error(f"edit_message_media failed for article {article}: {e}", exc_info=True)
-        await context.bot.send_photo(
-            chat_id=user_id,
-            photo=ref["file_id"],
-            caption=caption,
-            parse_mode="HTML",
-            reply_markup=keyboard,
-        )
+        # Fallback: отправляем новое сообщение
+        try:
+            if file_id:
+                await context.bot.send_photo(
+                    chat_id=user_id,
+                    photo=file_id,
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
+                )
+            elif file_path:
+                with open(file_path, "rb") as f:
+                    await context.bot.send_photo(
+                        chat_id=user_id,
+                        photo=f,
+                        caption=caption,
+                        parse_mode="HTML",
+                        reply_markup=keyboard,
+                    )
+        except Exception as e2:
+            logger.error(f"send_photo also failed for article {article}: {e2}", exc_info=True)
 
 
 async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -215,23 +250,51 @@ async def cb_ref_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     caption = await msg_ref_card(ref["reference_number"], total, article, ref["category"] or "—")
     keyboard = kb_ref_card(article, idx, total)
 
+    # Проверяем наличие file_id
+    file_id = ref["file_id"]
+    file_path = ref.get("file_path", "")
+
+    if not file_id and not file_path:
+        logger.error(f"NO_FILE_FOR_ARTICLE_NAV | article={article} ref={ref['reference_number']}")
+        return
+
     try:
-        await context.bot.edit_message_media(
-            chat_id=user_id,
-            message_id=message_id,
-            media=InputMediaPhoto(media=ref["file_id"], caption=caption, parse_mode="HTML"),
-            reply_markup=keyboard,
-        )
+        if file_id:
+            await context.bot.edit_message_media(
+                chat_id=user_id,
+                message_id=message_id,
+                media=InputMediaPhoto(media=file_id, caption=caption, parse_mode="HTML"),
+                reply_markup=keyboard,
+            )
+        else:
+            logger.warning(f"USING_FILE_PATH_FALLBACK_NAV | article={article} ref={ref['reference_number']}")
+            with open(file_path, "rb") as f:
+                await context.bot.edit_message_media(
+                    chat_id=user_id,
+                    message_id=message_id,
+                    media=InputMediaPhoto(media=f, caption=caption, parse_mode="HTML"),
+                    reply_markup=keyboard,
+                )
     except Exception as e:
         logger.error(f"edit_message_media failed for article {article} (nav): {e}", exc_info=True)
         try:
-            await context.bot.send_photo(
-                chat_id=user_id,
-                photo=ref["file_id"],
-                caption=caption,
-                parse_mode="HTML",
-                reply_markup=keyboard,
-            )
+            if file_id:
+                await context.bot.send_photo(
+                    chat_id=user_id,
+                    photo=file_id,
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
+                )
+            elif file_path:
+                with open(file_path, "rb") as f:
+                    await context.bot.send_photo(
+                        chat_id=user_id,
+                        photo=f,
+                        caption=caption,
+                        parse_mode="HTML",
+                        reply_markup=keyboard,
+                    )
         except Exception as e2:
             logger.error(f"send_photo also failed for article {article} (nav): {e2}", exc_info=True)
 
