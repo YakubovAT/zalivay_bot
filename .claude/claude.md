@@ -5,6 +5,40 @@ Services: `zalivai-bot` (Telegram) и `zalivai-web` (веб-вьюер) — syst
 
 ssh -o RemoteCommand=none -o RequestTTY=no sku "journalctl -u zalivai-bot --no-pager -n 100" 2>&1 | tail -80
 
+**Database**: PostgreSQL, host `localhost`, user `zalivai`, db `zalivai_db`
+- Пароль: хранится в `/var/www/bots/Zalivai_bot/.env` (переменная `DATABASE_URL`)
+- Основная таблица шаблонов: `prompt_templates` (поля: `key`, `template`, `description`, `updated_at`, `banner`, `sort_order`)
+
+### 📖 Подключение к БД
+
+**Через SSH (из локальной машины):**
+```bash
+# Быстрая команда для одного запроса
+ssh -o RemoteCommand=none -o RequestTTY=no sku "PGPASSWORD='zalivai_pass_2024' psql -h localhost -U zalivai -d zalivai_db -c \"SELECT * FROM prompt_templates LIMIT 5;\""
+
+# Интерактивный сеанс psql (через SSH)
+ssh -o RequestTTY=yes -o RemoteCommand=none sku "PGPASSWORD='zalivai_pass_2024' psql -h localhost -U zalivai -d zalivai_db"
+```
+
+**На сервере (через SSH exec):**
+```bash
+ssh -o RemoteCommand=none -o RequestTTY=no sku "PGPASSWORD='zalivai_pass_2024' psql -h localhost -U zalivai -d zalivai_db << 'EOF'
+SELECT key, SUBSTRING(template, 1, 60) FROM prompt_templates LIMIT 10;
+EOF
+"
+```
+
+**Обновить шаблон (пример):**
+```bash
+ssh -o RemoteCommand=none -o RequestTTY=no sku "PGPASSWORD='zalivai_pass_2024' psql -h localhost -U zalivai -d zalivai_db << 'EOF'
+UPDATE prompt_templates 
+SET template = E'Новый текст\n\nСтрока 2'
+WHERE key = 'msg_name';
+SELECT 'Updated: ' || key FROM prompt_templates WHERE key = 'msg_name';
+EOF
+"
+```
+
 **⚠️ ВСЕ ТОЛЬКО С РАЗРЕШЕНИЯ И GIT!**
 Никаких самостоятельных правок на сервере. Все изменения → git commit → git push → деплой.
 
