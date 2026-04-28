@@ -147,7 +147,7 @@ async def _on_count_selected(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     requested = int(query.data.split("_")[-1])
     available = context.user_data.get(_CTX_AVAILABLE, 0)
-    count = min(requested, available, 100)
+    count = min(requested, available)
     cost  = count * PINTEREST_CSV_COST
 
     user_id = update.effective_user.id
