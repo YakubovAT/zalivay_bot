@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
@@ -21,6 +21,7 @@ from telegram.ext import (
 )
 
 from database.db import get_unwatermarked_photos
+from handlers.keyboards import kb_watermark_confirm
 from handlers.flows.messages.watermark import (
     msg_watermark_all_done,
     msg_watermark_confirm,
@@ -45,15 +46,11 @@ async def cmd_watermark(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         await update.message.reply_text(await msg_watermark_all_done())
         return ConversationHandler.END
 
-    keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton(f"Обработать {len(photos)} фото", callback_data="watermark_confirm"),
-        InlineKeyboardButton("✕ Закрыть", callback_data="watermark_cancel"),
-    ]])
     await context.bot.send_photo(
         chat_id=user_id,
         photo=open("assets/banner_default.png", "rb"),
         caption=await msg_watermark_confirm(len(photos)),
-        reply_markup=keyboard,
+        reply_markup=kb_watermark_confirm(len(photos)),
     )
     return _CONFIRM
 

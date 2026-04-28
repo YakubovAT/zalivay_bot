@@ -408,3 +408,16 @@ def kb_pinterest_menu_articles(articles: list[dict]) -> InlineKeyboardMarkup:
         InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
     ])
     return InlineKeyboardMarkup(rows)
+
+
+# ---------------------------------------------------------------------------
+# Flow: Watermark — Подтверждение
+# ---------------------------------------------------------------------------
+
+def kb_watermark_confirm(count: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(f"Обработать {count} фото", callback_data="watermark_confirm"),
+            InlineKeyboardButton("✕ Закрыть", callback_data="watermark_cancel"),
+        ],
+    ])

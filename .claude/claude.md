@@ -18,5 +18,10 @@ ssh sku "cd /var/www/bots/Zalivai_bot && git pull && systemctl restart zalivai-b
 Не хардкодить их в Python-коде! Используй `get_template("template_name")` для получения из БД.
 Так легче менять текст без перестарта бота.
 
+**⚠️ РЕДАКТИРОВАНИЕ, НЕ СОЗДАНИЕ!**
+- При обновлении сообщения в flow используй `edit_message_caption()` или `edit_message_text()`, не создавай новое
+- Исключение: только если явно требуется отдельное сообщение/окно
+- Универсальные кнопки ("Закрыть", "Меню", "Назад") — бери из `handlers/keyboards`, не хардкодь!
+
 ## Стек
 Python (asyncio, python-telegram-bot), PostgreSQL
