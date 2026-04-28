@@ -51,7 +51,7 @@ async def msg_generation_done(
 ) -> str:
     """Результат создания фото — 1 фото из N."""
     template = await get_template("msg_generation_done")
-    lines = [template.format(
+    content = template.format(
         article=article,
         ref_number=ref_number,
         total=total,
@@ -60,7 +60,8 @@ async def msg_generation_done(
         elapsed_str=elapsed_str,
         job_id=job_id,
         web_viewer_url=WEB_VIEWER_URL,
-    )]
+    )
+    lines = ["📸 Шаг P5: Результат\n" + content]
     if failed:
         failed_line = await get_template("msg_generation_done_failed_line")
         lines.append(failed_line.format(failed=failed, requested=failed + total))
@@ -85,7 +86,7 @@ async def msg_video_generation_done(
 ) -> str:
     """Результат создания видео."""
     template = await get_template("msg_video_generation_done")
-    lines = [template.format(
+    content = template.format(
         article=article,
         ref_number=ref_number,
         total=total,
@@ -94,7 +95,8 @@ async def msg_video_generation_done(
         elapsed_str=elapsed_str,
         job_id=job_id,
         web_viewer_url=WEB_VIEWER_URL,
-    )]
+    )
+    lines = ["🎥 Шаг V5: Результат\n" + content]
     if failed:
         failed_line = await get_template("msg_video_generation_done_failed_line")
         lines.append(failed_line.format(failed=failed, requested=failed + total))
