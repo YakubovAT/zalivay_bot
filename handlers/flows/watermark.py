@@ -75,7 +75,7 @@ async def cb_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Пользователь подтвердил — обрабатываем все фото."""
     query = update.callback_query
     await query.answer()
-    await query.message.edit_text(await msg_watermark_processing())
+    await query.message.edit_caption(caption=await msg_watermark_processing())
 
     user_id = update.effective_user.id
     photos = await get_unwatermarked_photos(user_id)
@@ -96,7 +96,7 @@ async def cb_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if failed:
         result_text += "\n" + await msg_watermark_failed_line(failed)
 
-    await query.message.edit_text(result_text)
+    await query.message.edit_caption(caption=result_text)
     return ConversationHandler.END
 
 
@@ -104,7 +104,7 @@ async def cb_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Пользователь отменил."""
     query = update.callback_query
     await query.answer()
-    await query.message.edit_text(await msg_watermark_cancel())
+    await query.message.edit_caption(caption=await msg_watermark_cancel())
     return ConversationHandler.END
 
 
