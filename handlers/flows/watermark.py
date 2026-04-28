@@ -117,7 +117,7 @@ def build_watermark_handler() -> ConversationHandler:
         states={
             _CONFIRM: [
                 CallbackQueryHandler(cb_confirm, pattern="^watermark_confirm$"),
-                CallbackQueryHandler(cb_cancel,  pattern="^watermark_cancel$"),
+                CallbackQueryHandler(cb_cancel,  pattern="^back_to_menu$"),
             ],
         },
         fallbacks=[CommandHandler("watermark", cmd_watermark)],

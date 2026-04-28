@@ -418,7 +418,7 @@ def kb_pinterest_menu_articles(articles: list[dict]) -> InlineKeyboardMarkup:
 def kb_watermark_confirm(count: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
+            InlineKeyboardButton("← Назад", callback_data="back_to_menu"),
             InlineKeyboardButton("⚙️ Обработка", callback_data="watermark_confirm"),
-            InlineKeyboardButton("← Назад", callback_data="watermark_cancel"),
         ],
     ])
