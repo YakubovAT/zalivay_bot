@@ -108,6 +108,13 @@ async def cb_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Вернуться в меню."""
+    query = update.callback_query
+    await query.answer()
+    return ConversationHandler.END
+
+
 def build_watermark_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[
@@ -117,7 +124,7 @@ def build_watermark_handler() -> ConversationHandler:
         states={
             _CONFIRM: [
                 CallbackQueryHandler(cb_confirm, pattern="^watermark_confirm$"),
-                CallbackQueryHandler(cb_cancel,  pattern="^back_to_menu$"),
+                CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],
         },
         fallbacks=[CommandHandler("watermark", cmd_watermark)],
