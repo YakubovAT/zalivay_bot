@@ -752,14 +752,13 @@ async def get_unexported_media_files(user_id: int, article_code: str) -> list[as
 
 
 async def get_all_unexported_media_files(user_id: int) -> list[asyncpg.Record]:
-    """Возвращает watermark-файлы пользователя ещё не попавшие в Pinterest CSV."""
+    """Возвращает все watermark-файлы пользователя для Pinterest CSV (можно использовать неограниченно)."""
     pool = await get_pool()
     return await pool.fetch(
         """
         SELECT * FROM media_files
         WHERE user_id = $1
           AND is_watermark = TRUE
-          AND pinterest_export_count = 0
         ORDER BY created_at
         """,
         user_id,

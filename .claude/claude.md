@@ -49,7 +49,7 @@ ssh sku "cd /var/www/bots/Zalivai_bot && git pull && systemctl restart zalivai-b
 
 **⚠️ АРХИТЕКТУРА: НЕ ХАРДКОДИТЬ!**
 Хранится отдельно:
-- **Сообщения** → `template_messages` (БД): `get_template("template_name")`
+- **Сообщения** → `template_messages` (БД): `get_template("template_name")` не одно сообщение не должно быть без клавиатуры - это ВАЖНО!
 - **Клавиатуры** → `handlers/keyboards/__init__.py` функции `kb_*()`: импортируй и используй
 - **Логика** → используй `edit_message_caption/text()` вместо создания нового сообщения, если нет отдельного указания
 
