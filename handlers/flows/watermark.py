@@ -21,7 +21,7 @@ from telegram.ext import (
 )
 
 from database.db import get_unwatermarked_photos
-from handlers.keyboards import kb_watermark_confirm
+from handlers.keyboards import kb_watermark_confirm, kb_watermark_result
 from handlers.flows.messages.watermark import (
     msg_watermark_all_done,
     msg_watermark_confirm,
@@ -35,6 +35,7 @@ from services.image_watermark import apply_watermark_to_media_file
 logger = logging.getLogger(__name__)
 
 _CONFIRM = 0
+_RESULT = 1
 
 
 async def cmd_watermark(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -96,8 +97,11 @@ async def cb_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if failed:
         result_text += "\n" + await msg_watermark_failed_line(failed)
 
-    await query.message.edit_caption(caption=result_text)
-    return ConversationHandler.END
+    await query.message.edit_caption(
+        caption=result_text,
+        reply_markup=kb_watermark_result(),
+    )
+    return _RESULT
 
 
 async def cb_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -130,6 +134,9 @@ def build_watermark_handler() -> ConversationHandler:
         states={
             _CONFIRM: [
                 CallbackQueryHandler(cb_confirm, pattern="^watermark_confirm$"),
+                CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
+            ],
+            _RESULT: [
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),
             ],
         },

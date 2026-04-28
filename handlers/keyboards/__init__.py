@@ -422,3 +422,9 @@ def kb_watermark_confirm(count: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton("⚙️ Обработка", callback_data="watermark_confirm"),
         ],
     ])
+
+
+def kb_watermark_result() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("← Назад", callback_data="back_to_menu")],
+    ])
