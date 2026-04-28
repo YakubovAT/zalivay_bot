@@ -345,13 +345,11 @@ def kb_pinterest_menu_overview() -> InlineKeyboardMarkup:
 # ---------------------------------------------------------------------------
 
 def kb_pinterest_menu_count(available: int) -> InlineKeyboardMarkup:
-    options = [10, 25, 50, 100]
+    options = [10, 50, 100]
     row = [
         InlineKeyboardButton(str(n), callback_data=f"pmenu_count_{n}")
-        for n in options if n <= available
+        for n in options
     ]
-    if not row:
-        row = [InlineKeyboardButton(str(available), callback_data=f"pmenu_count_{available}")]
     return InlineKeyboardMarkup([
         row,
         [
