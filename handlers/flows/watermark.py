@@ -47,7 +47,7 @@ async def cmd_watermark(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton(f"Обработать {len(photos)} фото", callback_data="watermark_confirm"),
-        InlineKeyboardButton("Отмена", callback_data="watermark_cancel"),
+        InlineKeyboardButton("✕ Закрыть", callback_data="watermark_cancel"),
     ]])
     await update.message.reply_text(
         await msg_watermark_confirm(len(photos)),
