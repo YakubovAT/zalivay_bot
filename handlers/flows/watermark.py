@@ -50,7 +50,7 @@ async def cmd_watermark(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         msg_text = await msg_watermark_all_done()
         if update.callback_query:
             await update.callback_query.answer()
-            await update.callback_query.message.edit_text(msg_text)
+            await update.callback_query.message.edit_caption(caption=msg_text)
         else:
             await update.message.reply_text(msg_text)
         return ConversationHandler.END

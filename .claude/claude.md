@@ -3,6 +3,8 @@ SSH: `ssh -o RequestTTY=no -o RemoteCommand=none sku "команда"` (alias в
 Path: `/var/www/bots/Zalivai_bot/`
 Services: `zalivai-bot` (Telegram) и `zalivai-web` (веб-вьюер) — systemd-сервисы
 
+ssh -o RemoteCommand=none -o RequestTTY=no sku "journalctl -u zalivai-bot --no-pager -n 100" 2>&1 | tail -80
+
 **⚠️ ВСЕ ТОЛЬКО С РАЗРЕШЕНИЯ И GIT!**
 Никаких самостоятельных правок на сервере. Все изменения → git commit → git push → деплой.
 
