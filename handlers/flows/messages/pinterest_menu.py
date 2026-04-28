@@ -62,9 +62,19 @@ async def msg_pinterest_menu_done(count: int, cost: int, balance: int) -> str:
     return template.format(count=count, cost=cost, balance=balance)
 
 
+_MSG_PINTEREST_MENU_DISTRIBUTION_FALLBACK = (
+    "Выберите распределение:\n\n"
+    "🎲 Случайно из всех — случайный выбор\n"
+    "⚖️ Поровну по артикулам — одинаково на каждый\n"
+    "🎯 Приоритет артикулу — больше для выбранного"
+)
+
+
 async def msg_pinterest_menu_distribution(count: int, articles_count: int) -> str:
-    template = await get_template("msg_pinterest_menu_distribution")
-    return template.format(count=count, articles_count=articles_count)
+    template = await get_template("msg_pinterest_menu_distribution", fallback=_MSG_PINTEREST_MENU_DISTRIBUTION_FALLBACK)
+    if "{count}" in template or "{articles_count}" in template:
+        return template.format(count=count, articles_count=articles_count)
+    return template
 
 
 async def msg_pinterest_menu_article_select(articles_list: str) -> str:
