@@ -23,7 +23,6 @@ from telegram.ext import (
 from database.db import get_unwatermarked_photos
 from handlers.keyboards import kb_watermark_confirm, kb_watermark_result
 from handlers.flows.messages.watermark import (
-    msg_watermark_all_done,
     msg_watermark_confirm,
     msg_watermark_processing,
     msg_watermark_done,
@@ -45,15 +44,6 @@ async def cmd_watermark(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     photos = await get_unwatermarked_photos(user_id)
     caption = await msg_watermark_confirm(len(photos))
     keyboard = kb_watermark_confirm(len(photos))
-
-    if not photos:
-        msg_text = await msg_watermark_all_done()
-        if update.callback_query:
-            await update.callback_query.answer()
-            await update.callback_query.message.edit_caption(caption=msg_text)
-        else:
-            await update.message.reply_text(msg_text)
-        return ConversationHandler.END
 
     if update.callback_query:
         await update.callback_query.answer()
