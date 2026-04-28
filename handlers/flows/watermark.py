@@ -49,8 +49,10 @@ async def cmd_watermark(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         InlineKeyboardButton(f"Обработать {len(photos)} фото", callback_data="watermark_confirm"),
         InlineKeyboardButton("✕ Закрыть", callback_data="watermark_cancel"),
     ]])
-    await update.message.reply_text(
-        await msg_watermark_confirm(len(photos)),
+    await context.bot.send_photo(
+        chat_id=user_id,
+        photo=open("assets/banner_default.png", "rb"),
+        caption=await msg_watermark_confirm(len(photos)),
         reply_markup=keyboard,
     )
     return _CONFIRM
