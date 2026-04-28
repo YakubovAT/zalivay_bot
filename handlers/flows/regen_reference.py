@@ -202,12 +202,16 @@ async def _run_regen(
 
     # Получаем Telegram file_id
     temp_msg = await context.bot.send_photo(chat_id=user_id, photo=open(result_local, "rb"))
-    file_id = temp_msg.photo[-1].file_id
+    file_id = temp_msg.photo[-1].file_id if temp_msg.photo else ""
+    logger.info("FILE_ID_OBTAINED_REGEN | user=%s article=%s ref=%d file_id=%s msg_id=%s photo_count=%d",
+                user_id, article, reference_number, file_id, temp_msg.message_id, len(temp_msg.photo) if temp_msg.photo else 0)
     try:
         await context.bot.delete_message(chat_id=user_id, message_id=temp_msg.message_id)
     except Exception:
         pass
 
+    logger.info("BEFORE_SAVE_REFERENCE_REGEN | file_id_type=%s file_id_len=%d file_id=%s",
+                type(file_id).__name__, len(file_id) if file_id else 0, file_id)
     await save_reference(
         user_id=user_id,
         articul=article,
@@ -224,7 +228,7 @@ async def _run_regen(
         source_photo_paths=json.dumps(chosen_paths),
     )
 
-    logger.info("REGEN SAVED | user=%s article=%s ref=%d", user_id, article, reference_number)
+    logger.info("REGEN SAVED | user=%s article=%s ref=%d file_id=%s", user_id, article, reference_number, file_id)
 
     # Обновляем ref_number для последующей создания фото/видео
     context.user_data["ref_number_for_gen"] = reference_number

@@ -196,7 +196,9 @@ async def start_reference_generation(
         chat_id=user_id,
         photo=open(result_local, "rb"),
     )
-    file_id = temp_msg.photo[-1].file_id
+    file_id = temp_msg.photo[-1].file_id if temp_msg.photo else ""
+    logger.info("FILE_ID_OBTAINED | user=%s article=%s ref=%d file_id=%s msg_id=%s photo_count=%d",
+                user_id, article, reference_number, file_id, temp_msg.message_id, len(temp_msg.photo) if temp_msg.photo else 0)
     
     # Удаляем временное сообщение
     try:
@@ -206,6 +208,8 @@ async def start_reference_generation(
 
     # Сохраняем в БД
     import json as _json
+    logger.info("BEFORE_SAVE_REFERENCE | file_id_type=%s file_id_len=%d file_id=%s",
+                type(file_id).__name__, len(file_id) if file_id else 0, file_id)
     await save_reference(
         user_id=user_id,
         articul=article,
