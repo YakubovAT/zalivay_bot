@@ -23,5 +23,10 @@ ssh sku "cd /var/www/bots/Zalivai_bot && git pull && systemctl restart zalivai-b
 - Исключение: только если явно требуется отдельное сообщение/окно
 - Универсальные кнопки ("Закрыть", "Меню", "Назад") — бери из `handlers/keyboards`, не хардкодь!
 
+**⚠️ КЛАВИАТУРЫ В handlers/keyboards!**
+Все клавиатуры (InlineKeyboardMarkup) создаются в `handlers/keyboards/__init__.py` как функции `kb_*()`.
+В flow'ах просто импортируй и используй: `from handlers.keyboards import kb_watermark_confirm`.
+Не хардкодить InlineKeyboardButton и InlineKeyboardMarkup в handler'ах!
+
 ## Стек
 Python (asyncio, python-telegram-bot), PostgreSQL
