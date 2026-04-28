@@ -38,20 +38,36 @@ _CONFIRM = 0
 
 
 async def cmd_watermark(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Точка входа: /watermark."""
+    """Точка входа: /watermark или menu_watermark."""
     user_id = update.effective_user.id
 
     photos = await get_unwatermarked_photos(user_id)
+    caption = await msg_watermark_confirm(len(photos))
+    keyboard = kb_watermark_confirm(len(photos))
+
     if not photos:
-        await update.message.reply_text(await msg_watermark_all_done())
+        msg_text = await msg_watermark_all_done()
+        if update.callback_query:
+            await update.callback_query.answer()
+            await update.callback_query.message.edit_text(msg_text)
+        else:
+            await update.message.reply_text(msg_text)
         return ConversationHandler.END
 
-    await context.bot.send_photo(
-        chat_id=user_id,
-        photo=open("assets/banner_default.png", "rb"),
-        caption=await msg_watermark_confirm(len(photos)),
-        reply_markup=kb_watermark_confirm(len(photos)),
-    )
+    if update.callback_query:
+        await update.callback_query.answer()
+        from telegram import InputMediaPhoto
+        await update.callback_query.message.edit_media(
+            media=InputMediaPhoto(media=open("assets/banner_default.png", "rb"), caption=caption),
+            reply_markup=keyboard,
+        )
+    else:
+        await context.bot.send_photo(
+            chat_id=user_id,
+            photo=open("assets/banner_default.png", "rb"),
+            caption=caption,
+            reply_markup=keyboard,
+        )
     return _CONFIRM
 
 
