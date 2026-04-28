@@ -244,13 +244,13 @@ async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
         # Если есть screen_msg_id, редактируем P4; иначе отправляем новое
         if screen_msg_id:
             from telegram import InputMediaPhoto
-            with open(file_paths[0], "rb") as f:
-                await bot.edit_message_media(
-                    chat_id=chat_id,
-                    message_id=screen_msg_id,
-                    media=InputMediaPhoto(media=f, caption=caption, parse_mode="HTML"),
-                    reply_markup=kb_gen_photo_result(),
-                )
+            photo_file = open(file_paths[0], "rb")
+            await bot.edit_message_media(
+                chat_id=chat_id,
+                message_id=screen_msg_id,
+                media=InputMediaPhoto(media=photo_file, caption=caption, parse_mode="HTML"),
+                reply_markup=kb_gen_photo_result(),
+            )
         else:
             await bot.send_photo(
                 chat_id=chat_id,
