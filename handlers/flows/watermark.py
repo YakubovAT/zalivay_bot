@@ -112,6 +112,12 @@ async def cb_back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """Вернуться в меню."""
     query = update.callback_query
     await query.answer()
+
+    # Показываем экран меню ПЕРЕД закрытием диалога
+    from handlers.flows.onboarding import _show_profile
+    await _show_profile(update, context, message_id=query.message.message_id)
+
+    # Закрываем watermark ConversationHandler
     return ConversationHandler.END
 
 
