@@ -94,7 +94,10 @@ async def cb_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 def build_watermark_handler() -> ConversationHandler:
     return ConversationHandler(
-        entry_points=[CommandHandler("watermark", cmd_watermark)],
+        entry_points=[
+            CommandHandler("watermark", cmd_watermark),
+            CallbackQueryHandler(cmd_watermark, pattern="^menu_watermark$"),
+        ],
         states={
             _CONFIRM: [
                 CallbackQueryHandler(cb_confirm, pattern="^watermark_confirm$"),

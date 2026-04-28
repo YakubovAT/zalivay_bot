@@ -36,6 +36,7 @@ def kb_main_menu() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("📌 Пинтерест", callback_data="menu_pinterest"),
+            InlineKeyboardButton("💧 Watermark", callback_data="menu_watermark"),
         ],
     ])
 
