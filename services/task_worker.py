@@ -180,12 +180,13 @@ async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
     if not job:
         return
 
-    user_id    = job["user_id"]
-    chat_id    = job["chat_id"]
-    article    = job["article"]
-    ref_number = job["ref_number"]
-    completed  = status["completed"]
-    failed     = status["failed"]
+    user_id      = job["user_id"]
+    chat_id      = job["chat_id"]
+    article      = job["article"]
+    ref_number   = job["ref_number"]
+    screen_msg_id = job["screen_msg_id"]
+    completed    = status["completed"]
+    failed       = status["failed"]
 
     # Время создания
     elapsed = datetime.now(timezone.utc) - job["created_at"]
@@ -202,13 +203,23 @@ async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
         # Все упали — уведомляем, баланс не списываем
         await fail_generation_job(job_id)
         try:
-            await bot.send_photo(
-                chat_id=chat_id,
-                photo=open("assets/banner_default.png", "rb"),
-                caption=await msg_generation_failed(job_id),
-                parse_mode="HTML",
-                reply_markup=kb_gen_photo_result(),
-            )
+            # Если есть screen_msg_id, редактируем; иначе отправляем новое
+            if screen_msg_id:
+                await bot.edit_message_caption(
+                    chat_id=chat_id,
+                    message_id=screen_msg_id,
+                    caption=await msg_generation_failed(job_id),
+                    parse_mode="HTML",
+                    reply_markup=kb_gen_photo_result(),
+                )
+            else:
+                await bot.send_photo(
+                    chat_id=chat_id,
+                    photo=open("assets/banner_default.png", "rb"),
+                    caption=await msg_generation_failed(job_id),
+                    parse_mode="HTML",
+                    reply_markup=kb_gen_photo_result(),
+                )
         except Exception as e:
             logger.error("JOB_WORKER | job_id=%d | notify_fail error: %s", job_id, e)
         return
@@ -230,15 +241,26 @@ async def _finish_job(job_id: int, bot, session: aiohttp.ClientSession) -> None:
     )
 
     try:
-        await bot.send_photo(
-            chat_id=chat_id,
-            photo=open(file_paths[0], "rb"),
-            caption=caption,
-            parse_mode="HTML",
-            reply_markup=kb_gen_photo_result(),
-        )
+        # Если есть screen_msg_id, редактируем P4; иначе отправляем новое
+        if screen_msg_id:
+            from telegram import InputMediaPhoto
+            with open(file_paths[0], "rb") as f:
+                await bot.edit_message_media(
+                    chat_id=chat_id,
+                    message_id=screen_msg_id,
+                    media=InputMediaPhoto(media=f, caption=caption, parse_mode="HTML"),
+                    reply_markup=kb_gen_photo_result(),
+                )
+        else:
+            await bot.send_photo(
+                chat_id=chat_id,
+                photo=open(file_paths[0], "rb"),
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=kb_gen_photo_result(),
+            )
         await complete_generation_job(job_id)
-        logger.info("JOB_WORKER | job_id=%d | done | files=%d elapsed=%s", job_id, len(file_paths), elapsed_str)
+        logger.info("JOB_WORKER | job_id=%d | done | files=%d elapsed=%s | edit=%s", job_id, len(file_paths), elapsed_str, bool(screen_msg_id))
 
     except Exception as e:
         logger.error("JOB_WORKER | job_id=%d | send_result error: %s", job_id, e)
