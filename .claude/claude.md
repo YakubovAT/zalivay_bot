@@ -1,32 +1,21 @@
-Локально у нас терминал MacOS, а на сервере `sku` терминал Linux.
+Локально MacOS, на сервере `sku` Linux.
+SSH: `ssh -o RequestTTY=no -o RemoteCommand=none sku "команда"` (alias в `~/.ssh/config`)
+Path: `/var/www/bots/Zalivai_bot/`
+Services: `zalivai-bot` (Telegram) и `zalivai-web` (веб-вьюер) — systemd-сервисы
 
-SSH: `ssh -o RequestTTY=no -o RemoteCommand=none sku "команда"` (alias `sku` в `~/.ssh/config`)
-Path to the working folder `/var/www/bots/Zalivai_bot/`
-Services `zalivai-bot` (Telegram-бот) и `zalivai-web` (веб-вьюер) — два отдельных systemd-сервиса
+**⚠️ ВСЕ ТОЛЬКО С РАЗРЕШЕНИЯ И GIT!**
+Никаких самостоятельных правок на сервере. Все изменения → git commit → git push → деплой.
 
-Все с разрешения никаких самомстоятельных правок! Все с разрешения и согласования
-ВАЖНО! НИкаких изменений в коде на сервере не должно быть без их фиксации в git-репозитории. Все изменения должны быть закоммичены и запушены, а затем уже деплоены на сервер. Все с разрешения никаких самомстоятельных правок!
-
-**⚠️ ПОСЛЕ КОММИТА И ПУША** — всегда деплоить на сервер:
+**⚠️ ПОСЛЕ COMMIT + PUSH — ВСЕГДА ДЕПЛОЙ:**
 ```bash
 ssh sku "cd /var/www/bots/Zalivai_bot && git pull && systemctl restart zalivai-bot zalivai-web"
 ```
-Иначе сервис будет работать со старым кодом!
 
-**⚠️ СООБЩЕНИЯ В БД, НЕ В КОДЕ!**
-Все текстовые сообщения, кнопки и шаблоны хранятся в `template_messages` (БД).
-Не хардкодить их в Python-коде! Используй `get_template("template_name")` для получения из БД.
-Так легче менять текст без перестарта бота.
-
-**⚠️ РЕДАКТИРОВАНИЕ, НЕ СОЗДАНИЕ!**
-- При обновлении сообщения в flow используй `edit_message_caption()` или `edit_message_text()`, не создавай новое
-- Исключение: только если явно требуется отдельное сообщение/окно
-- Универсальные кнопки ("Закрыть", "Меню", "Назад") — бери из `handlers/keyboards`, не хардкодь!
-
-**⚠️ КЛАВИАТУРЫ В handlers/keyboards!**
-Все клавиатуры (InlineKeyboardMarkup) создаются в `handlers/keyboards/__init__.py` как функции `kb_*()`.
-В flow'ах просто импортируй и используй: `from handlers.keyboards import kb_watermark_confirm`.
-Не хардкодить InlineKeyboardButton и InlineKeyboardMarkup в handler'ах!
+**⚠️ АРХИТЕКТУРА: НЕ ХАРДКОДИТЬ!**
+Хранится отдельно:
+- **Сообщения** → `template_messages` (БД): `get_template("template_name")`
+- **Клавиатуры** → `handlers/keyboards/__init__.py` функции `kb_*()`: импортируй и используй
+- **Логика** → используй `edit_message_caption/text()` вместо создания нового сообщения
 
 ## Стек
 Python (asyncio, python-telegram-bot), PostgreSQL
