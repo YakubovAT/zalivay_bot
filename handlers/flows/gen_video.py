@@ -476,7 +476,8 @@ async def _msg_gen_video_confirm(article: str, count: int, total_cost: int, bala
 
 async def _msg_gen_video_generating(article: str, count: int) -> str:
     template = await get_template("msg_gen_video_generating")
-    return template.format(article=article, count=count)
+    base = template.format(article=article, count=count)
+    return base + "\n\n⏳ Пока идёт генерация, лучше ничего не трогать"
 
 
 # ---------------------------------------------------------------------------

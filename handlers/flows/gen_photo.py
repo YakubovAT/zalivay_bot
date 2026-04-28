@@ -341,9 +341,7 @@ async def cb_gen_photo_yes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         message_id=screen_msg,
         caption=generating_caption,
         parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu")],
-        ]),
+        reply_markup=InlineKeyboardMarkup([]),
     )
 
     return _P_GENERATING
@@ -519,7 +517,8 @@ async def _msg_gen_photo_confirm(article: str, count: int, total_cost: int, bala
 
 async def _msg_gen_photo_generating(article: str, count: int) -> str:
     template = await get_template("msg_gen_photo_generating")
-    return template.format(article=article, count=count)
+    base = template.format(article=article, count=count)
+    return base + "\n\n⏳ Пока идёт генерация, лучше ничего не трогать"
 
 
 # ---------------------------------------------------------------------------
