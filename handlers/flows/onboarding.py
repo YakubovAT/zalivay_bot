@@ -68,7 +68,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     SHOW_WELCOME_ALWAYS = True  # TODO: переключить на False когда готово
 
     user_obj = await get_user(user.id)
-    is_first_time = not user_obj.is_registered
+    is_first_time = not user_obj["is_registered"]
 
     # Если первый раз ИЛИ флаг всегда показывать — показать флоу 1а-1е
     if is_first_time or SHOW_WELCOME_ALWAYS:
