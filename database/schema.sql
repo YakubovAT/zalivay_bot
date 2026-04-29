@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     ad_budget       TEXT,
     articles_count  TEXT,
     is_registered   BOOLEAN NOT NULL DEFAULT FALSE,
+    is_welcome      BOOLEAN NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -2625,5 +2626,33 @@ DO $$ BEGIN
     ('msg_pinterest_menu_article_select',
      E'🎯 Выберите приоритетный артикул.\n\nПоловина пинов будет из этого артикула, остальные — поровну из остальных.\n\n{articles_list}',
      'Pinterest меню — выбор приоритетного артикула; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
+  END IF;
+END $$;
+
+-- Велком флоу сообщения
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_welcome_step_1f') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_welcome_step_1f',
+     E'Введите артикул или ссылку товара с WB\n\nНапример: 832731061\n\n👇',
+     'Велком флоу — ввод артикула');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_loading_welcome') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_loading_welcome',
+     E'⏳ Генерирую изображения...',
+     'Велком флоу — экран загрузки');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_csv_ready_welcome') THEN
+    INSERT INTO prompt_templates (key, template, description) VALUES
+    ('msg_csv_ready_welcome',
+     E'✅ Готово! Вот ваш CSV для Pinterest.\n\nКак загружать?\n[инструкция будет добавлена]\n\nХотите загрузить через Pinterest-креаторов? Свяжитесь с нами 👤',
+     'Велком флоу — CSV готов');
   END IF;
 END $$;

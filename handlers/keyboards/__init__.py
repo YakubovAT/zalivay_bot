@@ -52,6 +52,35 @@ def kb_start() -> InlineKeyboardMarkup:
 
 
 # ---------------------------------------------------------------------------
+# Шаг 1Ж: Ввод артикула (велком флоу)
+# ---------------------------------------------------------------------------
+
+def kb_welcome_article_input() -> InlineKeyboardMarkup:
+    """Клавиатура для ввода артикула на этапе велком флоу."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("← Назад", callback_data="welcome_article_back")],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Велком результаты: CSV и фото
+# ---------------------------------------------------------------------------
+
+def kb_welcome_csv_ready() -> InlineKeyboardMarkup:
+    """Клавиатура после генерации CSV в велком флоу."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🏠 Перейти в меню", callback_data="welcome_csv_to_menu")],
+    ])
+
+
+def kb_close_photo() -> InlineKeyboardMarkup:
+    """Кнопка 'Закрыть' для удаления сообщения с фото."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("❌ Закрыть", callback_data="welcome_photo_close")],
+    ])
+
+
+# ---------------------------------------------------------------------------
 # Шаг 2: Профиль / Меню
 # ---------------------------------------------------------------------------
 

@@ -15,6 +15,8 @@ from telegram.ext import (
     CommandHandler,
     ConversationHandler,
     ContextTypes,
+    MessageHandler,
+    filters,
 )
 
 from database import ensure_user, get_user_stats, get_user
@@ -25,8 +27,10 @@ from services.prompt_store import get_template, get_banner
 
 logger = logging.getLogger(__name__)
 
-# Состояния: флоу приветствия 1а-1е + меню
-_WELCOME_1A, _WELCOME_1B, _WELCOME_1C, _WELCOME_1D, _WELCOME_1E, _MAIN_MENU = range(6)
+# Состояния: флоу приветствия 1а-1е + велком флоу (1ж) + меню
+_WELCOME_1A, _WELCOME_1B, _WELCOME_1C, _WELCOME_1D, _WELCOME_1E = range(5)
+_WELCOME_ARTICLE_INPUT = 5
+_MAIN_MENU = 6
 
 
 # ---------------------------------------------------------------------------
@@ -153,12 +157,17 @@ async def cb_welcome_back(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def cb_welcome_start_work(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Кнопка 'Начать работу' — переход в профиль."""
+    """Кнопка 'Начать работу' — переход на ввод артикула (велком флоу)."""
+    from handlers.flows.welcome_article_input import show_article_input
+
     query = update.callback_query
     await query.answer()
 
-    await _show_profile(update, context, message_id=query.message.message_id)
-    return _MAIN_MENU
+    # Удаляем предыдущий экран
+    await clear_previous_screen(context.bot, update.effective_user.id)
+
+    # Показываем экран ввода артикула
+    return await show_article_input(update, context)
 
 
 async def cb_start_begin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -201,6 +210,13 @@ async def cb_menu_not_impl(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 # ---------------------------------------------------------------------------
 
 def build_onboarding_handler() -> ConversationHandler:
+    from handlers.flows.welcome_article_input import (
+        handle_article_input,
+        cb_welcome_article_back,
+        cb_welcome_csv_to_menu,
+        cb_welcome_photo_close,
+    )
+
     return ConversationHandler(
         entry_points=[CommandHandler("start", cmd_start)],
         states={
@@ -222,6 +238,11 @@ def build_onboarding_handler() -> ConversationHandler:
             _WELCOME_1E: [
                 CallbackQueryHandler(cb_welcome_back, pattern="^welcome_back$"),
                 CallbackQueryHandler(cb_welcome_start_work, pattern="^welcome_start_work$"),
+            ],
+            # Велком флоу: ввод артикула
+            _WELCOME_ARTICLE_INPUT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_article_input),
+                CallbackQueryHandler(cb_welcome_article_back, pattern="^welcome_article_back$"),
             ],
             _MAIN_MENU: [
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),

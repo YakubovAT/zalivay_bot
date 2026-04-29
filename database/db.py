@@ -130,6 +130,19 @@ async def save_registration(user_id: int, ad_budget: str, articles_count: str):
     )
 
 
+async def mark_welcome_completed(user_id: int):
+    """Отмечает что пользователь завершил велком флоу (is_welcome = TRUE)."""
+    pool = await get_pool()
+    await pool.execute(
+        """
+        UPDATE users
+        SET is_welcome = TRUE
+        WHERE user_id = $1
+        """,
+        user_id,
+    )
+
+
 async def log_user_action(user_id: int, username: str | None, action_type: str, content: str | None):
     pool = await get_pool()
     await pool.execute(
