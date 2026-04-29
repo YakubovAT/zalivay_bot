@@ -17,7 +17,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
-from database import ensure_user, get_user_stats
+from database import ensure_user, get_user_stats, get_user, save_registration
 from handlers.flows.flow_helpers import send_screen, clear_previous_screen, clear_article_context
 from handlers.flows.messages.common import msg_profile
 from handlers.keyboards import kb_start, kb_main_menu, kb_next, kb_back_next, kb_start_work
@@ -51,7 +51,7 @@ async def _show_profile(update, context, message_id=None):
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Команда /start — удаляем предыдущие экраны, показываем шаг 1а приветствия."""
+    """Команда /start — удаляем предыдущие экраны, показываем приветствие."""
     user = update.effective_user
     logger.info("START | user=%s name=%s", user.id, user.full_name)
 
@@ -63,19 +63,30 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Очищаем информацию о выбранном артикуле
     clear_article_context(context)
 
-    # Сохраняем current_step для навигации между шагами
-    context.user_data["welcome_step"] = "1a"
+    # ФЛАГ: показывать ли флоу приветствия 1а-1е для повторных пользователей
+    # Пока True (всегда показывать) — позже можно переключить на False
+    SHOW_WELCOME_ALWAYS = True  # TODO: переключить на False когда готово
 
-    welcome_text = await get_template("msg_welcome_1a")
-    banner_name  = await get_banner("msg_welcome_1a")
-    await send_screen(
-        context.bot,
-        chat_id=user.id,
-        text=welcome_text,
-        keyboard=kb_next(),
-        banner_path=f"assets/{banner_name}",
-    )
-    return _WELCOME_1A
+    user_obj = await get_user(user.id)
+    is_first_time = not user_obj.is_registered
+
+    # Если первый раз ИЛИ флаг всегда показывать — показать флоу 1а-1е
+    if is_first_time or SHOW_WELCOME_ALWAYS:
+        context.user_data["welcome_step"] = "1a"
+        welcome_text = await get_template("msg_welcome_1a")
+        banner_name = await get_banner("msg_welcome_1a")
+        await send_screen(
+            context.bot,
+            chat_id=user.id,
+            text=welcome_text,
+            keyboard=kb_next(),
+            banner_path=f"assets/{banner_name}",
+        )
+        return _WELCOME_1A
+    else:
+        # Повторный вход — прямо в профиль
+        await _show_profile(update, context)
+        return _MAIN_MENU
 
 
 async def _show_welcome_step(update: Update, context: ContextTypes.DEFAULT_TYPE, step: str, message_id: int | None = None) -> int:
@@ -142,9 +153,15 @@ async def cb_welcome_back(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def cb_welcome_start_work(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Кнопка 'Начать работу' — переход в профиль."""
+    """Кнопка 'Начать работу' — переход в профиль и отметить пользователя как зарегистрированного."""
     query = update.callback_query
     await query.answer()
+    user = update.effective_user
+
+    # Помечаем пользователя как зарегистрированного (завершил флоу приветствия)
+    await save_registration(user.id)
+    logger.info("REGISTERED | user=%s", user.id)
+
     await _show_profile(update, context, message_id=query.message.message_id)
     return _MAIN_MENU
 
