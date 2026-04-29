@@ -2360,7 +2360,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_no_files',
      E'У вас нет медиафайлов для экспорта в Pinterest.\nСначала создайте фото или видео для ваших товаров.',
-     '/pinterest — нет файлов для экспорта');
+     '/pinterest — нет файлов для экспорта; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2369,21 +2369,21 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_ask_count',
      E'Сколько строк сгенерировать для Pinterest CSV?\nВведите число от 10 до 200.\n\nДоступно файлов: {available}\nБаланс: {balance} руб. (до {max_rows} строк)\nСтоимость: {cost_per_row} руб./строка',
-     '/pinterest — запрос количества строк; {available}, {balance}, {max_rows}, {cost_per_row}');
+     '/pinterest — запрос количества строк; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_invalid_input') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
-    ('msg_pinterest_invalid_input', 'Пожалуйста, введите число от 10 до 200.', '/pinterest — некорректный ввод');
+    ('msg_pinterest_invalid_input', 'Пожалуйста, введите число от 10 до 200.', '/pinterest — некорректный ввод; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_out_of_range') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
-    ('msg_pinterest_out_of_range', 'Число должно быть от 10 до 200. Попробуйте ещё раз.', '/pinterest — число вне диапазона');
+    ('msg_pinterest_out_of_range', 'Число должно быть от 10 до 200. Попробуйте ещё раз.', '/pinterest — число вне диапазона; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2392,7 +2392,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_insufficient_funds',
      E'Недостаточно средств.\nВаш баланс: {balance} руб. — хватает на {affordable} строк (минимум 10).\nПополните баланс и попробуйте снова.',
-     '/pinterest — не хватает на минимум 10 строк; {balance}, {affordable}');
+     '/pinterest — не хватает на минимум 10 строк; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2401,7 +2401,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_balance_low',
      E'Баланс: {balance} руб. — не хватает на {count} строк ({cost} руб.).\nМожно создать {affordable} строк за {affordable_cost} руб.',
-     '/pinterest — баланс ниже запрошенного; {balance}, {count}, {cost}, {affordable}, {affordable_cost}');
+     '/pinterest — баланс ниже запрошенного; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2410,7 +2410,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_fewer_files',
      E'У вас {available} файлов, а вы запросили {requested}.\nСоздать CSV с {available} строками за {cost} руб.?',
-     '/pinterest — файлов меньше запрошенного; {available}, {requested}, {cost}');
+     '/pinterest — файлов меньше запрошенного; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2419,28 +2419,28 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_confirm',
      E'Баланс: {balance} руб.\nБудет списано: {cost} руб. за {count} строк.\nОстаток после: {after} руб.',
-     '/pinterest — подтверждение; {balance}, {cost}, {count}, {after}');
+     '/pinterest — подтверждение; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_cancel') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
-    ('msg_pinterest_cancel', 'Генерация отменена.', '/pinterest — отмена');
+    ('msg_pinterest_cancel', 'Генерация отменена.', '/pinterest — отмена; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_generating') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
-    ('msg_pinterest_generating', 'Генерирую Pinterest CSV ({count} строк)…', '/pinterest — в процессе; {count}');
+    ('msg_pinterest_generating', 'Генерирую Pinterest CSV ({count} строк)…', '/pinterest — в процессе; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_no_result') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
-    ('msg_pinterest_no_result', 'Не удалось сгенерировать строки.', '/pinterest — нет результата');
+    ('msg_pinterest_no_result', 'Не удалось сгенерировать строки.', '/pinterest — нет результата; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2449,14 +2449,14 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_done',
      E'Pinterest CSV готов — {count} строк\nСписано: {cost} руб. | Баланс: {balance} руб.',
-     '/pinterest — результат готов; {count}, {cost}, {balance}');
+     '/pinterest — результат готов; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_pinterest_errors_line') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
-    ('msg_pinterest_errors_line', 'Ошибок: {errors_count}', '/pinterest — строка с количеством ошибок; {errors_count}');
+    ('msg_pinterest_errors_line', 'Ошибок: {errors_count}', '/pinterest — строка с количеством ошибок; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2465,7 +2465,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_menu_overview',
      E'📌 Pinterest\n\nУ вас в базе есть:\n📸 Фото: {photos_count}\n🎬 Видео: {videos_count}\n\nС нанесённым артикулом:\n📸 Фото: {watermarked_photos}\n🎬 Видео: {watermarked_videos}\n\nВы можете сформировать CSV файл ваших товаров (до 100 за один раз), получить готовый файл и автоматически разместить их в Ваши аккаунты Pinterest.',
-     'Pinterest меню — Шаг П1 обзор; {photos_count}, {videos_count}, {watermarked_photos}, {watermarked_videos}');
+     'Pinterest меню — Шаг П1 обзор; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2474,7 +2474,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_menu_count',
      E'📌 Pinterest — Создание CSV\n\nС нанесённым артикулом доступно:\n📸 Фото: {watermarked_photos}\n🎬 Видео: {watermarked_videos}\n\n💳 Баланс: {balance}₽\nСтоимость: {cost_per_row}₽ за строку\n\nСколько строк сгенерировать? (максимум 100)',
-     'Pinterest меню — Шаг П2 выбор количества; {watermarked_photos}, {watermarked_videos}, {balance}, {cost_per_row}');
+     'Pinterest меню — Шаг П2 выбор количества; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2483,7 +2483,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_menu_confirm',
      E'📌 Pinterest — Подтверждение\n\nСтрок в CSV: {count}\n💰 Стоимость: {cost}₽\n💳 Баланс: {balance}₽\nОстаток после: {after}₽\n\nСоздать CSV?',
-     'Pinterest меню — Шаг П3 подтверждение; {count}, {cost}, {balance}, {after}');
+     'Pinterest меню — Шаг П3 подтверждение; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2492,7 +2492,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_menu_insufficient',
      E'❌ Недостаточно средств.\n\n💰 Стоимость: {cost}₽\n💳 Ваш баланс: {balance}₽\n\nПополните баланс и попробуйте снова.',
-     'Pinterest меню — недостаточно средств; {cost}, {balance}');
+     'Pinterest меню — недостаточно средств; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2501,7 +2501,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_menu_no_files',
      E'📌 Pinterest\n\nУ вас нет фото с нанесённым артикулом.\n\nСначала создайте фото и нанесите артикул через команду /watermark.',
-     'Pinterest меню — нет файлов с вотермаркой');
+     'Pinterest меню — нет файлов с вотермаркой; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2510,7 +2510,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_menu_generating',
      '⏳ Создаю Pinterest CSV ({count} строк)…',
-     'Pinterest меню — в процессе генерации; {count}');
+     'Pinterest меню — в процессе генерации; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2519,7 +2519,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_menu_done',
      E'✅ Pinterest CSV готов — {count} строк\n💰 Списано: {cost}₽ | 💳 Баланс: {balance}₽',
-     'Pinterest меню — результат готов; {count}, {cost}, {balance}');
+     'Pinterest меню — результат готов; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2528,7 +2528,7 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_menu_distribution',
      E'📌 Распределение {count} пинов.\n\nКак распределить файлы по артикулам?\n\nУ вас {articles_count} артикул(ов) с готовыми изображениями.',
-     'Pinterest меню — выбор режима распределения; {count}, {articles_count}');
+     'Pinterest меню — выбор режима распределения; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
 
@@ -2537,6 +2537,6 @@ DO $$ BEGIN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_pinterest_menu_article_select',
      E'🎯 Выберите приоритетный артикул.\n\nПоловина пинов будет из этого артикула, остальные — поровну из остальных.\n\n{articles_list}',
-     'Pinterest меню — выбор приоритетного артикула; {articles_list}');
+     'Pinterest меню — выбор приоритетного артикула; {available}, {balance}, {max_rows}, {cost_per_row}, {count}, {cost}, {affordable}, {affordable_cost}, {after}, {errors_count}, {requested}, {articles_count}, {articles_list}, {watermarked_photos}, {watermarked_videos}, {photos_count}, {videos_count}');
   END IF;
 END $$;
