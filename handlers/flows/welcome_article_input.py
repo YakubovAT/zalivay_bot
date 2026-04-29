@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import json
 import logging
 import re
 
@@ -207,7 +208,7 @@ async def _process_welcome_generation(bot, user_id: int, article_code: str, user
                 product_color=color,
                 product_material=material,
                 product_description=description,
-                source_photo_paths=wb_images[:3],
+                source_photo_paths=json.dumps(wb_images[:3]),
             )
             logger.info("Welcome: saved reference")
 
