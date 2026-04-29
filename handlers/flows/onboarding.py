@@ -20,13 +20,13 @@ from telegram.ext import (
 from database import ensure_user, get_user_stats
 from handlers.flows.flow_helpers import send_screen, clear_previous_screen, clear_article_context
 from handlers.flows.messages.common import msg_profile
-from handlers.keyboards import kb_start, kb_main_menu
+from handlers.keyboards import kb_start, kb_main_menu, kb_next, kb_back_next, kb_start_work
 from services.prompt_store import get_template, get_banner
 
 logger = logging.getLogger(__name__)
 
-# Состояния
-_WELCOME, _MAIN_MENU = range(2)
+# Состояния: флоу приветствия 1а-1е + меню
+_WELCOME_1A, _WELCOME_1B, _WELCOME_1C, _WELCOME_1D, _WELCOME_1E, _MAIN_MENU = range(6)
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@ async def _show_profile(update, context, message_id=None):
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Команда /start — удаляем предыдущие экраны, показываем приветствие."""
+    """Команда /start — удаляем предыдущие экраны, показываем шаг 1а приветствия."""
     user = update.effective_user
     logger.info("START | user=%s name=%s", user.id, user.full_name)
 
@@ -63,20 +63,94 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Очищаем информацию о выбранном артикуле
     clear_article_context(context)
 
-    welcome_text = await get_template("msg_welcome")
-    banner_name  = await get_banner("msg_welcome")
+    # Сохраняем current_step для навигации между шагами
+    context.user_data["welcome_step"] = "1a"
+
+    welcome_text = await get_template("msg_welcome_1a")
+    banner_name  = await get_banner("msg_welcome_1a")
     await send_screen(
         context.bot,
         chat_id=user.id,
         text=welcome_text,
-        keyboard=kb_start(),
+        keyboard=kb_next(),
         banner_path=f"assets/{banner_name}",
     )
-    return _WELCOME
+    return _WELCOME_1A
+
+
+async def _show_welcome_step(update: Update, context: ContextTypes.DEFAULT_TYPE, step: str, message_id: int | None = None) -> int:
+    """Показывает конкретный шаг приветствия (1а-1е)."""
+    user = update.effective_user
+
+    # Маппинг шагов
+    step_map = {
+        "1a": ("msg_welcome_1a", kb_next()),
+        "1b": ("msg_welcome_1b", kb_back_next()),
+        "1c": ("msg_welcome_1c", kb_back_next()),
+        "1d": ("msg_welcome_1d", kb_back_next()),
+        "1e": ("msg_welcome_1e", kb_start_work()),
+    }
+
+    template_key, keyboard = step_map.get(step, ("msg_welcome_1a", kb_next()))
+    welcome_text = await get_template(template_key)
+    banner_name = await get_banner(template_key)
+
+    await send_screen(
+        context.bot,
+        chat_id=user.id,
+        message_id=message_id,
+        text=welcome_text,
+        keyboard=keyboard,
+        banner_path=f"assets/{banner_name}",
+    )
+
+    # Маппинг шагов → состояния
+    state_map = {
+        "1a": _WELCOME_1A,
+        "1b": _WELCOME_1B,
+        "1c": _WELCOME_1C,
+        "1d": _WELCOME_1D,
+        "1e": _WELCOME_1E,
+    }
+
+    context.user_data["welcome_step"] = step
+    return state_map.get(step, _WELCOME_1A)
+
+
+async def cb_welcome_next(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Навигация вперед по шагам приветствия."""
+    query = update.callback_query
+    await query.answer()
+
+    current_step = context.user_data.get("welcome_step", "1a")
+    next_map = {"1a": "1b", "1b": "1c", "1c": "1d", "1d": "1e"}
+    next_step = next_map.get(current_step, "1a")
+
+    return await _show_welcome_step(update, context, next_step, message_id=query.message.message_id)
+
+
+async def cb_welcome_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Навигация назад по шагам приветствия."""
+    query = update.callback_query
+    await query.answer()
+
+    current_step = context.user_data.get("welcome_step", "1a")
+    prev_map = {"1b": "1a", "1c": "1b", "1d": "1c", "1e": "1d"}
+    prev_step = prev_map.get(current_step, "1a")
+
+    return await _show_welcome_step(update, context, prev_step, message_id=query.message.message_id)
+
+
+async def cb_welcome_start_work(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Кнопка 'Начать работу' — переход в профиль."""
+    query = update.callback_query
+    await query.answer()
+    await _show_profile(update, context, message_id=query.message.message_id)
+    return _MAIN_MENU
 
 
 async def cb_start_begin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Пользователь нажал «Начать ➜» — показываем профиль."""
+    """Пользователь нажал «Начать ➜» — показываем профиль (для старого флоу)."""
     query = update.callback_query
     await query.answer()
     await _show_profile(update, context, message_id=query.message.message_id)
@@ -118,8 +192,24 @@ def build_onboarding_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CommandHandler("start", cmd_start)],
         states={
-            _WELCOME: [
-                CallbackQueryHandler(cb_start_begin, pattern="^start_begin$"),
+            _WELCOME_1A: [
+                CallbackQueryHandler(cb_welcome_next, pattern="^welcome_next$"),
+            ],
+            _WELCOME_1B: [
+                CallbackQueryHandler(cb_welcome_back, pattern="^welcome_back$"),
+                CallbackQueryHandler(cb_welcome_next, pattern="^welcome_next$"),
+            ],
+            _WELCOME_1C: [
+                CallbackQueryHandler(cb_welcome_back, pattern="^welcome_back$"),
+                CallbackQueryHandler(cb_welcome_next, pattern="^welcome_next$"),
+            ],
+            _WELCOME_1D: [
+                CallbackQueryHandler(cb_welcome_back, pattern="^welcome_back$"),
+                CallbackQueryHandler(cb_welcome_next, pattern="^welcome_next$"),
+            ],
+            _WELCOME_1E: [
+                CallbackQueryHandler(cb_welcome_back, pattern="^welcome_back$"),
+                CallbackQueryHandler(cb_welcome_start_work, pattern="^welcome_start_work$"),
             ],
             _MAIN_MENU: [
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),

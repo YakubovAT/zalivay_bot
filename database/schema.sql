@@ -151,11 +151,11 @@ CREATE TABLE IF NOT EXISTS prompt_templates (
 -- Добавляем banner к существующим БД (idempotent)
 ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS banner TEXT;
 
--- Устанавливаем баннер для msg_welcome
+-- Устанавливаем баннер для msg_welcome_1a
 -- NULL = использовать banner_default.png (поведение по умолчанию)
 UPDATE prompt_templates
     SET banner = 'welcom_banner_1.png'
-    WHERE key = 'msg_welcome' AND banner IS NULL;
+    WHERE key = 'msg_welcome_1a' AND banner IS NULL;
 
 -- Добавляем sort_order к существующим БД (idempotent)
 ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0;
@@ -163,7 +163,11 @@ ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DE
 -- Расставляем порядок UI-сообщений (только там где ещё 0, т.е. не задан вручную)
 UPDATE prompt_templates SET sort_order = CASE key
     -- Основной флоу: онбординг + создание эталона
-    WHEN 'msg_welcome'                        THEN 10
+    WHEN 'msg_welcome_1a'                     THEN 10
+    WHEN 'msg_welcome_1b'                     THEN 11
+    WHEN 'msg_welcome_1c'                     THEN 12
+    WHEN 'msg_welcome_1d'                     THEN 13
+    WHEN 'msg_welcome_1e'                     THEN 14
     WHEN 'msg_profile'                        THEN 20
     WHEN 'msg_marketplace_select'             THEN 30
     WHEN 'msg_article_input'                  THEN 40
@@ -462,17 +466,100 @@ END $$;
 -- ============================================================
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_welcome') THEN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_welcome_1a') THEN
     INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
-    ('msg_welcome',
-     'Шаг 1: Приветствие
+    ('msg_welcome_1a',
+     'Шаг 1а: Приветствие
 
-Система массовой автоматизированной создания профессионального
-фото и видео контента для товаров с последующим размещением в социальных сетях.
+Привет 👋
 
-Возможно создавать фото и видео в различных форматах
-по заранее спроектированным промптам для ваших товаров.',
-     'Шаг 1 — экран приветствия при /start. Переменных нет.', 10);
+Есть кое-что, о чём не говорят на форумах WB и Ozon.
+Пока все сливают бюджеты на внутреннюю рекламу, другие тихо получают трафик бесплатно.
+
+Расскажу как 👇',
+     'Шаг 1а — первый экран приветствия при /start. Переменных нет.', 10);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_welcome_1b') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('msg_welcome_1b',
+     'Шаг 1б: Проблема рекламы
+
+Ты наверняка знаешь эту воронку:
+
+💸 Поднял ставку — продажи пошли
+💸 Опустил ставку — карточка упала в выдаче
+💸 Поднял снова — маржа исчезла
+
+Реклама на WB и Ozon работает как счётчик такси: пока платишь - едешь. Не платишь - стоишь.
+
+Но что если трафик можно получать, даже когда ты заплатил один раз и едешь долго и далеко?',
+     'Шаг 1б — объяснение проблемы с рекламой. Переменных нет.', 11);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_welcome_1c') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('msg_welcome_1c',
+     'Шаг 1в: Пример, который сработал
+
+В начале 2025 года продавец женской одежды с WB попробовал кое-что необычное.
+
+Он начал размещать фото своих товаров в Pinterest — просто красивые карточки с артикулом прямо на изображении.
+
+Без бюджета. Без блогеров. Без агентств.
+
+Через 3 месяца - 2000+ в неделю поиск его карточки по артикулу
+Через 6 месяцев товар попал в топ выдачи WB по органике, просто из-за хороших продаж.
+
+Почему сработало?
+
+Pinterest индексируется поисковыми системами.
+Один пин живёт и приводит клиентов годами 🔁
+А алгоритм платформы сам показывает товар тем, кто его ищет, пин не выглядит как реклама, он выглядит как совет.',
+     'Шаг 1в — пример продавца, который получил результаты через Pinterest. Переменных нет.', 12);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_welcome_1d') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('msg_welcome_1d',
+     'Шаг 1г: Как помогает бот
+
+«Окей, но у меня нет времени вести Pinterest»
+
+Именно поэтому мы сделали этого бота для Вас 🤖
+
+ИИ генерирует десятки привлекательных пинов с твоим артикулом → Получаешь готовый CSV для массовой загрузки
+
+Хочешь разместить сам — инструкция внутри.
+Хочешь через живых людей с реальными аккаунтами - у нас есть база Pinterest-креаторов, которые размещают пины за небольшую плату 👤
+
+Чем больше аккаунтов публикуют твой товар - тем быстрее растёт охват и доверие алгоритма.',
+     'Шаг 1г — объяснение как бот помогает. Переменных нет.', 13);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_welcome_1e') THEN
+    INSERT INTO prompt_templates (key, template, description, sort_order) VALUES
+    ('msg_welcome_1e',
+     'Шаг 1д: Результаты и призыв к действию
+
+Продавцы, которые уже работают с нами:
+
+📍 Ниши: одежда, дом, детские товары, косметика, аксессуары
+📈 Средний результат за 30 дней: 500–3000 органических переходов на карточку в месяц
+⏳ Пины продолжают работать спустя месяцы после публикации
+
+Это не замена рекламе. Это трафик, который не останавливается, когда кончается бюджет.
+
+Попробуй прямо сейчас — первые пины генерируются за 2 минуты 👇',
+     'Шаг 1д — результаты и призыв к действию. Переменных нет.', 14);
   END IF;
 END $$;
 

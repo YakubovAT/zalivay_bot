@@ -8,8 +8,42 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 # ---------------------------------------------------------------------------
-# Шаг 1: Приветствие
+# Шаг 1: Приветствие (1а-1е)
 # ---------------------------------------------------------------------------
+
+def kb_next() -> InlineKeyboardMarkup:
+    """Кнопка 'Далее →' для навигации между шагами приветствия."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Далее →", callback_data="welcome_next")],
+    ])
+
+
+def kb_back() -> InlineKeyboardMarkup:
+    """Кнопка 'Назад' для навигации между шагами приветствия."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("← Назад", callback_data="welcome_back")],
+    ])
+
+
+def kb_back_next() -> InlineKeyboardMarkup:
+    """Кнопки 'Назад' и 'Далее' для навигации между шагами приветствия."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("← Назад", callback_data="welcome_back"),
+            InlineKeyboardButton("Далее →", callback_data="welcome_next"),
+        ],
+    ])
+
+
+def kb_start_work() -> InlineKeyboardMarkup:
+    """Кнопка 'Начать работу' для финального шага приветствия."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("← Назад", callback_data="welcome_back"),
+            InlineKeyboardButton("Начать работу", callback_data="welcome_start_work"),
+        ],
+    ])
+
 
 def kb_start() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
