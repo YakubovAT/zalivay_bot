@@ -36,10 +36,7 @@
 ## Документация
 
 ### Флоу пользователя
-- [00_onboarding_flow.md](./00_onboarding_flow.md) — приветствие и введение в бот (Шаги 1а-1е)
-
-### Веб-интерфейс
-- [01_web_interface.md](./01_web_interface.md) — веб-портал для просмотра медиа и управления шаблонами
+- [00_onboarding_flow.md](./00_onboarding_flow.md) — приветствие и введение в бот (Шаги 1а-1д)
 
 ### Технические процессы
 - [01_pinterest_workflow.md](./01_pinterest_workflow.md) — как работает Pinterest загрузка
