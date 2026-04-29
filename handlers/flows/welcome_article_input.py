@@ -41,9 +41,7 @@ from services.media_storage import ensure_user_media_dirs
 
 logger = logging.getLogger(__name__)
 
-_WELCOME_ARTICLE_INPUT = 6
-_WELCOME_LOADING = 7
-_WELCOME_RESULTS = 8
+_WELCOME_ARTICLE_INPUT = 5
 
 
 async def show_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
