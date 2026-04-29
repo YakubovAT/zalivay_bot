@@ -39,7 +39,7 @@ from services.reference_t2t_welcome import generate_welcome_description
 from services.reference_i2i_welcome import generate_reference_image, generate_4_photos
 from services.pinterest_csv_generator import generate_pinterest_csv
 from services.media_storage import ensure_user_media_dirs
-from services.prompt_generator_cloth import generate_photo_prompts
+from services.image_prompt_generator import generate_image_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -228,11 +228,21 @@ async def _process_welcome_generation(bot, user_id: int, article_code: str, user
             # 4. I2I: ГЕНЕРАЦИЯ 4 ФОТО
             # Генерируем 4 lifestyle-промта для категории товара
             logger.info("Welcome: generating 4 lifestyle prompts for category=%s", category)
-            lifestyle_prompts = await generate_photo_prompts(
-                description=description,
-                category=category,
-                count=4,
-            )
+            lifestyle_prompts = []
+            for i in range(4):
+                prompt = await generate_image_prompt(category=category)
+                if prompt:
+                    lifestyle_prompts.append(prompt)
+                else:
+                    logger.error("Welcome: failed to generate prompt #%d", i + 1)
+
+            if len(lifestyle_prompts) < 4:
+                await bot.send_message(
+                    chat_id=user_id,
+                    text="❌ Что-то пошло не так. Попробуйте позже."
+                )
+                return
+
             logger.info("Welcome: generated %d lifestyle prompts", len(lifestyle_prompts))
 
             # Функция generate_4_photos сама объединит 4 промта в сетку

@@ -210,12 +210,12 @@ async def generate_4_photos(
 
     # Объединяем 4 промта в один
     combined_prompt = (
-        "Generate a 2x2 grid of product images (4 equal parts), aspect ratio 3:4, resolution 1K PNG.\n\n"
-        f"Top-left: {prompts[0]}\n"
-        f"Top-right: {prompts[1]}\n"
-        f"Bottom-left: {prompts[2]}\n"
-        f"Bottom-right: {prompts[3]}\n\n"
-        "All 4 images must be the SAME PRODUCT from different angles/styles."
+        "Создай изображение разделённое на 4 равных части в каждом своё изображение:\n\n"
+        f"Верхний левый угол: {prompts[0]}\n"
+        f"Верхний правый угол: {prompts[1]}\n"
+        f"Нижний левый угол: {prompts[2]}\n"
+        f"Нижний правый угол: {prompts[3]}\n\n"
+        "Все 4 изображения — ОДИН И ТОТ ЖЕ ТОВАР из разных углов/стилей. Аспект 3:4, разрешение 1K PNG."
     )
 
     logger.info("I2I 4PHOTOS welcome | images=%d | combined_prompt_len=%d",
