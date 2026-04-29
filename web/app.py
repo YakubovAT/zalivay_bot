@@ -18,6 +18,7 @@ web/app.py
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -102,12 +103,14 @@ def _make_session(user_id: int, first_name: str) -> str:
     ts = int(time.time())
     payload = f"{user_id}:{first_name}:{ts}"
     sig = hmac.new(WEB_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()[:24]
-    return f"{payload}:{sig}"
+    token = f"{payload}:{sig}"
+    return base64.b64encode(token.encode()).decode()
 
 
 def _parse_session(token: str) -> dict | None:
     try:
-        *parts, sig = token.split(":")
+        decoded = base64.b64decode(token).decode()
+        *parts, sig = decoded.split(":")
         payload = ":".join(parts)
         expected = hmac.new(WEB_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()[:24]
         if not hmac.compare_digest(expected, sig):
