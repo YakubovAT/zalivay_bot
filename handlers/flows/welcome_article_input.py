@@ -148,7 +148,7 @@ async def _process_welcome_generation(bot, user_id: int, article_code: str, user
         logger.info("Welcome: saved article | id=%d", article_id)
 
         # Создаём папку для медиа
-        media_root = await ensure_user_media_dirs(user_id)
+        media_root = ensure_user_media_dirs(user_id)
         logger.info("Welcome: media_root=%s", media_root)
 
         # Скачиваем изображения и продолжаем с aiohttp сессией
