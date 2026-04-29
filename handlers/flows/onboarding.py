@@ -17,7 +17,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
-from database import ensure_user, get_user_stats, get_user, save_registration
+from database import ensure_user, get_user_stats, get_user
 from handlers.flows.flow_helpers import send_screen, clear_previous_screen, clear_article_context
 from handlers.flows.messages.common import msg_profile
 from handlers.keyboards import kb_start, kb_main_menu, kb_next, kb_back_next, kb_start_work
@@ -153,14 +153,9 @@ async def cb_welcome_back(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def cb_welcome_start_work(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Кнопка 'Начать работу' — переход в профиль и отметить пользователя как зарегистрированного."""
+    """Кнопка 'Начать работу' — переход в профиль."""
     query = update.callback_query
     await query.answer()
-    user = update.effective_user
-
-    # Помечаем пользователя как зарегистрированного (завершил флоу приветствия)
-    await save_registration(user.id)
-    logger.info("REGISTERED | user=%s", user.id)
 
     await _show_profile(update, context, message_id=query.message.message_id)
     return _MAIN_MENU
