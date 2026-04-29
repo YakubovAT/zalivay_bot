@@ -39,10 +39,22 @@ from services.reference_t2t_welcome import generate_welcome_description
 from services.reference_i2i_welcome import generate_reference_image, generate_4_photos
 from services.pinterest_csv_generator import generate_pinterest_csv
 from services.media_storage import ensure_user_media_dirs
+from services.prompt_generator_cloth import generate_photo_prompts
 
 logger = logging.getLogger(__name__)
 
 _WELCOME_ARTICLE_INPUT = 5
+
+
+def _generate_reference_prompt(product_name: str, color: str, material: str) -> str:
+    """Генерирует детальный prompt для I2I эталона товара."""
+    return f"""Проанализировать фото и найти {product_name} цвета {color} из {material}.
+Выделить ТОЛЬКО {product_name}, удалить модель, фон, аксессуары, текст.
+Сохранить 3D-форму, пропорции, текстуру ткани, складки, швы, узоры.
+Создать PNG с прозрачным фоном (RGBA), высокое разрешение.
+Фотореалистичность, студийное качество, чистые края.
+По центру как на невидимом манекене, полностью виден от верха до низа.
+Не менять цвета, не добавлять детали."""
 
 
 async def show_article_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -178,12 +190,13 @@ async def _process_welcome_generation(bot, user_id: int, article_code: str, user
 
             # 3. I2I: СОЗДАНИЕ ЭТАЛОНА
             logger.info("Welcome: calling I2I for reference")
+            reference_prompt = _generate_reference_prompt(name, color, material)
             ref_image_url = await generate_reference_image(
                 session=session,
                 api_base=I2I_API_BASE,
                 api_key=I2I_API_KEY,
                 image_urls=wb_images[:4],  # первые 4 фото
-                prompt="Isolate the product on transparent background",
+                prompt=reference_prompt,
             )
             if not ref_image_url:
                 await bot.send_message(
@@ -213,19 +226,23 @@ async def _process_welcome_generation(bot, user_id: int, article_code: str, user
             logger.info("Welcome: saved reference")
 
             # 4. I2I: ГЕНЕРАЦИЯ 4 ФОТО
-            # Получаем 4 промта для категории
-            logger.info("Welcome: getting prompts for category=%s", category)
-            photo_prompts = get_list(f"photo_{category}") or [""] * 4
-            if len(photo_prompts) < 4:
-                photo_prompts = (photo_prompts + [""] * 4)[:4]
+            # Генерируем 4 lifestyle-промта для категории товара
+            logger.info("Welcome: generating 4 lifestyle prompts for category=%s", category)
+            lifestyle_prompts = await generate_photo_prompts(
+                description=description,
+                category=category,
+                count=4,
+            )
+            logger.info("Welcome: generated %d lifestyle prompts", len(lifestyle_prompts))
 
-            logger.info("Welcome: calling I2I for 4 photos | prompts=%d", len(photo_prompts))
+            # Функция generate_4_photos сама объединит 4 промта в сетку
+            logger.info("Welcome: calling I2I for 4 photos grid")
             photos_url = await generate_4_photos(
                 session=session,
                 api_base=I2I_API_BASE,
                 api_key=I2I_API_KEY,
                 image_urls=wb_images[:4],
-                prompts=photo_prompts,
+                prompts=lifestyle_prompts,
             )
             if not photos_url:
                 await bot.send_message(
