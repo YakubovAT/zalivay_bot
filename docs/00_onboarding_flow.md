@@ -49,6 +49,7 @@
 - `services/wb_parser_welcome.py` — парсинг товара из WB
 - `services/reference_t2t_welcome.py` — генерация категории + описания
 - `services/reference_i2i_welcome.py` — генерация эталона + 4 фото
+- `services/image_prompt_generator.py` — генерация lifestyle-промтов (4 раза для велком флоу)
 - `services/pinterest_csv_generator.py` — генерация CSV (переиспользуется)
 
 **База данных:**
