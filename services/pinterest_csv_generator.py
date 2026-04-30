@@ -133,7 +133,7 @@ def _first_color(color: str) -> str:
 
 
 def _build_title(color: str, name: str, prefix: str, article: str, index: int) -> str:
-    return f"{_first_color(color)} {_first_word(name)} {prefix} {article} {index:04d}".strip()
+    return f"{_first_word(name)} {_first_color(color)} {prefix} {article} {index:04d}".strip()
 
 
 def _build_description(name: str, color: str, hashtags: list[str], phrases: list[str] | None = None) -> str:
@@ -141,15 +141,6 @@ def _build_description(name: str, color: str, hashtags: list[str], phrases: list
     tags = random.sample(hashtags, min(5, len(hashtags))) if hashtags else []
     hashtag_str = " ".join(f"#{t}" for t in tags)
     return f"{name} {_first_color(color)}. {phrase} {hashtag_str}".strip()
-
-
-def _build_link(template: str | None, article: str, index: int) -> str:
-    if not template:
-        return ""
-    try:
-        return template.format(article=article, index=index)
-    except (KeyError, ValueError):
-        return template
 
 
 async def generate_pinterest_csv(
@@ -221,7 +212,7 @@ async def generate_pinterest_csv(
             is_video = mf["file_type"] == "video"
             thumbnail = random.choices(_THUMBNAILS[:-1], weights=_THUMBNAIL_WEIGHTS[:-1], k=1)[0] if is_video else ""
             description = _build_description(name, color, settings.get("hashtags") or [], style_phrases)[:500]
-            link = _build_link(settings.get("link_template"), article_code, index)
+            link = ""
             # Board обязателен для Pinterest; приоритет — имя из эталона.
             board = (ref_product_name or "").strip() or name or settings.get("board") or article_code
 

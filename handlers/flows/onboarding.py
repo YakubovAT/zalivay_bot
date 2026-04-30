@@ -67,15 +67,14 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Очищаем информацию о выбранном артикуле
     clear_article_context(context)
 
-    # ФЛАГ: показывать ли флоу приветствия 1а-1е для повторных пользователей
-    # Пока True (всегда показывать) — позже можно переключить на False
-    SHOW_WELCOME_ALWAYS = True  # TODO: переключить на False когда готово
+    # ФЛАГ: принудительно показывать welcome 1а-1е даже после прохождения.
+    SHOW_WELCOME_ALWAYS = False
 
     user_obj = await get_user(user.id)
-    is_first_time = not user_obj["is_registered"]
+    is_welcome_completed = bool(user_obj and user_obj["is_welcome"])
 
-    # Если первый раз ИЛИ флаг всегда показывать — показать флоу 1а-1е
-    if is_first_time or SHOW_WELCOME_ALWAYS:
+    # Показываем welcome только если он ещё не завершён (или включён принудительный режим).
+    if (not is_welcome_completed) or SHOW_WELCOME_ALWAYS:
         context.user_data["welcome_step"] = "1a"
         welcome_text = await get_template("msg_welcome_1a")
         banner_name = await get_banner("msg_welcome_1a")
@@ -243,6 +242,8 @@ def build_onboarding_handler() -> ConversationHandler:
             _WELCOME_ARTICLE_INPUT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_article_input),
                 CallbackQueryHandler(cb_welcome_article_back, pattern="^welcome_article_back$"),
+                CallbackQueryHandler(cb_welcome_photo_close, pattern="^welcome_photo_close$"),
+                CallbackQueryHandler(cb_welcome_csv_to_menu, pattern="^welcome_csv_to_menu$"),
             ],
             _MAIN_MENU: [
                 CallbackQueryHandler(cb_back_to_menu, pattern="^back_to_menu$"),

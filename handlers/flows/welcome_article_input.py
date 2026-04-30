@@ -421,9 +421,11 @@ async def cb_welcome_article_back(update: Update, context: ContextTypes.DEFAULT_
 
 async def cb_welcome_csv_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Кнопка 'В меню' на экране результатов → главное меню (обработка вне ConversationHandler)."""
+    from handlers.flows.onboarding import _show_profile
+
     query = update.callback_query
     await query.answer()
-    # Эта кнопка может быть обработана вне ConversationHandler
+    await _show_profile(update, context, message_id=query.message.message_id)
     return
 
 
