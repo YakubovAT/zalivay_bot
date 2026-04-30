@@ -30,7 +30,7 @@ from database import (
     get_user_stats, save_media_file,
 )
 from handlers.flows.flow_helpers import send_screen
-from handlers.keyboards import kb_welcome_article_input, kb_welcome_csv_ready
+from handlers.keyboards import kb_welcome_article_input, kb_welcome_csv_ready, kb_welcome_photo_close
 from handlers.flows.messages.common import msg_profile
 from handlers.keyboards import kb_main_menu
 from services.prompt_store import get_template, get_banner, get_list
