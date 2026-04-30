@@ -2643,7 +2643,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM prompt_templates WHERE key = 'msg_loading_welcome') THEN
     INSERT INTO prompt_templates (key, template, description) VALUES
     ('msg_loading_welcome',
-     E'⏳ Генерирую изображения...',
+     E'⏳ Генерирую изображения... Это может занять пару минут.',
      'Велком флоу — экран загрузки');
   END IF;
 END $$;

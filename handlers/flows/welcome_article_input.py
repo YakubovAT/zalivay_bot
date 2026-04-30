@@ -120,7 +120,7 @@ async def show_loading(update: Update, context: ContextTypes.DEFAULT_TYPE, artic
     context.user_data["loading_msg_id"] = msg.message_id
 
     # Запускаем длительную операцию парсинга + генерации в фоне
-    asyncio.create_task(
+    welcome_task = asyncio.create_task(
         _process_welcome_generation(
             context.bot,
             user.id,
@@ -128,6 +128,8 @@ async def show_loading(update: Update, context: ContextTypes.DEFAULT_TYPE, artic
             context.user_data,
         )
     )
+    # Сохраняем task чтобы можно было отменить при нажатии кнопки меню
+    context.user_data["welcome_task"] = welcome_task
 
     # Выходим из ConversationHandler — длительная операция будет в фоне
     return ConversationHandler.END
@@ -393,6 +395,9 @@ async def _process_welcome_generation(bot, user_id: int, article_code: str, user
 
         logger.info("Welcome: completed successfully | user=%s", user_id)
 
+    except asyncio.CancelledError:
+        logger.info("Welcome generation cancelled | user=%s | (user clicked menu button)", user_id)
+
     except Exception as e:
         logger.error("Welcome generation error: %s", e, exc_info=True)
         await bot.send_message(
@@ -447,13 +452,24 @@ async def cb_welcome_article_back(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def cb_welcome_csv_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Кнопка 'В меню' на экране результатов → главное меню (обработка вне ConversationHandler)."""
+    """Кнопка 'В меню' на экране результатов → главное меню."""
     from handlers.flows.onboarding import _show_profile
+    from telegram.ext import ConversationHandler
 
     query = update.callback_query
     await query.answer()
+
+    # Отменяем фоновую task если она еще выполняется (sleep(60))
+    welcome_task = context.user_data.get("welcome_task")
+    if welcome_task and not welcome_task.done():
+        welcome_task.cancel()
+        logger.info("Welcome: cancelled background task for user=%s", update.effective_user.id)
+
+    # Показываем меню
     await _show_profile(update, context, message_id=query.message.message_id)
-    return
+
+    # Выходим из ConversationHandler
+    return ConversationHandler.END
 
 
 async def cb_welcome_photo_close(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
