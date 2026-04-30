@@ -31,7 +31,7 @@
 | | 1е | msg_welcome_1e | "← Назад", "Начать работу" |
 | Демонстрация | 1ж | msg_welcome_step_1f | "← Назад" |
 | | Загрузка | msg_loading_welcome | (нет кнопок) |
-| | Результаты | CSV + фото | "Меню" / "Закрыть" |
+| | Результаты | 4 фото + CSV | "❌ Закрыть" на фото, "В меню" на CSV |
 
 ## Технические детали
 
@@ -48,8 +48,9 @@
 **Сервисы:**
 - `services/wb_parser_welcome.py` — парсинг товара из WB
 - `services/reference_t2t_welcome.py` — генерация категории + описания
-- `services/reference_i2i_welcome.py` — генерация эталона + 4 фото
+- `services/reference_i2i_welcome.py` — генерация эталона + 4 фото + разрезание + скачивание
 - `services/image_prompt_generator.py` — генерация lifestyle-промтов (4 раза для велком флоу)
+- `services/image_watermark.py` — наложение watermark на каждое фото
 - `services/pinterest_csv_generator.py` — генерация CSV (переиспользуется)
 
 **База данных:**
