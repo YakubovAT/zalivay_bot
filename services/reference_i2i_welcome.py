@@ -13,9 +13,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import aiohttp
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -256,3 +258,77 @@ async def generate_4_photos(
 
     logger.info("I2I 4PHOTOS RESULT welcome | image_url=%s", image_url)
     return image_url
+
+
+async def download_image_from_url(
+    session: aiohttp.ClientSession,
+    url: str,
+    output_path: str,
+) -> bool:
+    """Скачивает изображение по URL и сохраняет в файл."""
+    try:
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+            if resp.status == 200:
+                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+                with open(output_path, "wb") as f:
+                    f.write(await resp.read())
+                logger.info("Downloaded image | url=%s | path=%s", url, output_path)
+                return True
+            else:
+                logger.error("Download failed | url=%s | status=%d", url, resp.status)
+                return False
+    except Exception as e:
+        logger.error("Download error | url=%s | error=%s", url, e)
+        return False
+
+
+def split_image_2x2(
+    image_path: str,
+    output_dir: str,
+    article_code: str,
+    task_id: str,
+) -> list[str] | None:
+    """
+    Разрезает PNG (3:4) на 4 равные части (2x2 сетка).
+
+    Args:
+        image_path: путь к исходному PNG файлу
+        output_dir: папка для сохранения 4 частей
+        article_code: артикул товара (для названия файлов)
+        task_id: ID задачи (для уникальности)
+
+    Returns:
+        Список из 4 путей к файлам или None при ошибке.
+    """
+    try:
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+        img = Image.open(image_path)
+        logger.info("Split image | path=%s | size=%s", image_path, img.size)
+
+        width, height = img.size
+
+        half_width = width // 2
+        half_height = height // 2
+
+        coords = [
+            (0, 0, half_width, half_height),              # top-left
+            (half_width, 0, width, half_height),          # top-right
+            (0, half_height, half_width, height),         # bottom-left
+            (half_width, half_height, width, height),     # bottom-right
+        ]
+
+        output_paths = []
+        for i, (left, top, right, bottom) in enumerate(coords, 1):
+            part = img.crop((left, top, right, bottom))
+            part_path = f"{output_dir}/photo_{article_code}_{task_id}_{i}.png"
+            part.save(part_path, "PNG")
+            output_paths.append(part_path)
+            logger.info("Split part #%d | path=%s | size=%s", i, part_path, part.size)
+
+        logger.info("Image split successfully | parts=%d", len(output_paths))
+        return output_paths
+
+    except Exception as e:
+        logger.error("Split image error | path=%s | error=%s", image_path, e)
+        return None

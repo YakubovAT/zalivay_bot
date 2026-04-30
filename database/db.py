@@ -894,6 +894,37 @@ async def get_media_file_by_id(media_file_id: int) -> asyncpg.Record | None:
     )
 
 
+async def save_media_file(
+    user_id: int,
+    article_code: str,
+    file_path: str,
+    watermarked_path: str | None = None,
+    file_type: str = "photo",
+    result_url: str | None = None,
+) -> int:
+    """
+    Сохраняет информацию о медиафайле в БД.
+
+    Returns:
+        ID созданной записи в media_files.
+    """
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        INSERT INTO media_files (user_id, article_code, file_path, watermarked_path, file_type, result_url)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id
+        """,
+        user_id,
+        article_code,
+        file_path,
+        watermarked_path,
+        file_type,
+        result_url,
+    )
+    return row["id"] if row else -1
+
+
 async def save_pinterest_settings(
     user_id: int,
     article_code: str | None,

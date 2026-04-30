@@ -45,6 +45,7 @@ from .db import (
     get_pending_video_job_tasks,
     fail_stuck_video_jobs,
     # media_files
+    save_media_file,
     register_media_file,
     get_unexported_media_files,
     get_all_unexported_media_files,
@@ -105,6 +106,7 @@ __all__ = [
     "get_pending_video_job_tasks",
     "fail_stuck_video_jobs",
     # media_files
+    "save_media_file",
     "register_media_file",
     "get_unexported_media_files",
     "get_all_unexported_media_files",

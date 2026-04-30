@@ -27,7 +27,7 @@ from config import (
 )
 from database import (
     save_article, save_reference, mark_welcome_completed, get_user,
-    get_user_stats,
+    get_user_stats, save_media_file,
 )
 from handlers.flows.flow_helpers import send_screen
 from handlers.keyboards import kb_welcome_article_input, kb_welcome_csv_ready
@@ -36,7 +36,13 @@ from handlers.keyboards import kb_main_menu
 from services.prompt_store import get_template, get_banner, get_list
 from services.wb_parser_welcome import get_product_info
 from services.reference_t2t_welcome import generate_welcome_description
-from services.reference_i2i_welcome import generate_reference_image, generate_4_photos
+from services.reference_i2i_welcome import (
+    generate_reference_image,
+    generate_4_photos,
+    download_image_from_url,
+    split_image_2x2,
+)
+from services.image_watermark import apply_watermark
 from services.pinterest_csv_generator import generate_pinterest_csv
 from services.media_storage import ensure_user_media_dirs
 from services.image_prompt_generator import generate_image_prompt
@@ -263,6 +269,61 @@ async def _process_welcome_generation(bot, user_id: int, article_code: str, user
 
             logger.info("Welcome: I2I 4photos done | url=%s", photos_url)
 
+            # 4.1 РАЗРЕЗАНИЕ PNG НА 4 ЧАСТИ И WATERMARK
+            logger.info("Welcome: splitting and watermarking 4 photos")
+            temp_image_path = f"{media_root}/temp/4photos_{article_code}.png"
+            if not await download_image_from_url(session, photos_url, temp_image_path):
+                await bot.send_message(
+                    chat_id=user_id,
+                    text="❌ Что-то пошло не так. Попробуйте позже."
+                )
+                return
+
+            # Генерируем task_id для уникальности файлов
+            import uuid
+            task_id = str(uuid.uuid4())[:8]
+            generated_dir = f"{media_root}/generated/{article_code}"
+
+            split_paths = split_image_2x2(
+                image_path=temp_image_path,
+                output_dir=generated_dir,
+                article_code=article_code,
+                task_id=task_id,
+            )
+            if not split_paths or len(split_paths) < 4:
+                await bot.send_message(
+                    chat_id=user_id,
+                    text="❌ Что-то пошло не так. Попробуйте позже."
+                )
+                return
+
+            logger.info("Welcome: split into 4 parts | paths=%d", len(split_paths))
+
+            # Добавляем watermark на каждую часть и сохраняем в БД
+            watermarked_paths = []
+            for i, orig_path in enumerate(split_paths, 1):
+                watermarked_path = apply_watermark(
+                    file_path=orig_path,
+                    article_code=article_code,
+                    name=name,
+                    out_path=f"{generated_dir}/photo_{article_code}_{task_id}_{i}_with_text.png",
+                    article_label=f"арт. {article_code}",
+                )
+                watermarked_paths.append(watermarked_path)
+                logger.info("Welcome: watermarked photo #%d | path=%s", i, watermarked_path)
+
+                # Сохраняем в БД media_files
+                await save_media_file(
+                    user_id=user_id,
+                    article_code=article_code,
+                    file_path=orig_path,
+                    watermarked_path=watermarked_path,
+                    file_type="photo",
+                    task_id=task_id,
+                )
+
+            logger.info("Welcome: all 4 photos watermarked and saved to DB | count=%d", len(watermarked_paths))
+
             # 5. ГЕНЕРАЦИЯ CSV
             logger.info("Welcome: generating CSV")
             csv_result = await generate_pinterest_csv(
@@ -279,6 +340,7 @@ async def _process_welcome_generation(bot, user_id: int, article_code: str, user
             bot=bot,
             user_id=user_id,
             article_code=article_code,
+            photo_paths=watermarked_paths,
             csv_content=csv_content,
         )
 
@@ -313,10 +375,23 @@ async def _process_welcome_generation(bot, user_id: int, article_code: str, user
         )
 
 
-async def show_results(bot, user_id: int, article_code: str, csv_content: str):
-    """Отправляет результаты: CSV."""
+async def show_results(bot, user_id: int, article_code: str, photo_paths: list[str], csv_content: str):
+    """Отправляет результаты: 4 фото + CSV."""
     try:
-        # Отправляем CSV файл
+        # 1. Отправляем 4 фото (каждое в отдельном сообщении)
+        for i, photo_path in enumerate(photo_paths, 1):
+            try:
+                with open(photo_path, "rb") as photo_file:
+                    await bot.send_photo(
+                        chat_id=user_id,
+                        photo=photo_file,
+                        reply_markup=kb_welcome_photo_close(),
+                    )
+                logger.info("Welcome: sent photo #%d to user | path=%s", i, photo_path)
+            except Exception as e:
+                logger.error("Welcome: failed to send photo #%d | error=%s", i, e)
+
+        # 2. Отправляем CSV файл
         csv_file = io.BytesIO(csv_content.encode('utf-8-sig'))
         csv_file.name = f"pinterest_pins_{article_code}.csv"
 
