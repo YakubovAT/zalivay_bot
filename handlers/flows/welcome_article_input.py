@@ -319,7 +319,6 @@ async def _process_welcome_generation(bot, user_id: int, article_code: str, user
                     file_path=orig_path,
                     watermarked_path=watermarked_path,
                     file_type="photo",
-                    task_id=task_id,
                 )
 
             logger.info("Welcome: all 4 photos watermarked and saved to DB | count=%d", len(watermarked_paths))
