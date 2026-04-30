@@ -15,6 +15,7 @@ import asyncio
 import io
 import json
 import logging
+import os
 import re
 
 import aiohttp
@@ -27,7 +28,7 @@ from config import (
 )
 from database import (
     save_article, save_reference, mark_welcome_completed, get_user,
-    get_user_stats, save_media_file,
+    get_user_stats, save_media_file, get_reference_count,
 )
 from handlers.flows.flow_helpers import send_screen
 from handlers.keyboards import kb_welcome_article_input, kb_welcome_csv_ready, kb_welcome_photo_close
@@ -213,23 +214,49 @@ async def _process_welcome_generation(bot, user_id: int, article_code: str, user
 
             logger.info("Welcome: I2I reference done | url=%s", ref_image_url)
 
-            # Сохраняем эталон в БД
+            # Скачиваем результат эталона локально
+            ref_count = await get_reference_count(user_id, article_code)
+            reference_number = ref_count + 1
+
+            result_local = f"media/{user_id}/references/{article_code}_ref_{reference_number}.png"
+            os.makedirs(os.path.dirname(result_local), exist_ok=True)
+
+            async with session.get(ref_image_url) as resp:
+                if resp.status == 200:
+                    with open(result_local, "wb") as f:
+                        f.write(await resp.read())
+
+            # Отправляем временное фото для получения file_id
+            temp_msg = await bot.send_photo(
+                chat_id=user_id,
+                photo=open(result_local, "rb"),
+            )
+            file_id = temp_msg.photo[-1].file_id if temp_msg.photo else ""
+            logger.info("Welcome: FILE_ID_OBTAINED | file_id=%s", file_id)
+
+            # Удаляем временное сообщение
+            try:
+                await bot.delete_message(chat_id=user_id, message_id=temp_msg.message_id)
+            except Exception:
+                pass
+
+            # Сохраняем эталон в БД с file_id и file_path
             await save_reference(
                 user_id=user_id,
                 articul=article_code,
-                file_id="",  # для велком флоу не сохраняем file_id
-                file_path="",
+                file_id=file_id,
+                file_path=result_local,
                 reference_image_url=ref_image_url,
                 category=category,
-                reference_prompt="",
-                reference_number=1,
+                reference_prompt=reference_prompt,
+                reference_number=reference_number,
                 product_name=name,
                 product_color=color,
                 product_material=material,
                 product_description=description,
                 source_photo_paths=json.dumps(wb_images[:3]),
             )
-            logger.info("Welcome: saved reference")
+            logger.info("Welcome: saved reference | file_id=%s file_path=%s", file_id, result_local)
 
             # 4. I2I: ГЕНЕРАЦИЯ 4 ФОТО
             # Генерируем 4 lifestyle-промта для категории товара
