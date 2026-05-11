@@ -150,6 +150,7 @@ async def generate_pinterest_csv(
     article_code_filter: str | None = None,
     distribution_mode: str = "random",
     priority_article_code: str | None = None,
+    mark_exported: bool = True,
 ) -> dict:
     """
     Генерирует CSV для Pinterest.
@@ -174,7 +175,8 @@ async def generate_pinterest_csv(
     style_phrases = await get_list("pinterest_style_phrases") or _STYLE_PHRASES_FALLBACK
 
     all_files = await get_all_unexported_media_files(user_id)
-    all_files = [f for f in all_files if f["article_code"] != "00000"]
+    if article_code_filter != "00000":
+        all_files = [f for f in all_files if f["article_code"] != "00000"]
     if article_code_filter:
         all_files = [f for f in all_files if f["article_code"] == article_code_filter]
     total_available = len(all_files)
@@ -237,7 +239,7 @@ async def generate_pinterest_csv(
             logger.error("PINTEREST | ошибка для файла id=%d: %s", mf["id"], e)
             errors.append(f"Файл {mf['id']}: {e}")
 
-    if exported_ids:
+    if exported_ids and mark_exported:
         await mark_pinterest_exported(exported_ids)
 
     if output_format == "csv":

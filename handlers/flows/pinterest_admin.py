@@ -87,6 +87,7 @@ async def on_count_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         user_id=_USER_ID,
         rows_count=count,
         article_code_filter=_ARTICLE_CODE,
+        mark_exported=False,
     )
 
     generated = result["stats"]["count"]
